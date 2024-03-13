@@ -10,7 +10,7 @@ use tower_http::{
     normalize_path::NormalizePathLayer,
     services::{ServeDir, ServeFile},
 };
-use tracing::{error, info};
+use tracing::info;
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
 use tracing_subscriber::{
     filter::Targets, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Layer as _,
@@ -147,10 +147,13 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     let app = NormalizePathLayer::trim_trailing_slash().layer(router);
     let service = ServiceExt::<Request>::into_make_service_with_connect_info::<SocketAddr>(app);
 
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .with_context(|| format!("Could not bind to {addr}"))?;
     axum::serve(listener, service)
         .with_graceful_shutdown(shutdown_signal())
-        .await?;
+        .await
+        .context("Failed during server service")?;
     Ok(())
 }
 
