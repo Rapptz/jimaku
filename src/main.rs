@@ -10,7 +10,7 @@ use tower_http::{
     normalize_path::NormalizePathLayer,
     services::{ServeDir, ServeFile},
 };
-use tracing::info;
+use tracing::{error, info};
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
 use tracing_subscriber::{
     filter::Targets, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Layer as _,
@@ -260,5 +260,10 @@ async fn main() {
     let command = jimaku::Command::parse();
     if let Err(e) = run(command).await {
         eprintln!("Error occurred during main execution:\n{e:?}");
+
+        error!(error = %e,"error occurred during main execution");
+        for e in e.chain().skip(1) {
+            error!(cause = %e)
+        }
     }
 }
