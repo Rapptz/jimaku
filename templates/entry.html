@@ -1,0 +1,170 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/entry.css" type="text/css">
+{% endblock %}
+
+{% block title %}
+{{ entry.name }} · Jimaku
+{% endblock %}
+
+{% block body %}
+{%- for flash in flashes -%}
+{{ flash.html()|safe }}
+{%- endfor -%}
+{%- let flags = account.flags() -%}
+<script>const entryId = {{entry.id}};const entryData = {{entry.data()|json|safe}};</script>
+<div class="entry-info">
+  <h1 class="title">{{ entry.name }}</h1>
+  {% match entry.anilist_id -%}
+    {% when Some with (id) -%}
+  <div class="external-link">
+    <a href="https://anilist.co/anime/{{ id }}/" title="AniList page for this anime">
+      <img src="https://anilist.co/img/icons/favicon-32x32.png" width="24px" height="24px" alt="AniList icon" />
+    </a>
+  </div>
+    {% when None -%}
+  {% endmatch -%}
+  <div class="badges">
+    {% if entry.flags.is_low_quality() -%}
+    <span class="badge danger" title="Entry has quality issues">Low Quality</span>
+    {% endif -%}
+    {% if entry.flags.is_external() -%}
+    <span class="badge warning" title="Entry originated from Kitsunekko">Legacy</span>
+    {% endif -%}
+  </div>
+</div>
+<div id="relations"></div>
+{% match entry.notes -%}
+  {% when Some with (notes) -%}
+<p class="notes">{{ notes|markdown }}</p>
+  {% when None -%}
+{% endmatch -%}
+<hr>
+<div class="commands">
+  <div class="text-input-container">
+    <input autocomplete="off" type="search" id="search-files" placeholder="Search files by name..." spellcheck="false">
+    <button class="clear" id="clear-search-filter">✖</button>
+  </div>
+  <div class="command-buttons">
+  {% match account %}
+    {% when Some with (account) %}
+    {% if account.flags.is_editor() -%}
+    <button id="edit-entry" class="button">Edit</button>
+    {% endif -%}
+    <form id="upload-form" method="POST" action="/entry/{{ entry.id }}/upload" enctype="multipart/form-data">
+      <label for="upload-file-input" id="upload-button" class="button upload primary">Upload</label>
+      <input name="file" type="file" id="upload-file-input" accept=".srt,.ass,.ssa,.sub,.sup,.zip" hidden multiple>
+    </form>
+    {% when None %}
+    <a class="button upload primary" href="/login">Login to upload</a>
+  {% endmatch %}
+  </div>
+</div>
+<div class="files" data-columns="4">
+  <div class="table-headers">
+    <span class="table-header"><input id="bulk-check" autocomplete="off" type="checkbox"></span>
+    <span class="table-header sorting-ascending" data-sort-by="name">Name</span>
+    <span class="table-header" data-sort-by="size">Size</span>
+    <span class="table-header" data-sort-by="last-modified">Date</span>
+  </div>
+  {% for file in files -%}
+  <div class="entry" data-extra="{{ file|json }}">
+    <span class="table-data file-bulk"><input autocomplete="off" type="checkbox"></span>
+    <a href="{{ file.url }}" class="table-data file-name">{{ file.name|e }}</a>
+    <span class="table-data file-size">{{ file.size|filesizeformat}}</span>
+    <span class="table-data file-modified" title="{{ file.last_modified|isoformat }}">{{ file.last_modified|isoformat }}</span>
+  </div>
+  {% endfor -%}
+</div>
+<div class="commands">
+  <div class="command-buttons">
+    {% if flags.is_admin() %}
+    <button id="delete-files" disabled class="button danger">Delete</button>
+    {% endif %}
+    {% if flags.is_editor() %}
+    <button id="move-files" disabled class="button">Move</button>
+    {% endif %}
+    <button id="download-files" disabled class="button primary">Download</button>
+  </div>
+</div>
+
+{%- if flags.is_editor() %}
+<dialog id="edit-entry-modal">
+  <form autocomplete="off" method="POST" action="/entry/{{ entry.id }}/edit">
+    <h1>Edit Entry</h1>
+    <div class="form-container">
+      <label for="entry-name">Name</label>
+      <input class="form-field" required value="{{ entry.name }}" name="name"
+             id="entry-name" autocomplete="off" type="text">
+      <label for="entry-japanese-name">Japanese Name</label>
+      <input class="form-field" value="{{ entry.japanese_name|maybe_display }}"
+             name="japanese_name" id="entry-japanese-name" autocomplete="off" type="text">
+      <label for="entry-english-name">English Name</label>
+      <input class="form-field" value="{{ entry.english_name|maybe_display }}"
+             name="english_name" id="entry-english-name" autocomplete="off" type="text">
+      <label for="entry-anilist-id">AniList ID</label>
+      <input class="form-field" value="{{ entry.anilist_id|maybe_display }}" pattern="[0-9]*"
+             name="anilist_id" id="entry-anilist-id" autocomplete="off" type="text">
+      <div class="form-field checkbox-container">
+        <input value="true" {%- if entry.flags.is_low_quality() -%}checked{% endif %}
+               name="low_quality" id="entry-low-quality" type="checkbox">
+        <label for="entry-low-quality">Low Quality</label>
+      </div>
+      <label for="entry-notes">Notes</label>
+      <textarea class="form-field" name="notes" id="entry-notes" autocomplete="off"
+                placeholder="Series specific notes. Markdown supported." rows="10"
+                maxlength="1024" spellcheck="true">{{ entry.notes|maybe_display }}</textarea>
+    </div>
+    <footer>
+      <button class="button" value="cancel" formmethod="dialog">Cancel</button>
+      <button id="anilist-sync" type="button" class="button" value="sync">Sync with AniList</button>
+      <button id="confirm-edit" class="button primary">Confirm</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="move-entries-modal">
+  <form autocomplete="off">
+    <h1>Move Entries</h1>
+    <p>
+      This operation moves the selected files to either a new or pre-existing folder with
+      the given AniList URL or directory name. Providing the directory name is not required
+      if the AniList URL is given.
+    </p>
+    <div class="form-container">
+      <label for="anilist-url">AniList URL</label>
+      <input class="form-field" required
+             pattern="https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?"
+             placeholder="https://anilist.co/anime/12345/" name="anilist_url" id="anilist-url"
+             autocomplete="off" type="text">
+      <label for="directory-name">Directory Name</label>
+      <input class="form-field" name="name" id="directory-name" autocomplete="off" type="text">
+    </div>
+    <footer>
+      <button class="button" formmethod="dialog">Cancel</button>
+      <button id="confirm-move" class="button primary">Create</button>
+    </footer>
+  </form>
+</dialog>
+{%- endif -%}
+
+{% if flags.is_admin() %}
+<dialog id="confirm-delete-modal">
+  <form>
+    <h1>Are you sure?</h1>
+    <p>This will delete <span id="delete-count"></span>.</p>
+    <footer>
+      <button class="button" formmethod="dialog">Cancel</button>
+      <button id="confirm-delete" class="button danger">Delete</button>
+    </footer>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block body_end %}
+<script src="/static/fuzzysort.min.js"></script>
+<script src="/static/files.js"></script>
+<script src="/static/entry.js"></script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/auth.css" type="text/css" />
+<link rel="stylesheet" href="/static/entry.css" type="text/css" />
+{% endblock %}
+
+{% block title %}
+My Account · Jimaku
+{% endblock %}
+
+{% block body_end %}
+<script src="/static/auth.js"></script>
+<script src="/static/files.js"></script>
+{% endblock %}
+
+{% block body %}
+{% let account = account.as_ref().unwrap() %}
+<div class="account-info">
+  <h2 class="account-name">{{ user.name }}</h2>
+  <div class="badges">
+    {% if user.flags.is_admin() -%}
+    <span class="badge branding" title="User is an administrator">Admin</span>
+    {% endif -%}
+    {% if user.flags.is_editor() -%}
+    <span class="badge info" title="User is an editor">Editor</span>
+    {% endif -%}
+  </div>
+</div>
+<div class="commands">
+  <button class="button" id="change-password">Change Password</button>
+  {% if account.flags.is_admin() %}
+  <button class="button primary" data-editor="{{ user.flags.is_editor() }}"
+          data-endpoint="/account/{{ user.id }}/edit" id="toggle-editor">Toggle Editor</button>
+  {% endif %}
+</div>
+{% if !entries.is_empty() %}
+<h3>Created Entries</h3>
+<div class="files" data-columns="2">
+  <div class="table-headers">
+    <span class="table-header sorting-ascending" data-sort-by="name">Name</span>
+    <span class="table-header" data-sort-by="last-modified">Date</span>
+  </div>
+
+  <!-- TODO: name can be changed with setting -->
+  {% for entry in entries %}
+  <div class="entry" data-extra="{{ entry.data()|json }}">
+    <a href="/entry/{{ entry.id }}" class="table-data file-name">{{ entry.name|e }}</a>
+    <span class="table-data file-modified" title="{{ entry.last_updated_at|isoformat }}">{{ entry.last_updated_at|isoformat }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+<dialog id="change-password-modal">
+  <form autocomplete="off" method="POST" action="/account/change_password">
+    <h1>Change Password</h1>
+    <div class="form-container">
+      <label for="old-password">Current Password</label>
+      <div class="password-container form-field">
+        <input class="form-field" required placeholder=" " minlength="8" maxlength="128" name="old_password" id="old-password" type="password">
+        <span class="password-icon"><img alt="Password visibility icon" src="/static/visibility.svg" width="24px" height="24px"/></span>
+      </div>
+      <label for="new-password">New Password</label>
+      <div class="password-container form-field">
+        <input class="form-field" required placeholder=" " minlength="8" maxlength="128" name="new_password" id="new-password" type="password">
+        <span class="password-icon"><img alt="Password visibility icon" src="/static/visibility.svg" width="24px" height="24px"/></span>
+      </div>
+    </div>
+    <footer>
+      <button class="button" formmethod="dialog">Cancel</button>
+      <button id="confirm" class="button primary">Done</button>
+    </footer>
+  </form>
+</dialog>
+{% endblock %}

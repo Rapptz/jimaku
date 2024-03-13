@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Error · Jimaku
+{% endblock %}
+
+{% block body %}
+<h1>Whoops</h1>
+<p>
+  An internal error happened: {{ error }}
+</p>
+<p>
+  There is no need to be alarmed. <a href="/">Feel free to go back.</a>
+</p>
+{% endblock %}
+

@@ -1,0 +1,244 @@
+.files {
+  display: grid;
+  margin-bottom: 0.5rem;
+}
+
+.entry {
+  display: contents;
+}
+
+.entry > .table-data {
+  padding: 0.25rem;
+  border-bottom: 2px solid var(--table-border);
+  text-decoration: none;
+  background-color: var(--table-background);
+}
+
+.entry:last-child > .table-data {
+  border-bottom: none;
+}
+
+.entry > .file-name {
+  word-wrap: break-word;
+}
+
+.entry:hover > .table-data, .table-headers:hover > .table-header {
+  background-color: var(--table-background-hover);
+}
+
+.file-modified {
+  text-align: right;
+}
+
+.file-size {
+  text-align: center;
+}
+
+.entry-info {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.external-link {
+  display: flex;
+}
+
+.entry-info > .external-link {
+  margin-right: auto;
+  width: 24px;
+  height: 24px;
+  align-self: center;
+}
+
+.entry-info:has(> .external-link) > .title {
+  margin-right: 0.5rem;
+}
+
+.entry-info > .title {
+  margin-right: auto;
+}
+
+.entry-info > .badges {
+  margin-left: 0.5rem;
+}
+
+.files[data-columns="2"] {
+  grid-template-columns: repeat(2, auto);
+}
+
+.files[data-columns="2"] .table-header:last-child {
+  text-align: right;
+}
+
+.files[data-columns="4"] {
+  grid-template-columns: min-content minmax(0, 1fr) repeat(2, max-content);
+}
+
+.table-header {
+  border-bottom: 2px solid var(--table-border);
+  padding: 0.25rem;
+}
+
+.table-headers {
+  display: contents;
+  font-weight: bold;
+  border-bottom: 2px solid var(--table-border);
+  padding: 0.25rem;
+}
+
+.table-headers > span {
+  min-height: 1.5rem;
+}
+
+.table-headers > span:hover {
+  cursor: pointer;
+}
+
+.table-headers > span::after {
+  content: '\25B4';
+  padding-left: 0.25rem;
+  display: none;
+}
+
+.table-headers > span.sorting-ascending::after {
+  content: '\25B4';
+  display: inline;
+}
+
+.table-headers > span.sorting-descending::after {
+  content: '\25BE';
+  display: inline;
+}
+
+.commands {
+  display: flex;
+  margin-bottom: 0.5rem;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.commands > .text-input-container {
+  flex-grow: 1;
+}
+
+.commands > .command-buttons {
+  align-self: flex-end;
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.text-input-container {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+}
+
+.text-input-container > input {
+  width: 100%;
+  padding-right: 2rem;
+  border-top-right-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.text-input-container > input:placeholder-shown + .clear {
+  color: transparent;
+  cursor: text;
+}
+
+.text-input-container > input:not(:placeholder-shown) + .clear {
+  color: var(--foreground);
+}
+
+.text-input-container > .clear {
+  height: 2rem;
+  background-color: var(--form-input-background);
+  border: none;
+  color: var(--foreground);
+  width: 2rem;
+  box-shadow: none;
+  max-width: 25rem;
+  cursor: pointer;
+  border-top-right-radius: 0.25rem;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.text-input-container > input:focus {
+  border-right: none;
+}
+
+.text-input-container > input:focus + .clear {
+  border: 2px solid var(--form-input-focus-border);
+  border-left: none;
+}
+
+.text-input-container > .clear:hover {
+  color: var(--text-muted);
+}
+
+#relations {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+a.relation:not(:last-child)::after {
+  content: ' | ';
+  color: var(--foreground);
+}
+
+#relations > span {
+  flex-basis: 100%;
+  font-weight: bold;
+}
+
+#relations > span::after {
+  content: ': ';
+}
+
+/* tables are easier as desktop first */
+@media (max-width: 480px) {
+  .files[data-columns="4"] {
+    grid-template-columns: min-content repeat(3, minmax(0, 1fr));
+  }
+
+  .files[data-columns="4"] > .entry > .file-bulk {
+    border-bottom: none;
+  }
+
+  .files[data-columns="4"] > .entry > .file-name {
+    grid-column: 2 / span 3;
+    border-bottom: none;
+  }
+
+  .files[data-columns="4"] > .entry > .file-size {
+    grid-column: 1 / span 3;
+    text-align: right;
+  }
+
+  .table-header:nth-last-child(-n+2) {
+    text-align: right;
+  }
+
+  .files[data-columns="4"] > .entry > .file-modified {
+    grid-column: 4;
+  }
+}
+
+@media (min-width: 480px) {
+  .commands {
+    flex-direction: row;
+  }
+
+  .commands > .command-buttons {
+    align-self: normal;
+  }
+
+  #relations > span {
+    flex-basis: auto;
+  }
+}

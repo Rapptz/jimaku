@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/entry.css" type="text/css">
+{% endblock %}
+
+{% block body %}
+{% for flash in flashes %}
+{{ flash.html()|safe }}
+{% endfor %}
+{%- let editor = account.flags().is_editor() -%}
+<div class="commands">
+  <div class="text-input-container">
+    <input autocomplete="off" type="search" id="search-files" placeholder="Search files by name or AniList URL..." spellcheck="false">
+    <button class="clear" id="clear-search-filter">✖</button>
+  </div>
+  {% match account %}
+    {% when Some with (account) %}
+    <button id="upload-button" data-type="directory" class="button upload primary">Create Folder</button>
+    {% when None %}
+    <a class="button upload primary" href="/login">Login to upload</a>
+  {% endmatch %}
+</div>
+<div class="files" data-columns="2">
+  <div class="table-headers">
+    <span class="table-header sorting-ascending" data-sort-by="name">Name</span>
+    <span class="table-header" data-sort-by="last-modified">Date</span>
+  </div>
+
+  <!-- TODO: name can be changed with setting -->
+  {% for entry in entries %}
+  <div class="entry" data-extra="{{ entry.data()|json }}">
+    <a href="/entry/{{ entry.id }}" class="table-data file-name">{{ entry.name|e }}</a>
+    <span class="table-data file-modified" title="{{ entry.last_updated_at|isoformat }}">{{ entry.last_updated_at|isoformat }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<dialog id="upload-modal">
+  <form method="post" action="/entry/create" autocomplete="off">
+    <h1>Create folder</h1>
+    <div class="form-container">
+      <label for="anilist-url">AniList URL</label>
+      <input class="form-field" {%- if !editor -%} required {%- endif -%}
+             pattern="https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?"
+             placeholder="https://anilist.co/anime/12345/" name="anilist_url" id="anilist-url"
+             autocomplete="off" type="text">
+      {% if editor %}
+      <label for="directory-name">Directory Name</label>
+      <input class="form-field" name="name" id="directory-name" autocomplete="off" type="text">
+      {% endif %}
+    </div>
+    <footer>
+      <button class="button" formmethod="dialog">Cancel</button>
+      <button id="confirm-upload" class="button primary">Create</button>
+    </footer>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block body_end %}
+<script src="/static/fuzzysort.min.js"></script>
+<script src="/static/files.js"></script>
+<script src="/static/index.js"></script>
+{% endblock %}

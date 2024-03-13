@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/admin.css" type="text/css">
+{% endblock %}
+
+{% block body %}
+<div class="controls">
+  <label for="log-select">Show Logs From</label>
+  <select id="log-select" autocomplete="off">
+    <option value="today" default>Today</option>
+    <option value="7-days">Last 7 days</option>
+    <option value="14-days">Last 14 days</option>
+    <option value="30-days">Last 30 days</option>
+    {% for log in logs %}
+    <option value="{{ log }}">{{ log }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="dashboard">
+  <div class="summary">
+    <div class="statistic-box">
+      <span class="title">Requests</span>
+      <span id="request-count" class="value"></span>
+    </div>
+    <div class="statistic-box">
+      <span class="title">Active Users</span>
+      <span id="active-users" class="value"></span>
+    </div>
+    <div class="statistic-box">
+      <span class="title">Average Response Time</span>
+      <span id="average-response-time" class="value"></span>
+    </div>
+    <div class="statistic-box">
+      <span class="title">% Success</span>
+      <span id="percent-success" class="value"></span>
+    </div>
+  </div>
+  <div class="tables">
+    <div class="table-container">
+      <h2>Recent Server Logs</h2>
+      <table id="recent-logs">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Level</th>
+            <th>Message</th>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="table-container">
+      <h2>Popular routes</h2>
+      <table id="popular-routes">
+        <thead>
+          <tr>
+            <th>Route</th>
+            <th>Views</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="table-container">
+      <h2>Referring sites</h2>
+      <table id="referring-sites">
+        <thead>
+          <tr>
+            <th>Site</th>
+            <th>Views</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block body_end %}
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+<script src="/static/admin.js"></script>
+{% endblock %}

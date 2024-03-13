@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Jimaku{% endblock %}</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="stylesheet" href="/static/base.css" type="text/css" />
+    {% block css %}{% endblock %}
+  </head>
+  <body>
+    <div class="grid">
+      <header class="grid-item">
+        {% block navigation %}
+        <nav class="main-navigation">
+          <a class="nav-item branding" href="/">Jimaku</a>
+          <span class="nav-item spacer"></span>
+          {% match account %}
+            {% when Some with (account) %}
+            <a class="nav-item" href="/account">{{ account.name }}</a>
+            <a class="nav-item" href="/logout">Logout</a>
+            {% when None %}
+            <a class="nav-item" href="/login">Login</a>
+          {% endmatch %}
+          <svg class="nav-item" id="settings" height="24" viewBox="0 -960 960 960" width="24" role="img">
+            <title>Settings</title>
+            <path fill="#e0e0e0" d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z"/>
+          </svg>
+        </nav>
+        {% endblock %}
+      </header>
+      <main class="grid-item">
+        {% block body %}{% endblock %}
+        <dialog id="settings-modal">
+          <form>
+            <h1>Settings</h1>
+            <div class="form-container">
+              <label for="preferred-name">Preferred Name Display</label>
+              <select class="form-field" id="preferred-name">
+                <option value="native">Japanese (進撃の巨人)</option>
+                <option value="english">English (Attack on Titan)</option>
+                <option value="romaji">Romaji (Shingeki no Kyojin)</option>
+              </select>
+            </div>
+            <footer>
+              <button class="button" formmethod="dialog">Close</button>
+            </footer>
+          </form>
+        </dialog>
+      </main>
+      <footer class="grid-item">
+        <div class="links">
+          <a href="https://discord.gg/xtEBbH75ph">Discord</a>
+        </div>
+        {% block footer %}{% endblock %}
+      </footer>
+    </div>
+    <script src="/static/base.js"></script>
+    {% block body_end %}
+    {% endblock %}
+  </body>
+</html>

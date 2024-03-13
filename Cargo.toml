@@ -1,0 +1,43 @@
+[package]
+name = "jimaku"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+divan = "0.1.14"
+
+[dependencies]
+anyhow = "1.0.80"
+argon2 = { version = "0.5.3", features = ["std"] }
+askama = { version = "0.12.1", features = ["with-axum", "serde-json", "markdown"] }
+askama_axum = "0.4.0"
+async-trait = "0.1.77"
+axum = { version = "0.7.4", features = ["multipart"] }
+base64 = "0.21.7"
+bytes = "1.5.0"
+cookie = { version = "0.18.0", features = ["percent-encode"] }
+crossbeam-channel = "0.5.11"
+dirs = "5.0.1"
+futures-util = "0.3.30"
+getrandom = { version = "0.2.12", features = ["std"] }
+hmac = "0.12.1"
+percent-encoding = "2.3.1"
+pin-project-lite = "0.2.13"
+quick_cache = "0.4.1"
+regex = "1.10.3"
+reqwest = { version = "0.11.24", features = ["json", "rustls-tls"] }
+rpassword = "7.3.1"
+rusqlite = { version = "0.31.0", features = ["bundled", "time"] }
+sanitise-file-name = "1.0.0"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+sha2 = "0.10.8"
+strsim = "0.11.0"
+time = { version = "0.3.34", features = ["macros", "parsing", "formatting", "serde"] }
+tokio = { version = "1.36.0", features = ["full"] }
+tower = "0.4.13"
+tower-http = { version = "0.5.2", features = ["fs", "normalize-path", "limit"] }
+tracing = "0.1.40"
+tracing-appender = "0.2.3"
+tracing-subscriber = { version = "0.3.18", features = ["json"] }
+zip = "0.6.6"

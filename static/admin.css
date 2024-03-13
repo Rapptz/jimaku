@@ -1,0 +1,85 @@
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.charts {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.chart {
+  padding: 1.5rem;
+  border: 1px solid var(--table-border);
+}
+
+.charts > .chart {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+  max-width: 50%;
+}
+
+.chart > div {
+  height: 300px;
+}
+
+@media (min-width: 1200px) {
+  .charts > .chart {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+td.info {
+  color: var(--info-bg);
+}
+
+td.warn {
+  color: var(--warning-bg);
+}
+
+td.error {
+  color: var(--error-bg);
+}
+
+
+.summary {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.statistic-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--box);
+  border: 2px solid var(--box-border);
+  padding: 0.5rem;
+}
+
+.statistic-box > .title {
+  font-weight: bold;
+  font-size: 0.75rem;
+}
+
+.statistic-box > .value {
+  font-size: 1.5rem;
+}
+
+.tables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.table-container {
+  flex-grow: 1;
+}
+
+.table-container:has(#recent-logs) {
+  flex-basis: 100%;
+}

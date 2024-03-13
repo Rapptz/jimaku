@@ -1,0 +1,729 @@
+/*
+  This theme tries to be "mobile first" for the most part.
+  There are a few exceptions to this however. For maintainability
+  purposes, it's better to put the media queries next to whatever
+  is being edited rather than having a dedicated section for it.
+
+  The breakpoints for phone, tablet, and desktop are:
+
+  Phone: max-width 480px
+  Tablet: max-width 840px
+  Desktop: max-width 1200px
+*/
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  /* palette goes here */
+  /* this is the dark theme first */
+  --foreground: #e0e0e0;
+  --background: #091624;
+  --text-muted: #9e9e9e;
+  --button-text: #e0e0e0;
+  --header: #0d2039;
+  --footer: #081424;
+  --branding: #c4a058;
+  --success-text: #e0e0e0;
+  --success-bg: #1c7951;
+  --success-border: #0d3926;
+  --info-text: #e0e0e0;
+  --info-bg: #1c7379;
+  --info-border: #0d3639;
+  --error-text: #e0e0e0;
+  --error-bg: #a4392f;
+  --error-border: #67241e;
+  --warning-bg: #cf9d22;
+  --warning-text: rgba(0, 0, 0, 0.8);
+  --warning-border: #8c6a17;
+  --close-button-bg: rgba(0, 0, 0, 0.2);
+  --close-button-text: #e0e0e0;
+  --close-button-bg-hover: rgba(0, 0, 0, 0.3);
+  --box: #0d2039;
+  --box-shade: #091729;
+  --box-border: #132f4d;
+  --accent: #fff;
+  --dividers: #132f4d;
+  --form-input-background: #273851;
+  --form-input-border: #273851;
+  --form-input-focus-border: #337ecc;
+  --form-input-error-border: #a4392f;
+  --nav-link: #e0e0e0;
+  --nav-link-hover: #2966b5;
+
+  --default-button-rgb: 39,56,81;
+  --primary-button-rgb: 47,96,164;
+  --danger-button-rgb: 164,57,47;
+  --link-text: #c4a058;
+  --link-hover-text: #cbab6b;
+
+  --table-text: var(--foreground);
+  --table-background: var(--background);
+  --table-border: #0d2039;
+  --table-background-hover: var(--table-border);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  line-height: 1.5;
+}
+
+body, button, input, optgroup, select, textarea {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  /*  the "baseline grid" is based off of multiples of 4px (aka 0.25rem) */
+  font-size: 16px;
+}
+
+@font-face {
+  font-family: 'material-slim';
+  src:
+    url('/static/material-slim.ttf') format('truetype'),
+    url('/static/material-slim.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+[class^="icon-"], [class*=" icon-"] {
+  font-family: 'material-slim' !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-visibility::before {
+  content: "\e900";
+}
+.icon-visibility_off::before {
+  content: "\e901";
+}
+
+/* typography related */
+hr {
+  border: 1px solid var(--dividers);
+  margin: 1rem 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-weight: normal;
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.05rem; }
+h6 { font-size: 1rem; }
+
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+[hidden], .hidden {
+  display: none !important;
+}
+
+/* urls */
+a:not(.button) {
+  text-decoration: none;
+  color: var(--link-text);
+}
+
+a:not(.button):hover {
+  text-decoration: underline;
+  color: var(--link-hover-text);
+}
+
+/* Forms */
+form > .form-field:not(:last-child) {
+  margin-bottom: 0.5rem;
+}
+
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="text"],
+input[type="tel"],
+input[type="url"],
+input[type="password"],
+textarea,
+select {
+  height: 2rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  background-color: var(--form-input-background);
+  border: 2px solid var(--form-input-border);
+  color: var(--foreground);
+  border-radius: 0.25rem;
+  width: auto;
+  box-shadow: none;
+  max-width: 25rem;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 5rem;
+}
+
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="text"],
+input[type="tel"],
+input[type="url"],
+input[type="password"],
+textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="text"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border: 2px solid var(--form-input-focus-border);
+  outline: 0;
+}
+
+input[type="email"]:not(:placeholder-shown):invalid,
+input[type="number"]:not(:placeholder-shown):invalid,
+input[type="search"]:not(:placeholder-shown):invalid,
+input[type="text"]:not(:placeholder-shown):invalid,
+input[type="tel"]:not(:placeholder-shown):invalid,
+input[type="url"]:not(:placeholder-shown):invalid,
+input[type="password"]:not(:placeholder-shown):invalid,
+textarea:invalid,
+select:invalid {
+  border: 2px solid var(--form-input-error-border);
+  outline: 0;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1.5rem;
+  height: 1.5rem;
+  accent-color: var(--form-input-focus-border);
+}
+
+.form-container {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-container > .input-hint {
+  font-size: 80%;
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+
+.form-container > .form-field {
+  margin-top: 0.5rem;
+}
+
+.button-container {
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-container > label {
+  margin-left: 0.5rem;
+}
+
+/* buttons */
+
+.button {
+  display: flex;
+  height: 2rem;
+  justify-content: center;
+  align-items: center;
+  color: var(--button-text);
+  background: none;
+  border: 1px solid rgb(var(--default-button-rgb));
+  border-radius: 0.25rem;
+  font-weight: 500;
+  padding: 0.125rem 1rem;
+  text-decoration: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  width: max-content;
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.button:not(.outline) {
+  background-color: rgb(var(--default-button-rgb));
+}
+
+.button:hover:not(:disabled) {
+  background-color: rgb(var(--default-button-rgb));
+  opacity: 0.9;
+}
+
+.button.outline {
+  border: 1px solid var(--foreground);
+  color: var(--button-text);
+}
+
+.button.primary:not(.outline) {
+  color: var(--button-text);
+  background-color: rgb(var(--primary-button-rgb));
+  border: 1px solid rgb(var(--primary-button-rgb));
+}
+
+.button.primary:not(.outline):hover:not(:disabled) {
+  background-color: rgb(var(--primary-button-rgb));
+  opacity: 0.9;
+}
+
+.button.primary.outline {
+  color: rgb(var(--primary-button-rgb));
+  background-color: transparent;
+  border: 1px solid rgb(var(--primary-button-rgb));
+}
+
+.button.danger:not(.outline) {
+  color: var(--button-text);
+  background-color: rgb(var(--danger-button-rgb));
+  border: 1px solid rgb(var(--danger-button-rgb));
+}
+
+.button.danger:not(.outline):hover:not(:disabled) {
+  background-color: rgb(var(--danger-button-rgb));
+  opacity: 0.9;
+}
+
+.button.danger.outline {
+  color: rgb(var(--danger-button-rgb));
+  background-color: transparent;
+  border: 1px solid rgb(var(--danger-button-rgb));
+}
+
+/* tables */
+table {
+  color: var(--table-text);
+  width: 100%;
+  background-color: var(--table-background);
+  margin-bottom: 1rem;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+table td, table th {
+  padding: 0.75rem;
+  /* border-top: 2px solid var(--table-border); */
+  vertical-align: top;
+}
+
+table thead th {
+  border-bottom: 2px solid var(--table-border);
+  vertical-align: bottom;
+}
+
+tbody tr {
+  border-bottom: 2px solid var(--table-border);
+}
+
+table tbody tr:hover {
+  background-color: var(--table-background-hover);
+}
+
+/* while usually this CSS is "mobile first", tables are more natural on desktop */
+@media (max-width: 480px) {
+  table th {
+    display: none;
+  }
+
+  table td {
+    display: block;
+    padding: 0.25rem;
+    border-top: none;
+    border-bottom: 1px solid var(--table-border);
+  }
+
+  table td::before {
+    content: attr(data-th) ": ";
+    font-weight: bold;
+    width: 45%;
+    display: inline-block;
+  }
+}
+
+/* grid related */
+
+.grid {
+  display: grid;
+  min-height: 100%;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "h"
+    "c"
+    "f";
+}
+
+header.grid-item {
+  background-color: var(--header);
+  grid-area: h;
+}
+
+main.grid-item {
+  grid-area: c;
+}
+
+footer.grid-item {
+  grid-area: f;
+  background-color: var(--footer);
+}
+
+footer > .copyright {
+  margin-left: auto;
+  font-size: 14px;
+}
+
+footer > .copyright > a {
+  text-decoration: underline;
+  color: var(--foreground);
+}
+
+footer > .links {
+  padding: 0.5rem;
+  display: flex;
+}
+
+footer > .links {
+  float: right;
+}
+
+footer > .links > a {
+  color: var(--nav-link);
+}
+
+footer > .links > a:hover {
+  color: var(--nav-link-hover);
+}
+
+.grid-item {
+  max-width: 100vw;
+  padding: 0.75rem;
+}
+
+/* @media (min-width: 840px) {
+  .grid {
+    grid-template-areas:
+      "h h h h h h"
+      ". c c c c ."
+      ". c c c c ."
+      "f f f f f f";
+  }
+} */
+
+@media (min-width: 840px) {
+  main.grid-item {
+    padding-left: 5rem;
+    padding-right: 5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  main.grid-item {
+    padding-left: 10rem;
+    padding-right: 10rem;
+  }
+}
+
+/* nav bar */
+
+nav.main-navigation {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+nav.main-navigation > .nav-item {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  color: var(--nav-link);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+nav.main-navigation > .branding {
+  color: var(--branding);
+  width: max-content;
+  text-align: left;
+  font-weight: bold;
+}
+
+.nav-item.spacer {
+  margin-right: auto !important;
+}
+
+nav.main-navigation > .nav-item:not(:last-child) {
+  margin-right: 1rem;
+}
+
+a.nav-item:not(.branding):hover {
+  border-bottom-color: var(--nav-link-hover);
+  color: var(--nav-link-hover);
+}
+
+a.nav-item.branding:hover {
+  border-bottom-color: var(--branding);
+}
+
+@media (min-width: 480px) {
+  .nav-item:first-child {
+    margin-left: 1rem;
+  }
+
+  .nav-item:last-child {
+    margin-right: 1rem;
+  }
+}
+
+#settings {
+  align-self: last baseline;
+  cursor: pointer;
+}
+
+#settings:hover {
+  opacity: 0.8;
+}
+
+
+/* modals */
+::backdrop {
+  background-color: rgba(0, 0, 0, 40%);
+}
+
+dialog {
+  background-color: var(--box);
+  color: var(--foreground);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0;
+}
+
+dialog > form {
+  margin: auto;
+  background-color: var(--box);
+  border-radius: 0.5rem;
+  min-width: 300px;
+  max-width: 25rem;
+}
+
+dialog .form-container {
+  padding: 1rem;
+}
+
+dialog > form > h1 {
+  border-bottom: 1px solid var(--box-border);
+  padding: 1.25rem;
+  padding-bottom: 0.25rem;
+  font-size: 1.5rem;
+}
+
+dialog > form > footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  padding: 0.75rem;
+  background-color: var(--box-shade);
+  margin-top: auto;
+}
+
+dialog > form > footer > button:not(:last-child) {
+  margin-right: 0.75rem;
+}
+
+dialog > form > p {
+  padding: 0 1.25rem;
+  margin-bottom: 0;
+}
+
+dialog > form > p ~ footer {
+  margin-top: 0.75rem;
+}
+
+dialog > form > .alert {
+  margin: 0 1rem;
+}
+
+/* close button */
+button.close {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--close-button-bg);
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  pointer-events: auto;
+  display: inline-block;
+  flex-grow: 0;
+  flex-shrink: 0;
+  font-size: 0;
+  height: 20px;
+  max-height: 20px;
+  max-width: 20px;
+  min-height: 20px;
+  min-width: 20px;
+  outline: 0;
+  position: relative;
+  vertical-align: top;
+  width: 20px;
+}
+
+button.close::before, button.close::after {
+  background-color: var(--close-button-text);
+  content: "";
+  display: block;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%) rotate(45deg);
+  transform-origin: center center;
+}
+
+button.close::before {
+  height: 2px;
+  width: 50%;
+}
+
+button.close::after {
+  height: 50%;
+  width: 2px;
+}
+
+button.close:hover, button.close:focus {
+  background-color: var(--close-button-bg-hover);
+}
+
+/* alerts */
+.alert {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.alert > button.close {
+  margin-left: auto;
+}
+
+.alert > p {
+  margin-bottom: 0;
+}
+
+.alert.info {
+  background-color: var(--info-bg);
+  color: var(--info-text);
+  border-color: var(--info-border);
+}
+
+.alert.error {
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border-color: var(--error-border);
+}
+
+.alert.warning {
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+}
+
+.alert.success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+/* badges */
+
+.badges {
+  display: flex;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+
+.badge {
+  border: 1px solid var(--foreground);
+  letter-spacing: 0;
+  font-size: 12px;
+  border-radius: 5px;
+  padding: 2px 4px;
+}
+
+.badge.warning {
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+}
+
+.badge.info {
+  background-color: var(--info-bg);
+  color: var(--info-text);
+  border-color: var(--info-border);
+}
+
+.badge.danger {
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border-color: var(--error-border);
+}
+
+.badge.success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+.badge.branding {
+  border-color: var(--box-border);
+  color: var(--branding);
+  background: var(--box);
+}
+
