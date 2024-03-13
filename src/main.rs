@@ -249,16 +249,13 @@ async fn main() {
     let _guard = match setup_logging() {
         Ok(guard) => guard,
         Err(e) => {
-            eprintln!("Error setting up logger:\n{:?}", e);
+            eprintln!("Error setting up logger:\n{e:?}");
             return;
         }
     };
 
     let command = jimaku::Command::parse();
     if let Err(e) = run(command).await {
-        error!(error = %e,"error occurred during main execution");
-        for e in e.chain().skip(1) {
-            error!(cause = %e)
-        }
+        eprintln!("Error occurred during main execution:\n{e:?}");
     }
 }
