@@ -398,6 +398,7 @@ footer > .links {
 
 footer > .links {
   float: right;
+  gap: 0.5rem;
 }
 
 footer > .links > a {
