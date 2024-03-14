@@ -48,7 +48,7 @@ query ($id: Int) {
 
 function getSelectedFiles() {
   return [...document.querySelectorAll(checkedSelector + ':checked')].map(e => {
-    return e.parentElement.parentElement.querySelector('.file-name').textContent;
+    return e.parentElement.parentElement.querySelector('.file-name');
   });
 }
 
@@ -174,6 +174,11 @@ async function downloadFiles() {
   if (files.length === 0) {
     return;
   }
+  if (files.length === 1) {
+    files[0].click();
+    return;
+  }
+  files = files.map(e => e.textContent);
   let payload = {files};
   let resp = await fetch(`/entry/${entryId}/bulk`, {
     method: 'POST',
@@ -253,7 +258,7 @@ function setCheckboxState() {
 }
 
 async function deleteFiles() {
-  let files = getSelectedFiles();
+  let files = getSelectedFiles().map(e => e.textContent);
   let payload = {files};
   if (files.length === 0) {
     payload.delete_parent = true;
