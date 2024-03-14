@@ -220,7 +220,7 @@ a.relation:not(:last-child)::after {
     text-align: right;
   }
 
-  .table-header:nth-last-child(-n+2) {
+  .files[data-columns="4"] > .table-headers > .table-header:nth-last-child(-n+2) {
     text-align: right;
   }
 
