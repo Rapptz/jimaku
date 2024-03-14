@@ -3,6 +3,7 @@
 //! This is opt-in per route and only for unauthenticated requests.
 
 use std::{
+    io::Write,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -10,7 +11,7 @@ use std::{
 use axum::{
     body::Body,
     http::{
-        header::{CACHE_CONTROL, CONTENT_TYPE},
+        header::{CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE},
         HeaderValue, StatusCode,
     },
     response::{IntoResponse, Response},
@@ -18,6 +19,8 @@ use axum::{
 use bytes::Bytes;
 use quick_cache::sync::Cache;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use crate::headers::AcceptEncoding;
 
 /// A timed cache value that only lasts for a specified duration before expiring.
 #[derive(Debug)]
@@ -68,13 +71,21 @@ impl<T> TimedCachedValue<T> {
 #[derive(Clone)]
 struct CachedBody {
     decompressed: Bytes,
+    brotli: Option<Bytes>,
     expiry: Instant,
 }
 
 impl CachedBody {
     fn new(body: Bytes) -> Self {
+        let mut writer = brotli::CompressorWriter::new(Vec::new(), 4096, 4, 22);
+
+        let brotli = match writer.write_all(&body) {
+            Ok(_) => Some(Bytes::from(writer.into_inner())),
+            Err(_) => None,
+        };
         Self {
             decompressed: body,
+            brotli,
             expiry: Instant::now(),
         }
     }
@@ -88,7 +99,7 @@ pub struct BodyCache {
 }
 
 pub enum CachedTemplateResponse {
-    Cached(Duration, Bytes),
+    Cached(Duration, Bytes, bool),
     Bypass(Response),
     Error,
 }
@@ -101,13 +112,13 @@ impl BodyCache {
         }
     }
 
-    fn get_cached(&self, key: &'static str) -> Option<Bytes> {
+    fn get_cached(&self, key: &'static str) -> Option<CachedBody> {
         let item = self.templates.get(&key)?;
         if let Some(body) = item {
             if body.expiry.elapsed() >= self.ttl {
                 None
             } else {
-                Some(body.decompressed)
+                Some(body)
             }
         } else {
             None
@@ -118,6 +129,7 @@ impl BodyCache {
         &self,
         key: &'static str,
         template: T,
+        encoding: AcceptEncoding,
         bypass_cache: bool,
     ) -> CachedTemplateResponse {
         if bypass_cache {
@@ -125,14 +137,21 @@ impl BodyCache {
         }
 
         if let Some(cached) = self.get_cached(key) {
-            return CachedTemplateResponse::Cached(self.ttl, cached);
+            return if encoding.brotli {
+                match cached.brotli {
+                    Some(bytes) => CachedTemplateResponse::Cached(self.ttl, bytes, true),
+                    None => CachedTemplateResponse::Cached(self.ttl, cached.decompressed, false),
+                }
+            } else {
+                CachedTemplateResponse::Cached(self.ttl, cached.decompressed, false)
+            };
         }
 
         // Cache miss
         if let Ok(rendered) = template.render() {
             let bytes = Bytes::from(rendered);
             self.templates.insert(key, Some(CachedBody::new(bytes.clone())));
-            CachedTemplateResponse::Cached(self.ttl, bytes)
+            CachedTemplateResponse::Cached(self.ttl, bytes, false)
         } else {
             CachedTemplateResponse::Error
         }
@@ -142,7 +161,7 @@ impl BodyCache {
 impl IntoResponse for CachedTemplateResponse {
     fn into_response(self) -> Response {
         match self {
-            CachedTemplateResponse::Cached(ttl, bytes) => {
+            CachedTemplateResponse::Cached(ttl, bytes, brotli) => {
                 let mut resp = Response::new(Body::from(bytes));
                 resp.headers_mut().insert(
                     CACHE_CONTROL,
@@ -150,6 +169,10 @@ impl IntoResponse for CachedTemplateResponse {
                 );
                 resp.headers_mut()
                     .insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
+                if brotli {
+                    resp.headers_mut()
+                        .insert(CONTENT_ENCODING, HeaderValue::from_static("br"));
+                }
                 resp
             }
             CachedTemplateResponse::Bypass(mut resp) => {

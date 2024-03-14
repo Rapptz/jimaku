@@ -2,6 +2,7 @@ use crate::{
     cached::BodyCache,
     filters,
     flash::Flashes,
+    headers::AcceptEncoding,
     models::{Account, AccountCheck},
 };
 use askama::Template;
@@ -25,6 +26,7 @@ async fn index(
     State(state): State<AppState>,
     account: Option<Account>,
     flashes: Flashes,
+    encoding: AcceptEncoding,
     Extension(cacher): Extension<BodyCache>,
 ) -> impl IntoResponse {
     let entries = state.directory_entries().await;
@@ -34,7 +36,7 @@ async fn index(
         entries: entries.as_slice(),
         flashes,
     };
-    cacher.cache_template("index", template, bypass_cache).await
+    cacher.cache_template("index", template, encoding, bypass_cache).await
 }
 
 pub fn all() -> Router<AppState> {

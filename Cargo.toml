@@ -15,6 +15,7 @@ async-trait = "0.1.77"
 axum = { version = "0.7.4", features = ["multipart"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 base64 = "0.21.7"
+brotli = "3.4.0"
 bytes = "1.5.0"
 cookie = { version = "0.18.0", features = ["percent-encode"] }
 crossbeam-channel = "0.5.11"
