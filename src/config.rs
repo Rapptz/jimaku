@@ -13,14 +13,24 @@ use crate::key::SecretKey;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     /// Whether the server is running a production build or not
+    #[serde(default)]
     pub production: bool,
+    /// Whether to run the server in Let's Encrypt's production directory.
+    #[serde(default)]
+    pub lets_encrypt_production: bool,
     /// The location that subtitles can be found under in the filesystem.
     ///
     /// Note that due to zipping being a significant use case, S3 storage is not used.
     pub subtitle_path: PathBuf,
+    /// The contact emails for Let's Encrypt.
+    ///
+    /// Required for production use. Do not prefix this with e.g. `mailto`.
+    #[serde(default)]
+    pub contact_emails: Vec<String>,
     /// The domains that are registered to this server.
     ///
     /// These must *not* have any schemes.
+    #[serde(default)]
     pub domains: Vec<String>,
     /// The server IP and port configuration
     #[serde(default)]
@@ -35,8 +45,10 @@ impl Config {
     pub fn new() -> anyhow::Result<Self> {
         Ok(Self {
             production: false,
+            lets_encrypt_production: false,
             subtitle_path: std::env::current_dir().expect("could not get current working directory"),
             domains: Vec::new(),
+            contact_emails: Vec::new(),
             server: ServerConfig::default(),
             secret_key: SecretKey::random()?,
         })

@@ -1,11 +1,13 @@
-use crate::{cached::TemplateCache, filters, flash::Flashes, models::{AccountCheck, Account}};
+use crate::{
+    cached::TemplateCache,
+    filters,
+    flash::Flashes,
+    models::{Account, AccountCheck},
+};
 use askama::Template;
 use axum::{extract::State, response::IntoResponse, routing::get, Extension, Router};
 
-use crate::{
-    models::DirectoryEntry,
-    AppState,
-};
+use crate::{models::DirectoryEntry, AppState};
 
 mod admin;
 mod auth;

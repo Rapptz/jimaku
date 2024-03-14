@@ -6,7 +6,7 @@ use crate::database::{is_unique_constraint_violation, Table};
 use crate::error::{ApiError, InternalError};
 use crate::filters;
 use crate::flash::{FlashMessage, Flasher, Flashes};
-use crate::models::{Account, DirectoryEntry, AccountCheck};
+use crate::models::{Account, AccountCheck, DirectoryEntry};
 use crate::ratelimit::RateLimit;
 use crate::referrer::Referrer;
 use crate::utils::is_over_length;

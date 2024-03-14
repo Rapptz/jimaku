@@ -13,6 +13,7 @@ askama = { version = "0.12.1", features = ["with-axum", "serde-json", "markdown"
 askama_axum = "0.4.0"
 async-trait = "0.1.77"
 axum = { version = "0.7.4", features = ["multipart"] }
+axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 base64 = "0.21.7"
 bytes = "1.5.0"
 cookie = { version = "0.18.0", features = ["percent-encode"] }
@@ -28,6 +29,7 @@ regex = "1.10.3"
 reqwest = { version = "0.11.24", default-features = false, features = ["json", "rustls-tls"] }
 rpassword = "7.3.1"
 rusqlite = { version = "0.31.0", features = ["bundled", "time"] }
+rustls-acme = { git = "https://github.com/Rapptz/rustls-acme/", branch = "remove-chrono", features = ["axum"] }
 sanitise-file-name = "1.0.0"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
@@ -36,7 +38,7 @@ strsim = "0.11.0"
 time = { version = "0.3.34", features = ["macros", "parsing", "formatting", "serde"] }
 tokio = { version = "1.36.0", features = ["full"] }
 tower = "0.4.13"
-tower-http = { version = "0.5.2", features = ["fs", "normalize-path", "limit"] }
+tower-http = { version = "0.5.2", features = ["fs", "timeout", "normalize-path", "limit"] }
 tracing = "0.1.40"
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.18", features = ["json"] }

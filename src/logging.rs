@@ -3,7 +3,8 @@
 use std::{
     future::Future,
     pin::Pin,
-    task::{Context, Poll}, time::Instant,
+    task::{Context, Poll},
+    time::Instant,
 };
 
 use axum::{extract::Request, response::Response};
@@ -53,11 +54,7 @@ where
 
         let host = req.headers().get("host").and_then(|s| s.to_str().ok()).unwrap_or("");
 
-        let referrer = req
-            .headers()
-            .get("referer")
-            .and_then(|s| s.to_str().ok())
-            .unwrap_or("");
+        let referrer = req.headers().get("referer").and_then(|s| s.to_str().ok()).unwrap_or("");
 
         let span = info_span!(
             "http request",

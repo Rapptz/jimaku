@@ -1,8 +1,13 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
 use quick_cache::sync::Cache;
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::RwLockReadGuard;
 
-use crate::{auth::hash_password, cached::TimedCachedValue, models::{Account, DirectoryEntry}, Config, Database};
+use crate::{
+    auth::hash_password,
+    cached::TimedCachedValue,
+    models::{Account, DirectoryEntry},
+    Config, Database,
+};
 
 struct InnerState {
     config: Config,
@@ -53,14 +58,12 @@ impl AppState {
     pub async fn get_account(&self, id: i64) -> Option<Account> {
         match self.inner.cached_users.get_value_or_guard_async(&id).await {
             Ok(acc) => Some(acc),
-            Err(guard) => {
-                match self.database().get_by_id::<Account>(id).await.ok().flatten() {
-                    Some(account) => {
-                        let _ = guard.insert(account.clone());
-                        Some(account)
-                    },
-                    None => None
+            Err(guard) => match self.database().get_by_id::<Account>(id).await.ok().flatten() {
+                Some(account) => {
+                    let _ = guard.insert(account.clone());
+                    Some(account)
                 }
+                None => None,
             },
         }
     }

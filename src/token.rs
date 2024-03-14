@@ -15,11 +15,7 @@ use axum::{
 use cookie::Cookie;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    key::SecretKey,
-    models::Account,
-    AppState,
-};
+use crate::{key::SecretKey, models::Account, AppState};
 
 /// An authentication token.
 ///

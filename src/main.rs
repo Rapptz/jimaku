@@ -5,10 +5,14 @@ use axum::{
     extract::{DefaultBodyLimit, Request},
     middleware, Extension, ServiceExt,
 };
+use futures_util::StreamExt;
+use rustls_acme::caches::DirCache;
+use rustls_acme::AcmeConfig;
 use tower::Layer;
 use tower_http::{
     normalize_path::NormalizePathLayer,
     services::{ServeDir, ServeFile},
+    timeout::TimeoutLayer,
 };
 use tracing::{error, info};
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
@@ -123,7 +127,8 @@ async fn shutdown_signal() {
 }
 
 async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
-    let addr = state.config().server.address();
+    let config = state.config().clone();
+    let addr = config.server.address();
     let secret_key = state.config().secret_key;
 
     tokio::spawn(cleanup_old_logs());
@@ -142,18 +147,59 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .layer(Extension(jimaku::cached::TemplateCache::new(Duration::from_secs(120))))
         .layer(DefaultBodyLimit::max(jimaku::MAX_BODY_SIZE))
         .layer(tower_http::limit::RequestBodyLimitLayer::new(jimaku::MAX_BODY_SIZE))
+        .layer(TimeoutLayer::new(Duration::from_secs(10)))
         .with_state(state);
 
     let app = NormalizePathLayer::trim_trailing_slash().layer(router);
     let service = ServiceExt::<Request>::into_make_service_with_connect_info::<SocketAddr>(app);
 
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .with_context(|| format!("Could not bind to {addr}"))?;
-    axum::serve(listener, service)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .context("Failed during server service")?;
+    if !config.production {
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .with_context(|| format!("Could not bind to {addr}"))?;
+
+        axum::serve(listener, service)
+            .with_graceful_shutdown(shutdown_signal())
+            .await
+            .context("Failed during server service")?;
+
+        return Ok(());
+    }
+
+    // Production server stuff
+    if addr.port() == 443 {
+        let cache_dir = dirs::cache_dir()
+            .map(|p| p.join(jimaku::PROGRAM_NAME).join("rustls_acme_cache"))
+            .context("Could not find appropriate cache location for ACME")?;
+        let mut state = AcmeConfig::new(config.domains)
+            .contact(config.contact_emails.iter().map(|x| format!("mailto:{x}")))
+            .cache(DirCache::new(cache_dir))
+            .directory_lets_encrypt(config.lets_encrypt_production)
+            .state();
+
+        let acceptor = state.axum_acceptor(state.default_rustls_config());
+        tokio::spawn(async move {
+            loop {
+                match state.next().await {
+                    Some(Ok(ok)) => info!("ACME event: {:?}", ok),
+                    Some(Err(err)) => error!("ACME error: {:?}", err),
+                    None => break,
+                }
+            }
+        });
+
+        axum_server::bind(addr)
+            .acceptor(acceptor)
+            .serve(service)
+            .await
+            .context("Failed during server service")?;
+    } else {
+        axum_server::bind(addr)
+            .serve(service)
+            .await
+            .context("Failed during server service")?;
+    }
+
     Ok(())
 }
 
