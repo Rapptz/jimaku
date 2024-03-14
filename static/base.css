@@ -83,35 +83,6 @@ body, button, input, optgroup, select, textarea {
   font-size: 16px;
 }
 
-@font-face {
-  font-family: 'material-slim';
-  src:
-    url('/static/material-slim.ttf') format('truetype'),
-    url('/static/material-slim.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: block;
-}
-
-[class^="icon-"], [class*=" icon-"] {
-  font-family: 'material-slim' !important;
-  speak: never;
-  font-style: normal;
-  font-weight: normal;
-  font-variant: normal;
-  text-transform: none;
-  line-height: 1;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.icon-visibility::before {
-  content: "\e900";
-}
-.icon-visibility_off::before {
-  content: "\e901";
-}
-
 /* typography related */
 hr {
   border: 1px solid var(--dividers);
@@ -347,7 +318,6 @@ table {
 
 table td, table th {
   padding: 0.75rem;
-  /* border-top: 2px solid var(--table-border); */
   vertical-align: top;
 }
 
@@ -442,16 +412,6 @@ footer > .links > a:hover {
   max-width: 100vw;
   padding: 0.75rem;
 }
-
-/* @media (min-width: 840px) {
-  .grid {
-    grid-template-areas:
-      "h h h h h h"
-      ". c c c c ."
-      ". c c c c ."
-      "f f f f f f";
-  }
-} */
 
 @media (min-width: 840px) {
   main.grid-item {
