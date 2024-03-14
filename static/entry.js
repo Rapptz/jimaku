@@ -175,7 +175,7 @@ async function downloadFiles() {
     return;
   }
   let payload = {files};
-  let js = await fetch(`/entry/${entryId}/bulk`, {
+  let resp = await fetch(`/entry/${entryId}/bulk`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
