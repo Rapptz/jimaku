@@ -530,6 +530,7 @@ async fn bulk_delete_files(
             .database()
             .execute("DELETE FROM directory_entry WHERE id = ?", [entry_id])
             .await?;
+        state.cached_directories().invalidate().await;
         tokio::fs::remove_dir_all(entry).await?;
     } else {
         for file in payload.files {
