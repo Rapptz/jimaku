@@ -682,10 +682,8 @@ async fn bulk_download(
         for file in payload.files {
             let path = entry.path.join(&file);
             let Ok(contents) = std::fs::read(&path) else {
-                tracing::debug!("Skipping file in {}", path.display());
                 continue;
             };
-            tracing::info!("Found {} with {} bytes", path.display(), contents.len());
             zip.start_file(file, options)?;
             zip.write_all(&contents)?;
         }
