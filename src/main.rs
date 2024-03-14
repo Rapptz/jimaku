@@ -138,7 +138,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     // and for response processing it's bottom to top
     let router = jimaku::routes::all()
         .nest_service("/favicon.ico", ServeFile::new("static/icons/favicon.ico"))
-        .nest_service("/site.manifest", ServeFile::new("static/icons/site.manifest"))
+        .nest_service("/site.webmanifest", ServeFile::new("static/icons/site.webmanifest"))
         .nest_service("/static", ServeDir::new("static"))
         .layer(jimaku::logging::HttpTrace)
         .layer(middleware::from_fn(jimaku::flash::process_flash_messages))
