@@ -373,6 +373,7 @@ async fn edit_directory_entry(
             .await
         {
             Ok(_) => {
+                state.cached_directories().invalidate().await;
                 flasher.add(FlashMessage::success("Successfully edited entry."));
                 Redirect::to(&url).into_response()
             }
