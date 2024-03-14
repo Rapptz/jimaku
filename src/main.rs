@@ -144,7 +144,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .layer(middleware::from_fn(jimaku::flash::process_flash_messages))
         .layer(middleware::from_fn(jimaku::parse_cookies))
         .layer(Extension(secret_key))
-        .layer(Extension(jimaku::cached::TemplateCache::new(Duration::from_secs(120))))
+        .layer(Extension(jimaku::cached::BodyCache::new(Duration::from_secs(120))))
         .layer(DefaultBodyLimit::max(jimaku::MAX_BODY_SIZE))
         .layer(tower_http::limit::RequestBodyLimitLayer::new(jimaku::MAX_BODY_SIZE))
         .layer(TimeoutLayer::new(Duration::from_secs(10)))

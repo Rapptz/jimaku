@@ -1,5 +1,5 @@
 use crate::{
-    cached::TemplateCache,
+    cached::BodyCache,
     filters,
     flash::Flashes,
     models::{Account, AccountCheck},
@@ -25,7 +25,7 @@ async fn index(
     State(state): State<AppState>,
     account: Option<Account>,
     flashes: Flashes,
-    Extension(cacher): Extension<TemplateCache>,
+    Extension(cacher): Extension<BodyCache>,
 ) -> impl IntoResponse {
     let entries = state.directory_entries().await;
     let bypass_cache = account.is_some();
@@ -34,7 +34,7 @@ async fn index(
         entries: entries.as_slice(),
         flashes,
     };
-    cacher.cache("index", template, bypass_cache).await
+    cacher.cache_template("index", template, bypass_cache).await
 }
 
 pub fn all() -> Router<AppState> {
