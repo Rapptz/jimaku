@@ -363,6 +363,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
             Ok(())
         })
         .await?;
+    state.cached_directories().invalidate().await;
     Ok(())
 }
 
