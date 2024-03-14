@@ -2,6 +2,10 @@
 
 {% block css %}
 <link rel="stylesheet" href="/static/entry.css" type="text/css">
+<meta property="og:url" content="{{ crate::CONFIG.get().unwrap().canonical_url() }}/entry/{{entry.id}}">
+<meta property="og:title" content="{{ entry.name }}">
+<meta property="og:description" content="{{ entry.description() }}">
+<meta name="description" content="{{ entry.description() }}">
 {% endblock %}
 
 {% block title %}

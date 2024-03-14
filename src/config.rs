@@ -1,6 +1,7 @@
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
+    sync::OnceLock,
 };
 
 use anyhow::Context;
@@ -89,6 +90,15 @@ impl Config {
 
         self.domains.iter().any(|s| s == host)
     }
+
+    pub fn canonical_url(&self) -> String {
+        let scheme = if self.server.port == 443 { "https://" } else { "http://" };
+        let domain = self.domains.first().map(|x| x.as_str()).unwrap_or("localhost");
+        let mut url = String::with_capacity(8 + domain.len());
+        url.push_str(scheme);
+        url.push_str(domain);
+        url
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -121,3 +131,8 @@ impl ServerConfig {
         SocketAddr::from((self.ip, self.port))
     }
 }
+
+/// A global variable for the loaded config.
+///
+/// Currently mainly used for templates
+pub static CONFIG: OnceLock<Config> = OnceLock::new();

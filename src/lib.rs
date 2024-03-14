@@ -19,7 +19,7 @@ pub mod token;
 pub mod utils;
 
 pub use cli::{Command, PROGRAM_NAME};
-pub use config::Config;
+pub use config::{Config, CONFIG};
 pub use database::Database;
 pub use state::AppState;
 pub use utils::MAX_BODY_SIZE;

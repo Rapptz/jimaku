@@ -193,6 +193,36 @@ impl DirectoryEntry {
             japanese_name: &self.japanese_name,
         }
     }
+
+    /// Returns an appropriate description for the og:description meta tag
+    pub fn description(&self) -> String {
+        let mut base = String::from("Download Japanese subtitles for ");
+        base.push_str(&self.name);
+        base.push_str(". ");
+        if let Some(english) = self.english_name.as_deref() {
+            base.push_str("Also known as ");
+            base.push_str(english);
+            base.push_str(" in English");
+        }
+
+        if let Some(japanese) = self.japanese_name.as_deref() {
+            if self.english_name.is_none() {
+                base.push_str("Also known as ");
+            } else {
+                base.push_str(" or ");
+            }
+            base.push_str(japanese);
+            base.push_str(" in Japanese");
+        }
+        if let Some(ch) = base.as_bytes().last() {
+            if *ch == b' ' {
+                base.pop();
+            } else {
+                base.push('.');
+            }
+        }
+        base
+    }
 }
 
 #[derive(Deserialize, Serialize, Default, PartialEq, Eq, Clone, Copy)]

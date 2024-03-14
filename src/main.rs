@@ -128,8 +128,9 @@ async fn shutdown_signal() {
 
 async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     let config = state.config().clone();
+    let _ = jimaku::CONFIG.set(config.clone());
     let addr = config.server.address();
-    let secret_key = state.config().secret_key;
+    let secret_key = config.secret_key;
 
     tokio::spawn(cleanup_old_logs());
     tokio::spawn(jimaku::kitsunekko::auto_scrape_loop(state.clone()));
