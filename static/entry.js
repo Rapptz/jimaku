@@ -290,7 +290,7 @@ async function deleteFiles() {
 }
 
 async function moveFiles() {
-  let files = getSelectedFiles();
+  let files = getSelectedFiles().map(e => e.textContent);
   if (files.length === 0) {
     return;
   }
