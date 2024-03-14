@@ -4,6 +4,7 @@ use askama::Template;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
+    response::Redirect,
     routing::get,
     Json, Router,
 };
@@ -131,10 +132,19 @@ async fn show_account_as_admin(
     })
 }
 
+async fn invalidate_caches(State(state): State<AppState>, account: Account) -> Redirect {
+    if account.flags.is_admin() {
+        state.cached_directories().invalidate().await;
+        state.clear_account_cache();
+    }
+    Redirect::to("/")
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/logs", get(get_last_logs))
         .route("/admin/logs/:date", get(get_logs_from))
         .route("/admin/account/:name/edit", get(show_account_as_admin))
         .route("/admin", get(admin_index))
+        .route("/admin/cache/invalidate", get(invalidate_caches))
 }
