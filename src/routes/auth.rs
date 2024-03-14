@@ -141,6 +141,7 @@ async fn authenticate(state: &AppState, username: String, password: String) -> R
     if validate_password(&password, hash).is_ok() {
         match account {
             Some(acc) => {
+                state.invalidate_account_cache(acc.id);
                 let token = Token::new(acc.id);
                 let cookie = token.to_cookie(&state.config().secret_key)?;
                 Ok(cookie_to_response(cookie))
@@ -150,6 +151,11 @@ async fn authenticate(state: &AppState, username: String, password: String) -> R
     } else {
         Err(ApiError::incorrect_login())
     }
+}
+
+async fn logout(State(state): State<AppState>, token: Token) -> TokenRejection {
+    state.invalidate_account_cache(token.id);
+    TokenRejection
 }
 
 #[derive(Deserialize)]
@@ -274,6 +280,8 @@ async fn edit_account(
         .database()
         .execute("UPDATE account SET flags = ? WHERE id = ?", (flags, id))
         .await?;
+
+    state.invalidate_account_cache(id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -284,7 +292,7 @@ pub fn routes() -> Router<AppState> {
             post(login_form).layer(RateLimit::default().quota(10, 60.0).build()),
         )
         .route("/login", get(login))
-        .route("/logout", get(TokenRejection))
+        .route("/logout", get(logout))
         .route("/account", get(account_info))
         .route("/account/change_password", post(change_password))
         .route("/account/:id/edit", post(edit_account))

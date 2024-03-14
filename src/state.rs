@@ -68,6 +68,10 @@ impl AppState {
         }
     }
 
+    pub fn invalidate_account_cache(&self, id: i64) {
+        self.inner.cached_users.remove(&id);
+    }
+
     pub async fn directory_entries(&self) -> RwLockReadGuard<'_, Vec<DirectoryEntry>> {
         {
             let reader = self.inner.cached_directories.get().await;
