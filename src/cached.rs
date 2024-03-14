@@ -125,6 +125,14 @@ impl BodyCache {
         }
     }
 
+    pub fn invalidate(&self, key: &'static str) {
+        self.templates.remove(key);
+    }
+
+    pub fn invalidate_all(&self) {
+        self.templates.clear();
+    }
+
     pub async fn cache_template<T: askama::Template + IntoResponse>(
         &self,
         key: &'static str,

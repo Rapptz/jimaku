@@ -6,12 +6,12 @@ use axum::{
     http::StatusCode,
     response::Redirect,
     routing::get,
-    Json, Router,
+    Extension, Json, Router,
 };
 use serde::Deserialize;
 use time::OffsetDateTime;
 
-use crate::{error::ApiError, models::Account, utils::logs_directory, AppState};
+use crate::{cached::BodyCache, error::ApiError, models::Account, utils::logs_directory, AppState};
 
 use super::auth::AccountInfoTemplate;
 
@@ -132,10 +132,15 @@ async fn show_account_as_admin(
     })
 }
 
-async fn invalidate_caches(State(state): State<AppState>, account: Account) -> Redirect {
+async fn invalidate_caches(
+    State(state): State<AppState>,
+    account: Account,
+    Extension(cache): Extension<BodyCache>,
+) -> Redirect {
     if account.flags.is_admin() {
         state.cached_directories().invalidate().await;
         state.clear_account_cache();
+        cache.invalidate_all();
     }
     Redirect::to("/")
 }
