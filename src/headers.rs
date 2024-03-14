@@ -1,6 +1,12 @@
+use std::convert::Infallible;
+
 use axum::{
     extract::FromRequestParts,
-    http::{header::REFERER, request::Parts, HeaderValue, StatusCode, Uri},
+    http::{
+        header::{ACCEPT_ENCODING, REFERER},
+        request::Parts,
+        HeaderValue, StatusCode, Uri,
+    },
 };
 
 use crate::AppState;
@@ -18,6 +24,37 @@ impl FromRequestParts<AppState> for Referrer {
         } else {
             Err((StatusCode::BAD_REQUEST, "`Referer` header is missing or invalid"))
         }
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone)]
+pub struct AcceptEncoding {
+    pub brotli: bool,
+    pub gzip: bool,
+}
+
+#[async_trait::async_trait]
+impl<S> FromRequestParts<S> for AcceptEncoding
+where
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let Some(header) = parts.headers.get(ACCEPT_ENCODING).and_then(|x| x.to_str().ok()) else {
+            return Ok(Self::default());
+        };
+
+        let mut result = Self::default();
+        for value in header.split(',').map(|s| s.trim()) {
+            let inner = value.split_once(";q=").map(|(lhs, _)| lhs).unwrap_or(value);
+            match inner {
+                "br" => result.brotli = true,
+                "gzip" => result.gzip = true,
+                _ => continue,
+            }
+        }
+        Ok(result)
     }
 }
 

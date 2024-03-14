@@ -4,9 +4,9 @@ use crate::{
     error::{ApiError, ApiErrorCode},
     filters,
     flash::{FlashMessage, Flasher, Flashes},
+    headers::Referrer,
     models::{is_valid_username, Account, AccountFlags, DirectoryEntry},
     ratelimit::RateLimit,
-    referrer::Referrer,
     token::{Token, TokenRejection},
     AppState,
 };
