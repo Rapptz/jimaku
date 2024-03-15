@@ -192,6 +192,10 @@ select:invalid {
   outline: 0;
 }
 
+input::-webkit-search-cancel-button {
+    display: none;
+}
+
 input[type="checkbox"],
 input[type="radio"] {
   width: 1.5rem;
