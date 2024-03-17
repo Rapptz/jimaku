@@ -290,12 +290,32 @@ struct EditDirectoryEntry {
     japanese_name: Option<String>,
     #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
     english_name: Option<String>,
-    #[serde(deserialize_with = "crate::utils::generic_empty_string_is_none")]
+    #[serde(deserialize_with = "anilist_id_or_url")]
     anilist_id: Option<u32>,
     #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
     notes: Option<String>,
     #[serde(default)]
     low_quality: bool,
+}
+
+fn anilist_id_or_url<'de, D>(de: D) -> Result<Option<u32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    let opt = opt.as_deref();
+    match opt {
+        None | Some("") => Ok(None),
+        Some(s) => {
+            if s.chars().all(|x| x.is_ascii_digit()) {
+                s.parse::<u32>().map(Some).map_err(serde::de::Error::custom)
+            } else {
+                crate::utils::get_anilist_id(s)
+                    .ok_or_else(|| serde::de::Error::custom("Invalid anilist ID or URL provided"))
+                    .map(Some)
+            }
+        }
+    }
 }
 
 async fn edit_directory_entry(

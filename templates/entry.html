@@ -107,8 +107,9 @@
       <label for="entry-english-name">English Name</label>
       <input class="form-field" value="{{ entry.english_name|maybe_display }}"
              name="english_name" id="entry-english-name" autocomplete="off" type="text">
-      <label for="entry-anilist-id">AniList ID</label>
-      <input class="form-field" value="{{ entry.anilist_id|maybe_display }}" pattern="[0-9]*"
+      <label for="entry-anilist-id">AniList ID or URL</label>
+      <input class="form-field" value="{{ entry.anilist_id|maybe_display }}"
+             pattern="^(?:[0-9]*|(?:https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?))$"
              name="anilist_id" id="entry-anilist-id" autocomplete="off" type="text">
       <div class="form-field checkbox-container">
         <input value="true" {%- if entry.flags.is_low_quality() -%}checked{% endif %}
