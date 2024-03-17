@@ -298,7 +298,7 @@ async function moveFiles() {
   let params = new URLSearchParams();
   let payload = {files};
   let destinationId = parseInt(document.getElementById('move-to-entry-id')?.value, 10);
-  if (Number.isNan(destinationId)) {
+  if (!Number.isNaN(destinationId)) {
     payload.entry_id = destinationId;
   } else {
     let anilistId = getAnilistId(document.getElementById('anilist-url')?.value);
