@@ -297,21 +297,27 @@ async function moveFiles() {
 
   let params = new URLSearchParams();
   let payload = {files};
-  let anilistId = getAnilistId(document.getElementById('anilist-url')?.value);
-  if (anilistId !== null) {
-    payload.anilist_id = anilistId;
-    params.append('anilist_id', anilistId);
+  let destinationId = parseInt(document.getElementById('move-to-entry-id')?.value, 10);
+  if (Number.isNan(destinationId)) {
+    payload.entry_id = destinationId;
+  } else {
+    let anilistId = getAnilistId(document.getElementById('anilist-url')?.value);
+    if (anilistId !== null) {
+      payload.anilist_id = anilistId;
+      params.append('anilist_id', anilistId);
+    }
+    let name = document.getElementById('directory-name').value;
+    if(name) {
+      payload.name = name;
+      params.append('name', name);
+    }
+    let resp = await fetch('/entry/search?' + params);
+    if(resp.ok) {
+      let js = await resp.json();
+      payload.entry_id = js.entry_id;
+    }
   }
-  let name = document.getElementById('directory-name').value;
-  if(name) {
-    payload.name = name;
-    params.append('name', name);
-  }
-  let resp = await fetch('/entry/search?' + params);
-  if(resp.ok) {
-    let js = await resp.json();
-    payload.entry_id = js.entry_id;
-  }
+
   let js = await callApi(`/entry/${entryId}/move`, {
     method: 'POST',
     headers: {

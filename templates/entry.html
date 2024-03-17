@@ -133,8 +133,8 @@
     <h1>Move Entries</h1>
     <p>
       This operation moves the selected files to either a new or pre-existing folder with
-      the given AniList URL or directory name. Providing the directory name is not required
-      if the AniList URL is given.
+      the given AniList URL or directory name or entry ID. Providing the directory name is
+      not required if the AniList URL or entry ID is given.
     </p>
     <div class="form-container">
       <label for="anilist-url">AniList URL</label>
@@ -142,6 +142,8 @@
              pattern="https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?"
              placeholder="https://anilist.co/anime/12345/" name="anilist_url" id="anilist-url"
              autocomplete="off" type="text">
+      <label for="move-to-entry-id">Entry ID</label>
+      <input class="form-field" pattern="[0-9]+" name="entry_id" id="move-to-entry-id" autocomplete="off" type="text">
       <label for="directory-name">Directory Name</label>
       <input class="form-field" name="name" id="directory-name" autocomplete="off" type="text">
     </div>
