@@ -352,6 +352,10 @@ document.getElementById('confirm-delete')?.addEventListener('click', (e) => {
   deleteFiles();
 });
 moveFilesButton?.addEventListener('click', () => moveModal?.showModal());
+moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  moveModal.close();
+});
 document.getElementById('clear-search-filter').addEventListener('click', setCheckboxState);
 filterElement.addEventListener('input', setCheckboxState);
 document.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
