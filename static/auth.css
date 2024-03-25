@@ -95,3 +95,11 @@
   border: 2px solid var(--form-input-error-border);
   border-left: none;
 }
+
+#register {
+  order: 1;
+}
+
+#authenticate {
+  order: 2;
+}
