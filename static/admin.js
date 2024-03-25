@@ -82,14 +82,14 @@ function getSearchEngine(url) {
   try {
     if (url.host.startsWith('google')) {
       return 'Google';
-    } else if(url.host == 'bing.com') {
+    } else if (url.host == 'bing.com') {
       return 'Bing';
-    } else if(url.host == 'duckduckgo.com') {
+    } else if (url.host == 'duckduckgo.com') {
       return 'DuckDuckGo';
     }
     return null;
   }
-  catch(e) {
+  catch (e) {
     return null;
   }
 }
@@ -106,7 +106,7 @@ function getReferringSites() {
 
   let tbody = referringSites.querySelector('tbody');
   tbody.innerHTML = '';
-  for (const [referrer, count] of Object.entries(counter).sort(([,a],[,b]) => b-a).slice(0, 25)) {
+  for (const [referrer, count] of Object.entries(counter).sort(([, a], [, b]) => b - a).slice(0, 25)) {
     let tr = document.createElement('tr');
     let f = document.createElement('td');
     f.setAttribute('data-th', 'Site')
@@ -116,7 +116,7 @@ function getReferringSites() {
       if (searchEngine === null) {
         let a = document.createElement('a');
         a.href = referrer;
-        a.textContent =  url.host;
+        a.textContent = url.host;
         f.appendChild(a);
       } else {
         f.textContent = searchEngine;
@@ -145,7 +145,7 @@ function getPopularRoutes() {
 
   let tbody = popularRoutes.querySelector('tbody');
   tbody.innerHTML = '';
-  for (const [route, count] of Object.entries(counter).sort(([,a],[,b]) => b-a).slice(0, 25)) {
+  for (const [route, count] of Object.entries(counter).sort(([, a], [, b]) => b - a).slice(0, 25)) {
     let tr = document.createElement('tr');
     let f = document.createElement('td');
     f.setAttribute('data-th', 'Route')
@@ -163,8 +163,9 @@ function getPopularRoutes() {
 }
 
 function getRecentServerLogs() {
-  let filtered = logs.filter(log => log.target !== "jimaku::logging").reverse().slice(0, 25);
+  const formatValue = (x) => typeof x === 'string' ? JSON.stringify(x) : x.toString();
 
+  let filtered = logs.filter(log => log.target !== "jimaku::logging").reverse().slice(0, 25);
   let tbody = recentLogs.querySelector('tbody');
   tbody.innerHTML = '';
   for (const log of filtered) {
@@ -180,9 +181,13 @@ function getRecentServerLogs() {
     let message = document.createElement('td');
     message.setAttribute('data-th', 'Message');
     message.textContent = `${log.target}: ${log.fields?.message ?? "Nothing"}`;
+    let fields = document.createElement('td');
+    fields.setAttribute('data-th', 'Fields');
+    fields.textContent = Object.entries(log.fields).filter(([name, _]) => name != 'message').map(([name, value]) => `${name}=${formatValue(value)}`).join(", ");
     tr.appendChild(ts);
     tr.appendChild(level);
     tr.appendChild(message);
+    tr.appendChild(fields);
     tbody.appendChild(tr);
   }
 }
