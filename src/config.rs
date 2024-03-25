@@ -7,8 +7,8 @@ use std::{
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::PROGRAM_NAME;
 use crate::key::SecretKey;
+use crate::{cli::PROGRAM_NAME, discord::Webhook};
 
 /// The server configuration.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -33,6 +33,10 @@ pub struct Config {
     /// These must *not* have any schemes.
     #[serde(default)]
     pub domains: Vec<String>,
+    /// The Discord webhook URL for audit log announcements.
+    #[serde(rename = "discord_webhook_url")]
+    #[serde(default)]
+    pub webhook: Option<Webhook>,
     /// The server IP and port configuration
     #[serde(default)]
     pub server: ServerConfig,
@@ -50,6 +54,7 @@ impl Config {
             subtitle_path: std::env::current_dir().expect("could not get current working directory"),
             domains: Vec::new(),
             contact_emails: Vec::new(),
+            webhook: None,
             server: ServerConfig::default(),
             secret_key: SecretKey::random()?,
         })
@@ -97,7 +102,17 @@ impl Config {
         let mut url = String::with_capacity(8 + domain.len());
         url.push_str(scheme);
         url.push_str(domain);
+        if domain == "localhost" {
+            url.push(':');
+            url.push_str(&self.server.port.to_string());
+        }
         url
+    }
+
+    pub fn url_to(&self, url: impl Into<std::borrow::Cow<'static, str>>) -> String {
+        let mut base = self.canonical_url();
+        base.push_str(&url.into());
+        base
     }
 }
 

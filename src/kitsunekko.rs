@@ -394,10 +394,18 @@ pub async fn auto_scrape_loop(state: AppState) {
         match result {
             Ok(fixtures) => {
                 let new_date = fixtures.iter().map(|x| x.last_updated_at).max();
+                let total = fixtures.len();
+                let preview =
+                    crate::utils::join_iter("\n", fixtures.iter().map(|x| format!("- {}", x.title.romaji)).take(25));
                 if let Err(e) = commit_fixtures(&state, fixtures).await {
                     tracing::error!(error = %e, "Error occurred while committing fixtures");
                 } else if let Some(dt) = new_date {
                     date = dt;
+                    state.send_alert(
+                        crate::discord::Alert::success("Scraped from Kitsunekko")
+                            .description(preview)
+                            .field("Total", total),
+                    );
                 }
             }
             Err(e) => {

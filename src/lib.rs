@@ -4,6 +4,7 @@ pub mod cached;
 pub mod cli;
 mod config;
 pub mod database;
+pub mod discord;
 pub mod error;
 pub mod filters;
 pub mod flash;

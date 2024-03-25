@@ -51,6 +51,17 @@ impl AppState {
         &self.inner.database
     }
 
+    /// Sends an alert webhook with the given webhook payload.
+    ///
+    /// This sends the request in the background so there's no way to detect
+    /// if it failed or not.
+    pub fn send_alert<T: serde::Serialize + Send + 'static>(&self, payload: T) {
+        if let Some(wh) = self.config().webhook.clone() {
+            let client = self.client.clone();
+            tokio::spawn(async move { wh.prepare(payload).send(&client).await });
+        }
+    }
+
     pub fn cached_directories(&self) -> &TimedCachedValue<Vec<DirectoryEntry>> {
         &self.inner.cached_directories
     }

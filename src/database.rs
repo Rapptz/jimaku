@@ -23,16 +23,16 @@ pub trait Table: Sized {
     /// The last parameter is the primary key of the row.
     ///
     /// Panics if the column is not in the COLUMNS array.
-    fn update_query(columns: impl IntoIterator<Item = &'static str>) -> String {
+    fn update_query(columns: impl AsRef<[&'static str]>) -> String {
         let mut query = format!("UPDATE {} SET ", Self::NAME);
         let mut first = true;
-        for column in columns {
+        for column in columns.as_ref() {
             if first {
                 first = false;
             } else {
                 query.push_str(", ");
             }
-            if Self::COLUMNS.contains(&column) {
+            if Self::COLUMNS.contains(column) {
                 query.push_str(column);
                 query.push_str(" = ?");
             } else {

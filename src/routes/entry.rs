@@ -4,13 +4,13 @@ use std::path::{Component, PathBuf};
 use crate::anilist::{self, MediaTitle};
 use crate::database::{is_unique_constraint_violation, Table};
 use crate::error::{ApiError, InternalError};
-use crate::filters;
 use crate::flash::{FlashMessage, Flasher, Flashes};
 use crate::headers::Referrer;
 use crate::models::{Account, AccountCheck, DirectoryEntry};
 use crate::ratelimit::RateLimit;
 use crate::utils::is_over_length;
 use crate::AppState;
+use crate::{discord, filters};
 use anyhow::{bail, Context};
 use askama::Template;
 use axum::body::{Body, Bytes};
@@ -229,6 +229,7 @@ async fn raw_create_directory_entry(
         RETURNING id;
     "#;
     let path_string = path_string.to_owned();
+    let wh = state.clone();
     let response = state
         .database()
         .call(move |con| -> anyhow::Result<(i64, PathBuf)> {
@@ -259,6 +260,16 @@ async fn raw_create_directory_entry(
                         account.id,
                         account.name,
                         "Directory entry created"
+                    );
+                    let anilist_url = match anilist_id {
+                        Some(id) => format!("https://anilist.co/anime/{id}"),
+                        None => String::from("Unknown"),
+                    };
+                    wh.send_alert(
+                        discord::Alert::success(format!("New Entry: {}", &names.romaji))
+                            .url(format!("/entry/{entry_id}"))
+                            .account(account)
+                            .field("AniList URL", anilist_url),
                     );
                     (entry_id, path)
                 }
@@ -395,15 +406,22 @@ async fn edit_directory_entry(
 
     if !columns.is_empty() {
         params.push(Box::new(entry_id));
-        let query = DirectoryEntry::update_query(columns);
+        let query = DirectoryEntry::update_query(&columns);
         match state
             .database()
             .execute(query, rusqlite::params_from_iter(params))
             .await
         {
             Ok(_) => {
+                let changed = columns.join(", ");
                 state.cached_directories().invalidate().await;
-                info!(entry_id, account.id, account.name, "Entry was edited");
+                info!(entry_id, changed, account.id, account.name, "Entry was edited");
+                state.send_alert(
+                    discord::Alert::info("Entry was edited")
+                        .account(account)
+                        .field("Changed", changed)
+                        .url(format!("/entry/{entry_id}")),
+                );
                 flasher.add(FlashMessage::success("Successfully edited entry."));
                 Redirect::to(&url).into_response()
             }
@@ -512,7 +530,7 @@ async fn move_directory_entries(
             };
             (entry_id, path)
         }
-        None => raw_create_directory_entry(state, account.clone(), payload.name, payload.anilist_id).await?,
+        None => raw_create_directory_entry(state.clone(), account.clone(), payload.name, payload.anilist_id).await?,
     };
 
     let mut success = 0;
@@ -528,7 +546,17 @@ async fn move_directory_entries(
 
     info!(
         from_entry_id,
-        entry_id, success, failed, account.name, account.id, "Entries were successfully moved"
+        entry_id, success, failed, account.name, account.id, "Moved files"
+    );
+
+    state.send_alert(
+        discord::Alert::info("Moved files")
+            .account(account)
+            .inline_field("From", state.config().url_to(format!("/entry/{from_entry_id}")))
+            .inline_field("To", state.config().url_to(format!("/entry/{entry_id}")))
+            .empty_inline_field()
+            .inline_field("Success", success)
+            .inline_field("Failed", failed),
     );
     Ok(Json(BulkFileOperationResponse {
         entry_id,
@@ -602,6 +630,32 @@ struct ProcessedFiles {
     skipped: usize,
 }
 
+impl ProcessedFiles {
+    fn to_formatted_list(&self, entry_path: &std::path::Path, entry_id: i64, config: &crate::Config) -> String {
+        // Basically turns the files into e.g. - [name](url) items
+        let mut buffer = String::with_capacity(256);
+        let mut base_url = config.canonical_url();
+        base_url.push_str("/entry/");
+        base_url.push_str(&entry_id.to_string());
+        base_url.push('/');
+        for file in &self.files {
+            let Ok(path) = file.path.strip_prefix(entry_path) else {
+                continue;
+            };
+            let Some(name) = path.to_str() else {
+                continue;
+            };
+            buffer.push_str("- [");
+            buffer.push_str(name);
+            buffer.push_str("](");
+            buffer.push_str(&base_url);
+            buffer.push_str(name);
+            buffer.push_str("]\n");
+        }
+        buffer
+    }
+}
+
 async fn verify_file(
     entry_path: &std::path::Path,
     file_name: PathBuf,
@@ -663,6 +717,7 @@ async fn upload_file(
 
     let mut errored = 0usize;
     let total = processed.files.len();
+    let as_list = processed.to_formatted_list(&entry, entry_id, state.config());
     let mut set = JoinSet::new();
     for file in processed.files.into_iter() {
         set.spawn_blocking(move || file.write_to_disk());
@@ -708,6 +763,15 @@ async fn upload_file(
         account.name,
         "Files uploaded"
     );
+
+    if successful {
+        state.send_alert(
+            discord::Alert::success("Files uploaded")
+                .url(format!("/entry/{entry_id}"))
+                .account(account)
+                .description(as_list),
+        );
+    }
 
     flasher.add(message).bail(&url)
 }
