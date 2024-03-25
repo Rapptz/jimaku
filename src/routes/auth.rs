@@ -239,10 +239,10 @@ async fn login_form(
 
 #[derive(Template)]
 #[template(path = "account.html")]
-pub struct AccountInfoTemplate {
-    pub account: Option<Account>,
-    pub user: Account,
-    pub entries: Vec<DirectoryEntry>,
+struct AccountInfoTemplate {
+    account: Option<Account>,
+    user: Account,
+    entries: Vec<DirectoryEntry>,
 }
 
 async fn account_info(State(state): State<AppState>, account: Account) -> AccountInfoTemplate {
@@ -257,6 +257,34 @@ async fn account_info(State(state): State<AppState>, account: Account) -> Accoun
         user: account,
         entries,
     }
+}
+
+async fn show_other_account_info(
+    State(state): State<AppState>,
+    account: Account,
+    Path(name): Path<String>,
+) -> Result<AccountInfoTemplate, Redirect> {
+    let Some(user) = state
+        .database()
+        .get::<Account, _, _>("SELECT * FROM account WHERE name = ?", [name])
+        .await
+        .ok()
+        .flatten()
+    else {
+        return Err(Redirect::to("/"));
+    };
+
+    let entries = state
+        .database()
+        .all("SELECT * FROM directory_entry WHERE creator_id = ?", [user.id])
+        .await
+        .unwrap_or_default();
+
+    Ok(AccountInfoTemplate {
+        account: Some(account),
+        user,
+        entries,
+    })
 }
 
 #[derive(Deserialize)]
@@ -295,5 +323,6 @@ pub fn routes() -> Router<AppState> {
         .route("/logout", get(logout))
         .route("/account", get(account_info))
         .route("/account/change_password", post(change_password))
+        .route("/user/:name", get(show_other_account_info))
         .route("/account/:id/edit", post(edit_account))
 }

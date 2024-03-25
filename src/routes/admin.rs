@@ -13,8 +13,6 @@ use time::OffsetDateTime;
 
 use crate::{cached::BodyCache, error::ApiError, models::Account, utils::logs_directory, AppState};
 
-use super::auth::AccountInfoTemplate;
-
 fn available_logs() -> std::io::Result<Vec<String>> {
     let path = logs_directory();
     let mut result = Vec::new();
@@ -101,38 +99,6 @@ async fn admin_index(account: Account) -> Result<AdminIndexTemplate, StatusCode>
     })
 }
 
-async fn show_account_as_admin(
-    State(state): State<AppState>,
-    account: Account,
-    Path(name): Path<String>,
-) -> Result<AccountInfoTemplate, StatusCode> {
-    if !account.flags.is_admin() {
-        return Err(StatusCode::FORBIDDEN);
-    }
-
-    let Some(user) = state
-        .database()
-        .get::<Account, _, _>("SELECT * FROM account WHERE name = ?", [name])
-        .await
-        .ok()
-        .flatten()
-    else {
-        return Err(StatusCode::NOT_FOUND);
-    };
-
-    let entries = state
-        .database()
-        .all("SELECT * FROM directory_entry WHERE creator_id = ?", [user.id])
-        .await
-        .unwrap_or_default();
-
-    Ok(AccountInfoTemplate {
-        account: Some(account),
-        user,
-        entries,
-    })
-}
-
 async fn invalidate_caches(
     State(state): State<AppState>,
     account: Account,
@@ -150,7 +116,6 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/logs", get(get_last_logs))
         .route("/admin/logs/:date", get(get_logs_from))
-        .route("/admin/account/:name/edit", get(show_account_as_admin))
         .route("/admin", get(admin_index))
         .route("/admin/cache/invalidate", get(invalidate_caches))
 }
