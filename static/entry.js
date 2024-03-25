@@ -211,7 +211,11 @@ async function downloadFiles() {
 editButton?.addEventListener('click', () => editModal?.showModal());
 anilistSync?.addEventListener('click', async (e) => {
   e.preventDefault();
-  let id = parseInt(document.getElementById('entry-anilist-id').value, 10);
+  let text = document.getElementById('entry-anilist-id').value;
+  let id = parseInt(text, 10);
+  if(Number.isNaN(id)) {
+    id = getAnilistId(text);
+  }
   if(id) {
     await getAnimeInfo(id)
   } else {
