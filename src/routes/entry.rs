@@ -33,6 +33,7 @@ use time::OffsetDateTime;
 use tokio::task::JoinSet;
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
+use tracing::info;
 
 const FRAGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
@@ -177,7 +178,7 @@ struct CreateDirectoryEntry {
 
 async fn raw_create_directory_entry(
     state: AppState,
-    account: &Account,
+    account: Account,
     name: Option<String>,
     anilist_id: Option<u32>,
 ) -> anyhow::Result<(i64, PathBuf)> {
@@ -239,7 +240,7 @@ async fn raw_create_directory_entry(
                         path_string.to_owned(),
                         creator_id,
                         anilist_id,
-                        names.romaji,
+                        names.romaji.as_str(),
                         names.english,
                         names.native,
                     ),
@@ -251,6 +252,14 @@ async fn raw_create_directory_entry(
                 Ok(entry_id) => {
                     std::fs::create_dir(&path)
                         .with_context(|| format!("Could not create directory {}", path.display()))?;
+                    info!(
+                        entry_id,
+                        name = &names.romaji,
+                        anilist_id,
+                        account.id,
+                        account.name,
+                        "Directory entry created"
+                    );
                     (entry_id, path)
                 }
                 Err(e) if is_unique_constraint_violation(&e) => return Err(anyhow::anyhow!("Entry already exists.")),
@@ -276,7 +285,7 @@ async fn create_directory_entry(
     Form(payload): Form<CreateDirectoryEntry>,
 ) -> Response {
     let anilist_id = payload.anilist_url.as_deref().and_then(crate::utils::get_anilist_id);
-    let response = raw_create_directory_entry(state, &account, payload.name, anilist_id).await;
+    let response = raw_create_directory_entry(state, account, payload.name, anilist_id).await;
     match response {
         Ok((entry_id, _)) => Redirect::to(&format!("/entry/{entry_id}")).into_response(),
         Err(e) => flasher.add(e.to_string()).bail(&url),
@@ -394,6 +403,7 @@ async fn edit_directory_entry(
         {
             Ok(_) => {
                 state.cached_directories().invalidate().await;
+                info!(entry_id, account.id, account.name, "Entry was edited");
                 flasher.add(FlashMessage::success("Successfully edited entry."));
                 Redirect::to(&url).into_response()
             }
@@ -484,7 +494,7 @@ struct BulkFileOperationResponse {
 
 async fn move_directory_entries(
     State(state): State<AppState>,
-    Path(entry_id): Path<i64>,
+    Path(from_entry_id): Path<i64>,
     account: Account,
     Json(payload): Json<MoveDirectoryEntries>,
 ) -> Result<Json<BulkFileOperationResponse>, ApiError> {
@@ -492,7 +502,7 @@ async fn move_directory_entries(
         return Err(ApiError::forbidden());
     }
 
-    let Some(entry) = state.get_directory_entry_path(entry_id).await else {
+    let Some(entry) = state.get_directory_entry_path(from_entry_id).await else {
         return Err(ApiError::not_found("Directory entry not found."));
     };
     let (entry_id, path) = match payload.entry_id {
@@ -502,7 +512,7 @@ async fn move_directory_entries(
             };
             (entry_id, path)
         }
-        None => raw_create_directory_entry(state, &account, payload.name, payload.anilist_id).await?,
+        None => raw_create_directory_entry(state, account.clone(), payload.name, payload.anilist_id).await?,
     };
 
     let mut success = 0;
@@ -515,6 +525,11 @@ async fn move_directory_entries(
             Err(_) => failed += 1,
         }
     }
+
+    info!(
+        from_entry_id,
+        entry_id, success, failed, account.name, account.id, "Entries were successfully moved"
+    );
     Ok(Json(BulkFileOperationResponse {
         entry_id,
         success,
@@ -630,7 +645,7 @@ async fn upload_file(
     State(state): State<AppState>,
     Path(entry_id): Path<i64>,
     Referrer(url): Referrer,
-    _account: Account,
+    account: Account,
     flasher: Flasher,
     multipart: Multipart,
 ) -> Response {
@@ -668,7 +683,8 @@ async fn upload_file(
         )
         .await;
 
-    let message = if total > 0 && errored == 0 && processed.skipped == 0 {
+    let successful = total > 0 && errored == 0 && processed.skipped == 0;
+    let message = if successful {
         FlashMessage::success("Upload successful.")
     } else if errored == total {
         FlashMessage::error("Upload failed.")
@@ -681,6 +697,17 @@ async fn upload_file(
             if processed.skipped == 1 { "was" } else { "were" },
         ))
     };
+
+    info!(
+        entry_id,
+        total,
+        success = successful,
+        skipped = processed.skipped,
+        errors = errored,
+        account.id,
+        account.name,
+        "Files uploaded"
+    );
 
     flasher.add(message).bail(&url)
 }
