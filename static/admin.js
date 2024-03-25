@@ -31,13 +31,13 @@ function clearTable(table) {
   table.querySelector('tbody').innerHTML = '';
 }
 
-function getActiveUsers() {
-  let unique = new Set(httpRequestLogs().map(data => data?.span?.user_id).filter(e => typeof e == 'number'));
+function getActiveUsers(requests) {
+  let unique = new Set(requests.map(data => data?.span?.user_id).filter(e => typeof e == 'number'));
   return unique.size;
 }
 
-function getAverageResponseTime() {
-  let responseTimes = nonStaticHttpRequests().map(data => (data?.span?.['http.latency'] ?? 0) / 1000);
+function getAverageResponseTime(requests) {
+  let responseTimes = requests.map(data => (data?.span?.['http.latency'] ?? 0) / 1000);
   return Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
 }
 
@@ -46,8 +46,7 @@ const isSpanSuccess = (data) => {
   return code !== null && code >= 200 && code < 400;
 }
 
-function getSuccessRate() {
-  let requests = nonStaticHttpRequests();
+function getSuccessRate(requests) {
   let successes = requests.reduce((a, data) => a + isSpanSuccess(data), 0);
   return successes / requests.length;
 }
@@ -94,8 +93,8 @@ function getSearchEngine(url) {
   }
 }
 
-function getReferringSites() {
-  let counter = nonStaticHttpRequests().map(d => d?.span?.['http.referrer'] || "").filter(r => !r.startsWith(window.location.origin) && r.length != 0).reduce((count, referrer) => {
+function getReferringSites(requests) {
+  let counter = requests.map(d => d?.span?.['http.referrer'] || "").filter(r => !r.startsWith(window.location.origin) && r.length != 0).reduce((count, referrer) => {
     if (count.hasOwnProperty(referrer)) {
       count[referrer] += 1;
     } else {
@@ -133,8 +132,8 @@ function getReferringSites() {
   }
 }
 
-function getPopularRoutes() {
-  let counter = nonStaticHttpRequests().map(d => d?.span?.['http.url'] || "").filter(r => r.length != 0).reduce((count, route) => {
+function getPopularRoutes(requests) {
+  let counter = requests.map(d => d?.span?.['http.url'] || "").filter(r => r.length != 0).reduce((count, route) => {
     if (count.hasOwnProperty(route)) {
       count[route] += 1;
     } else {
@@ -197,12 +196,13 @@ function getRecentServerLogs() {
 }
 
 function updateGraphs() {
-  requestCount.textContent = httpRequestLogs().length.toLocaleString();
-  activeUsers.textContent = getActiveUsers();
-  averageResponseTime.textContent = `${getAverageResponseTime()} ms`;
-  percentSuccess.textContent = getSuccessRate().toLocaleString(undefined, { style: 'percent', minimumFractionDigits: 2 });
-  getReferringSites();
-  getPopularRoutes();
+  let requests = nonStaticHttpRequests();
+  requestCount.textContent = requests.length.toLocaleString();
+  activeUsers.textContent = getActiveUsers(requests);
+  averageResponseTime.textContent = `${getAverageResponseTime(requests)} ms`;
+  percentSuccess.textContent = getSuccessRate(requests).toLocaleString(undefined, { style: 'percent', minimumFractionDigits: 2 });
+  getReferringSites(requests);
+  getPopularRoutes(requests);
   getRecentServerLogs();
 }
 
