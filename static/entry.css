@@ -202,6 +202,10 @@ a.relation:not(:last-child)::after {
 
 /* tables are easier as desktop first */
 @media (max-width: 480px) {
+  .files[data-columns="2"] {
+    grid-template-columns: 250px auto;
+  }
+
   .files[data-columns="4"] {
     grid-template-columns: min-content repeat(3, minmax(0, 1fr));
   }
