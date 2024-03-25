@@ -349,6 +349,11 @@ table tbody tr:hover {
     padding: 0.25rem;
     border-top: none;
     border-bottom: 1px solid var(--table-border);
+    overflow-wrap: anywhere;
+  }
+
+  table td:last-child {
+    border-bottom: none;
   }
 
   table td::before {
