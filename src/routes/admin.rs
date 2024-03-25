@@ -26,6 +26,7 @@ fn available_logs() -> std::io::Result<Vec<String>> {
         }
         result.push(filename);
     }
+    result.sort_by(|a, b| b.cmp(a));
     Ok(result)
 }
 
