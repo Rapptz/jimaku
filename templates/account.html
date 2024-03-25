@@ -28,7 +28,9 @@ My Account · Jimaku
   </div>
 </div>
 <div class="commands">
+  {% if account.id == user.id %}
   <button class="button" id="change-password">Change Password</button>
+  {% endif %}
   {% if account.flags.is_admin() %}
   <button class="button primary" data-editor="{{ user.flags.is_editor() }}"
           data-endpoint="/account/{{ user.id }}/edit" id="toggle-editor">Toggle Editor</button>
