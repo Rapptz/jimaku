@@ -1,0 +1,163 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/help.css" type="text/css">
+<meta property="og:url" content='{{ "/help"|canonical_url }}'>
+<meta property="og:title" content="Jimaku: Help">
+{% endblock %}
+
+{% block title %}
+Help · Jimaku
+{% endblock %}
+
+{% block sidebar %}
+<section class="sidebar grid-item">
+  <h3>Table of Contents</h3>
+  <ul>
+    <li>
+      <a href="#using-the-site">Using the Site</a>
+      <ul>
+        <li><a href="#entry-badges">Badges</a></li>
+        <li><a href="#searching">Searching</a></li>
+        <li><a href="#account-management">Account Management</a></li>
+        <li><a href="#downloading-files">Downloading Files</a></li>
+        <li><a href="#reporting-files">Reporting Files</a></li>
+        <li><a href="#changing-settings">Settings</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#upload-guidelines">Upload Guidelines</a>
+      <ul>
+        <li><a href="#naming-scheme">Naming Scheme</a></li>
+        <li><a href="#creating-folders">Creating Folders</a></li>
+        <li><a href="#file-types">File Types</a></li>
+        <li><a href="#file-location">File Location</a></li>
+        <li><a href="#deleting-files">Deleting Files</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#editor-user">Editor Users</a>
+      <ul>
+        <li><a href="#becoming-an-editor">Becoming an Editor</a></li>
+        <li><a href="#moving-entries">Moving Entries</a></li>
+        <li><a href="#editing-info">Editing Information</a></li>
+      </ul>
+    </li>
+  </ul>
+</section>
+{% endblock %}
+
+{% block body %}
+<div id="content">
+  <h1 id="using-the-site">Using the Site</h1>
+  <p>
+    This section details how to use the site. If you need any more help please don't hesitate to join the <a href="https://discord.gg/xtEBbH75ph">Discord</a> server. If you want to report a bug or request a feature, you can either do that on the Discord server or on <a href="https://github.com/Rapptz/jimaku">GitHub</a>.
+  </p>
+  <h2 id="entry-badges">Badges</h2>
+  <p>
+    Every entry can have a few badges to denote some extraneous information about it. They are as follows:
+  </p>
+  <p>
+    <ul>
+      <li>
+        <span class="badge danger" title="Entry has quality issues">Low Quality</span>
+        <span class="explanation">The entry has not been verified by editors to have the correct information.</span>
+      </li>
+      <li>
+        <span class="badge warning" title="Entry originated from Kitsunekko">Legacy</span>
+        <span class="explanation">The entry originated from <a href="https://kitsunekko.net">Kitsunekko</a>.</span>
+      </li>
+    </ul>
+  </p>
+  <h2 id="searching">Searching</h2>
+  <p>
+    On the front page and on an entry's page there is a search bar that allows you to search and filter entries. This search supports any language that the entry has, such as Romaji, English, or Japanese.
+    Likewise, searching by an AniList URL is supported.
+  </p>
+  <h2 id="account-management">Account Management</h2>
+  <p>
+    You can change your password by clicking on your username on the navbar, when logged on. Due to the usage of <a href="https://en.wikipedia.org/wiki/JSON_Web_Token">JSON Web Tokens</a> previous logged in sessions are unfortunately not invalidated when this is done. However, login tokens are only valid for a maximum of 90 days so they will expire on their own.
+  </p>
+  <p>
+    There is currently no way to delete an account. Contact the administrators on the <a href="https://discord.gg/xtEBbH75ph">Discord</a> server if needed.
+  </p>
+  <h2 id="downloading-files">Downloading Files</h2>
+  <p>
+    You can download files by clicking on the link in the file entry. You can also bulk download files by selecting multiple files using the checkbox and then clicking the Download button. This will give you a ZIP file with all the subtitles you selected.
+  </p>
+  <h2 id="reporting-files">Reporting Files</h2>
+  <p>
+    If you find files that are not proper subtitles, you can report these files to the administrator by contacting them on the <a href="https://discord.gg/xtEBbH75ph">Discord</a> server.
+    Please provide the full link to the file when doing so.
+  </p>
+  <h2 id="changing-settings">Settings</h2>
+  <p>
+    By accessing the cog icon on the navbar you can change your settings such as displayed language.
+  </p>
+  <h1 id="upload-guidelines">Upload Guidelines</h1>
+  <p>
+    In order to maintain a clean and navigable site, it is imperative that things uploaded meet a specific criteria.
+  </p>
+  <p>Creating a folder or uploading files requires an account. No email or personal information is stored.</p>
+  <p>
+    Note that due to the automatic downloads from <a href="https://kitsunekko.net">Kitsunekko</a>, not all of the subtitles will meet these requirements. However, please strive to do so.
+  </p>
+  <h2 id="naming-scheme">Naming Scheme</h2>
+  <p>
+    Subtitle filenames should generally have the same name as the filename of the video it came from, except with an <code>.srt</code> or <code>.ass</code> extension instead of the video extension. This allows users to quickly identify what video the subtitles originated from, and hopefully allows them to consistently modify the timing relative to their own files.
+  </p>
+  <h2 id="creating-folders">Creating Folders</h2>
+  <p>
+    Creating a folder currently requires the entry to have an AniList ID, backed by an <a href="https://anilist.co">AniList</a> URL. This is necessary to power the search features and overall organization of the site.
+  </p>
+  <p>
+    Users that are editors can create a folder without this requirement, and this requirement is also relaxed for entries created from Kitsunekko.
+  </p>
+  <h2 id="file-types">File Types</h2>
+  <p>
+    The following file types are supported:
+  </p>
+  <p>
+    <ul>
+      <li><code>.srt</code></li>
+      <li><code>.ass</code></li>
+      <li><code>.ssa</code></li>
+      <li><code>.zip</code></li>
+      <li><code>.sub</code></li>
+      <li><code>.sup</code></li>
+    </ul>
+  <p>
+    It is recommended to upload only <code>.srt</code> or <code>.ass</code> files for best results.
+    The other file types are provided merely for legacy reasons or for supporting picture based subtitles.
+    Try to avoid uploading a <code>.zip</code> file since its contents cannot be investigated without downloading.
+  </p>
+  <h2 id="file-location">File Location</h2>
+  <p>
+    When uploading a file for a series, it is imperative that the folder that it belongs to is backed by the appropriate <a href="https://anilist.co">AniList</a> anime entry. For example, if a series has multiple seasons in AniList, then it should be put in the appropriate folder for that season.
+  </p>
+  <p>
+    If a folder does not exist for that AniList entry, feel free to make one before uploading it. Chances are however, that it exists. Use the search bar before making a new folder.
+  </p>
+  <h2 id="deleting-files">Deleting Files</h2>
+  <p>
+    Files can currently only be deleted by an administrator. Contact the administrators on the <a href="https://discord.gg/xtEBbH75ph">Discord</a> server with the URL that you want deleted and the reason.
+  </p>
+  <h1 id="editor-user">Editor Users</h1>
+  <p>
+    Certain users are designated <span class="badge info" title="User is an editor">Editor</span> which gives them special privileges with helping maintain the site's quality.
+  </p>
+  <h2 id="becoming-an-editor">Becoming an Editor</h2>
+  <p>
+    At the moment, there is no established process for becoming an editor. If you are a prolific uploader and are active in the <a href="https://discord.gg/xtEBbH75ph">Discord</a> server, the administrators might grant it to you.
+  </p>
+  <h2 id="moving-entries">Moving Entries</h2>
+  <p>
+    One of the abilities that editors gain is the ability to move files to another, and correct, entry. In order to do this, you need to select multiple files and then press the Move button to move it to another directory entry.
+  </p>
+  <h2 id="editing-info">Editing Information</h2>
+  <p>
+    Editors can edit information of an entry using the Edit button. Most of it is straightforward. For editing the notes of an entry, you can include any type of information that would be helpful to add with that note. The maximum length of the notes is currently 1024 characters. It also supports <a href="https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax">GitHub Flavored Markdown</a> for formatting.
+  </p>
+</div>
+{% endblock %}
+

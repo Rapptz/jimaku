@@ -43,8 +43,6 @@ My Account · Jimaku
     <span class="table-header sorting-ascending" data-sort-by="name">Name</span>
     <span class="table-header" data-sort-by="last-modified">Date</span>
   </div>
-
-  <!-- TODO: name can be changed with setting -->
   {% for entry in entries %}
   <div class="entry" data-extra="{{ entry.data()|json }}">
     <a href="/entry/{{ entry.id }}" class="table-data file-name">{{ entry.name|e }}</a>

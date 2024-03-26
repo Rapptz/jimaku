@@ -1,0 +1,30 @@
+.sidebar {
+  margin-right: 1rem;
+}
+
+.sidebar > h3 {
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--dividers);
+}
+
+.sidebar ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.sidebar a {
+  color: var(--nav-link);
+}
+
+.sidebar a:hover {
+  border-bottom-color: var(--nav-link-hover);
+  color: var(--nav-link-hover);
+}
+
+@media (min-width: 840px) {
+  .sidebar {
+    top: 0.75rem;
+    height: fit-content;
+    position: sticky;
+  }
+}

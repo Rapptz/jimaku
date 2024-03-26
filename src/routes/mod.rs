@@ -39,9 +39,20 @@ async fn index(
     cacher.cache_template("index", template, encoding, bypass_cache).await
 }
 
+#[derive(Template)]
+#[template(path = "help.html")]
+struct HelpTemplate {
+    account: Option<Account>,
+}
+
+async fn help_page(account: Option<Account>) -> impl IntoResponse {
+    HelpTemplate { account }
+}
+
 pub fn all() -> Router<AppState> {
     Router::new()
         .route("/", get(index))
+        .route("/help", get(help_page))
         .merge(auth::routes())
         .merge(entry::routes())
         .merge(admin::routes())
