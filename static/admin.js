@@ -4,6 +4,8 @@ const requestCount = document.getElementById('request-count');
 const activeUsers = document.getElementById('active-users');
 const averageResponseTime = document.getElementById('average-response-time');
 const percentSuccess = document.getElementById('percent-success');
+const registeredUsers = document.getElementById('registered-users');
+const downloadCount = document.getElementById('download-count');
 // Tables
 const referringSites = document.getElementById('referring-sites');
 const popularRoutes = document.getElementById('popular-routes');
@@ -35,6 +37,8 @@ function getActiveUsers(requests) {
   let unique = new Set(requests.map(data => data?.span?.user_id).filter(e => typeof e == 'number'));
   return unique.size;
 }
+
+const isDownloadLog = (d) => /\/entry\/\d+\/(?:bulk|download)/.test(d?.span?.['http.url'] || "");
 
 function getAverageResponseTime(requests) {
   let responseTimes = requests.map(data => (data?.span?.['http.latency'] ?? 0) / 1000);
@@ -201,6 +205,7 @@ function updateGraphs() {
   activeUsers.textContent = getActiveUsers(requests);
   averageResponseTime.textContent = `${getAverageResponseTime(requests)} ms`;
   percentSuccess.textContent = getSuccessRate(requests).toLocaleString(undefined, { style: 'percent', minimumFractionDigits: 2 });
+  downloadCount.textContent = requests.filter(isDownloadLog).length.toLocaleString();
   getReferringSites(requests);
   getPopularRoutes(requests);
   getRecentServerLogs();
