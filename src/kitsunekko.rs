@@ -110,9 +110,9 @@ impl File {
 
 impl Directory {
     /// Updates the `files` attribute with the file entries found for this entry.
-    pub async fn find_files(&mut self, client: &reqwest::Client) -> anyhow::Result<()> {
+    pub async fn find_files(&mut self, client: &reqwest::Client, date: &OffsetDateTime) -> anyhow::Result<()> {
         self.files = get_entries(client, &self.url).await?;
-        self.files.retain(File::is_supported);
+        self.files.retain(|f| f.is_supported() && &f.date > date);
         Ok(())
     }
 
@@ -252,7 +252,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
     let subtitle_path = state.config().subtitle_path.as_path();
     let total = directories.len();
     for (index, mut entry) in directories.into_iter().enumerate() {
-        entry.find_files(&state.client).await?;
+        entry.find_files(&state.client, &date).await?;
         if entry.files.is_empty() {
             info!(
                 "[{}/{}] skipping {:?} due to having no files",
