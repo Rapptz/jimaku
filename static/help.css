@@ -1,3 +1,8 @@
+
+.sidebar.grid-item {
+  grid-area: s;
+}
+
 .sidebar {
   margin-right: 1rem;
 }
@@ -22,6 +27,14 @@
 }
 
 @media (min-width: 840px) {
+  .grid {
+    grid-template-areas:
+      "h h h"
+      "c c s"
+      "c c s"
+      "f f f"
+    ;
+  }
   .sidebar {
     top: 0.75rem;
     height: fit-content;
