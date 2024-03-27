@@ -544,6 +544,14 @@ async fn move_directory_entries(
         }
     }
 
+    let _ = state
+        .database()
+        .execute(
+            "UPDATE directory_entry SET last_updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [entry_id],
+        )
+        .await;
+
     info!(
         from_entry_id,
         entry_id, success, failed, account.name, account.id, "Moved files"
