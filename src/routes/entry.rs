@@ -738,15 +738,17 @@ async fn upload_file(
         }
     }
 
-    let _ = state
-        .database()
-        .execute(
-            "UPDATE directory_entry SET last_updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            [entry_id],
-        )
-        .await;
-
     let successful = total > 0 && errored == 0 && processed.skipped == 0;
+    if successful && errored != total {
+        let _ = state
+            .database()
+            .execute(
+                "UPDATE directory_entry SET last_updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                [entry_id],
+            )
+            .await;
+    }
+
     let message = if successful {
         FlashMessage::success("Upload successful.")
     } else if errored == total {
