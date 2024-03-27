@@ -552,6 +552,8 @@ async fn move_directory_entries(
         )
         .await;
 
+    state.cached_directories().invalidate().await;
+
     info!(
         from_entry_id,
         entry_id, success, failed, account.name, account.id, "Moved files"
@@ -747,6 +749,7 @@ async fn upload_file(
                 [entry_id],
             )
             .await;
+        state.cached_directories().invalidate().await;
     }
 
     let message = if successful {
