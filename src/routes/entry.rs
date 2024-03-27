@@ -417,7 +417,7 @@ async fn edit_directory_entry(
                 state.cached_directories().invalidate().await;
                 info!(entry_id, changed, account.id, account.name, "Entry was edited");
                 state.send_alert(
-                    discord::Alert::info("Entry was edited")
+                    discord::Alert::info(format!("Entry Edited: {}", entry.name))
                         .account(account)
                         .field("Changed", changed)
                         .url(format!("/entry/{entry_id}")),
