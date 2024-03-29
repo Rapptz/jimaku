@@ -23,7 +23,6 @@
           {% match account %}
             {% when Some with (account) %}
             <a class="nav-item" href="/account">{{ account.name }}</a>
-            <a class="nav-item" href="/logout">Logout</a>
             {% when None %}
             <a class="nav-item" href="/login">Login</a>
           {% endmatch %}

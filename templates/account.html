@@ -28,6 +28,7 @@ My Account · Jimaku
   </div>
 </div>
 <div class="commands">
+  <div class="command-buttons">
   {% if account.id == user.id %}
   <button class="button" id="change-password">Change Password</button>
   {% endif %}
@@ -35,6 +36,7 @@ My Account · Jimaku
   <button class="button primary" data-editor="{{ user.flags.is_editor() }}"
           data-endpoint="/account/{{ user.id }}/edit" id="toggle-editor">Toggle Editor</button>
   {% endif %}
+  </div>
 </div>
 {% if !entries.is_empty() %}
 <h3>Created Entries</h3>
@@ -51,6 +53,11 @@ My Account · Jimaku
   {% endfor %}
 </div>
 {% endif %}
+<div class="commands">
+  <div class="command-buttons">
+    <a class="button danger outline" href="/logout">Logout</a>
+  </div>
+</div>
 <dialog id="change-password-modal">
   <form autocomplete="off" method="POST" action="/account/change_password">
     <h1>Change Password</h1>
