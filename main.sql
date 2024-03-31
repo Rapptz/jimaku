@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS directory_entry (
   creator_id INTEGER REFERENCES account(id) ON DELETE SET NULL,
   flags INTEGER NOT NULL DEFAULT 1,
   anilist_id INTEGER UNIQUE,
-  tmdb_id INTEGER UNIQUE,
+  tmdb_id TEXT UNIQUE,
   notes TEXT,
   english_name TEXT,
   japanese_name TEXT,

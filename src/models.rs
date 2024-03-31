@@ -7,7 +7,7 @@ use rusqlite::{
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::database::Table;
+use crate::{database::Table, tmdb};
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 pub struct DirectoryFlags(u32);
@@ -113,7 +113,7 @@ pub struct DirectoryEntry {
     /// The anilist ID of this entry.
     pub anilist_id: Option<u32>,
     /// The TMDB ID of this entry.
-    pub tmdb_id: Option<u32>,
+    pub tmdb_id: Option<tmdb::Id>,
     /// Extra notes that the entry might have.
     ///
     /// Supports a limited set of markdown. Can only be set by editors.
@@ -173,7 +173,7 @@ pub struct DirectoryEntryData<'a> {
     /// The anilist ID of this entry.
     pub anilist_id: Option<u32>,
     /// The TMDB ID of this entry.
-    pub tmdb_id: Option<u32>,
+    pub tmdb_id: Option<tmdb::Id>,
     /// The English name of the entry.
     pub english_name: &'a Option<String>,
     /// The Japanese name of the entry, i.e. with kanji and kana.

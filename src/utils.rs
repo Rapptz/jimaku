@@ -60,3 +60,8 @@ pub fn logs_directory() -> PathBuf {
         .map(|p| p.join(crate::PROGRAM_NAME))
         .unwrap_or_else(|| PathBuf::from("./logs"))
 }
+
+/// This is mainly used for serde defaults
+pub const fn default_true() -> bool {
+    true
+}

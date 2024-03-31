@@ -2,7 +2,7 @@
 
 {% block css %}
 <link rel="stylesheet" href="/static/entry.css" type="text/css">
-<meta property="og:url" content="{{ '/'|canonical_url }}">
+<meta property="og:url" content="{{ url }}">
 <meta property="og:title" content="Jimaku: Japanese subtitles">
 {% endblock %}
 
@@ -11,9 +11,15 @@
 {{ flash.html()|safe }}
 {% endfor %}
 {%- let editor = account.flags().is_editor() -%}
+{%- let placeholder -%}
+{%- if anime -%}
+{%- let placeholder = "Search files by name or AniList URL..." -%}
+{%- else -%}
+{%- let placeholder = "Search files by name or TMDB URL..." -%}
+{%- endif -%}
 <div class="commands">
   <div class="text-input-container">
-    <input autocomplete="off" type="search" id="search-files" placeholder="Search files by name or AniList URL..." spellcheck="false">
+    <input autocomplete="off" type="search" id="search-files" placeholder="{{ placeholder }}" spellcheck="false">
     <button class="clear" tabindex="-1" id="clear-search-filter">✖&#xfe0e;</button>
   </div>
   {% match account %}
@@ -29,8 +35,7 @@
     <span class="table-header" data-sort-by="last-modified">Date</span>
   </div>
 
-  <!-- TODO: name can be changed with setting -->
-  {% for entry in entries %}
+  {% for entry in entries.clone() %}
   <div class="entry" data-extra="{{ entry.data()|json }}">
     <a href="/entry/{{ entry.id }}" class="table-data file-name">{{ entry.name|e }}</a>
     <span class="table-data file-modified" title="{{ entry.last_updated_at|isoformat }}">{{ entry.last_updated_at|isoformat }}</span>
@@ -42,15 +47,24 @@
   <form method="post" action="/entry/create" autocomplete="off">
     <h1>Create folder</h1>
     <div class="form-container">
+      {%- if anime -%}
       <label for="anilist-url">AniList URL</label>
       <input class="form-field" {%- if !editor -%} required {%- endif -%}
              pattern="https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?"
              placeholder="https://anilist.co/anime/12345/" name="anilist_url" id="anilist-url"
              autocomplete="off" type="text">
+      {%- else -%}
+      <label for="tmdb-url">TMDB URL</label>
+      <input class="form-field" {%- if !editor -%} required {%- endif -%}
+             pattern="https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?"
+             placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="tmdb-url"
+             autocomplete="off" type="text">
+      {%- endif -%}
       {% if editor %}
       <label for="directory-name">Directory Name</label>
       <input class="form-field" name="name" id="directory-name" autocomplete="off" type="text">
       {% endif %}
+      <input type="hidden" name="anime" value="{{ anime }}">
     </div>
     <footer>
       <button class="button" formmethod="dialog">Cancel</button>

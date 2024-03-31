@@ -28,6 +28,11 @@ pub struct Config {
     /// Required for production use. Do not prefix this with e.g. `mailto`.
     #[serde(default)]
     pub contact_emails: Vec<String>,
+    /// The TMDB API key that is used for calling the API.
+    ///
+    /// This is *not* the bearer token version, rather this is the
+    /// regular API key.
+    pub tmdb_api_key: String,
     /// The domains that are registered to this server.
     ///
     /// These must *not* have any schemes.
@@ -54,6 +59,7 @@ impl Config {
             subtitle_path: std::env::current_dir().expect("could not get current working directory"),
             domains: Vec::new(),
             contact_emails: Vec::new(),
+            tmdb_api_key: String::new(),
             webhook: None,
             server: ServerConfig::default(),
             secret_key: SecretKey::random()?,

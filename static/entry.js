@@ -10,7 +10,7 @@ const moveFilesButton = document.getElementById('move-files');
 const uploadForm = document.getElementById('upload-form');
 const uploadInput = document.getElementById('upload-file-input');
 
-const anilistSync = document.getElementById('anilist-sync');
+const refreshNames = document.getElementById('refresh-names');
 
 const checkedSelector = '.entry:not(.hidden) > .file-bulk > input[type="checkbox"]';
 const query = `
@@ -102,6 +102,26 @@ async function getAnimeInfo(id) {
     showModalAlert(editModal, {level: 'success', content: `Updated names from AniList`});
   } else {
     showModalAlert(editModal, {level: 'error', content: `AniList returned ${response.status}`})
+  }
+};
+
+async function refreshTmdbNames(id) {
+  let param = encodeURIComponent(`${id.type}:${id.id}`);
+  let response = await fetch(`/entry/titles?tmdb_id=${param}`);
+  if (response.ok) {
+    let titles = await response.json();
+    if (titles?.romaji) {
+      document.getElementById('entry-name').value = titles.romaji;
+    }
+    if (titles?.native) {
+      document.getElementById('entry-japanese-name').value = titles.native;
+    }
+    if (titles?.english) {
+      document.getElementById('entry-english-name').value = titles.english;
+    }
+    showModalAlert(editModal, {level: 'success', content: `Updated names from TMDB`});
+  } else {
+    showModalAlert(editModal, {level: 'error', content: `API returned ${response.status}`})
   }
 };
 
@@ -209,7 +229,7 @@ async function downloadFiles() {
 }
 
 editButton?.addEventListener('click', () => editModal?.showModal());
-anilistSync?.addEventListener('click', async (e) => {
+refreshNames?.addEventListener('click', async (e) => {
   e.preventDefault();
   let text = document.getElementById('entry-anilist-id').value;
   let id = parseInt(text, 10);
@@ -219,7 +239,12 @@ anilistSync?.addEventListener('click', async (e) => {
   if(id) {
     await getAnimeInfo(id)
   } else {
-    showModalAlert(editModal, {level: 'error', content: 'Missing or invalid AniList ID'});
+    let tmdb = getTmdbId(document.getElementById('entry-tmdb-url').value);
+    if(tmdb === null) {
+      showModalAlert(editModal, {level: 'error', content: 'Missing or invalid AniList ID or TMDB URL'});
+    } else {
+      await refreshTmdbNames(tmdb);
+    }
   }
 });
 
@@ -310,6 +335,12 @@ async function moveFiles() {
       payload.anilist_id = anilistId;
       params.append('anilist_id', anilistId);
     }
+    let tmdbId = getTmdbId(document.getElementById('tmdb-url')?.value);
+    if (tmdbId !== null) {
+      payload.tmdb = tmdbId;
+      payload.anime = false;
+      params.append('tmdb_id', `${tmdbId.type}:${tmdbId.id}`);
+    }
     let name = document.getElementById('directory-name').value;
     if(name) {
       payload.name = name;
@@ -320,6 +351,11 @@ async function moveFiles() {
       let js = await resp.json();
       payload.entry_id = js.entry_id;
     }
+  }
+
+  if(Object.keys(payload).length === 1) {
+    showModalAlert(moveModal, {level: 'error', content: 'Either a name, AniList URL, or TMDB URL is required'});
+    return;
   }
 
   let js = await callApi(`/entry/${entryId}/move`, {

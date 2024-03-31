@@ -16,6 +16,7 @@ pub mod models;
 pub mod ratelimit;
 pub mod routes;
 mod state;
+pub mod tmdb;
 pub mod token;
 pub mod utils;
 

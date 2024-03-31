@@ -6,11 +6,11 @@ use crate::database::{is_unique_constraint_violation, Table};
 use crate::error::{ApiError, InternalError};
 use crate::flash::{FlashMessage, Flasher, Flashes};
 use crate::headers::Referrer;
-use crate::models::{Account, AccountCheck, DirectoryEntry};
+use crate::models::{Account, AccountCheck, DirectoryEntry, DirectoryFlags};
 use crate::ratelimit::RateLimit;
 use crate::utils::is_over_length;
-use crate::AppState;
 use crate::{discord, filters};
+use crate::{tmdb, AppState};
 use anyhow::{bail, Context};
 use askama::Template;
 use axum::body::{Body, Bytes};
@@ -168,53 +168,108 @@ async fn download_entry(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct CreateDirectoryEntry {
     #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
+    #[serde(default)]
     anilist_url: Option<String>,
     #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
+    #[serde(default)]
+    tmdb_url: Option<String>,
+    #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
+    #[serde(default)]
     name: Option<String>,
+    #[serde(default = "crate::utils::default_true")]
+    anime: bool,
+}
+
+#[derive(Debug)]
+struct PendingDirectoryEntry {
+    anilist_id: Option<u32>,
+    tmdb_id: Option<tmdb::Id>,
+    name: Option<String>,
+    anime: bool,
+}
+
+impl From<CreateDirectoryEntry> for PendingDirectoryEntry {
+    fn from(value: CreateDirectoryEntry) -> Self {
+        Self {
+            anilist_id: value.anilist_url.as_deref().and_then(crate::utils::get_anilist_id),
+            tmdb_id: value.tmdb_url.as_deref().and_then(tmdb::get_tmdb_id),
+            name: value.name,
+            anime: value.anime,
+        }
+    }
+}
+
+impl PendingDirectoryEntry {
+    async fn get_title(&self, state: &AppState) -> anyhow::Result<Option<MediaTitle>> {
+        match self.anilist_id {
+            Some(id) => anilist::search_by_id(&state.client, id)
+                .await
+                .with_context(|| "AniList returned an error. Please try again later.".to_owned())?
+                .with_context(|| "AniList did not return results for this URL.".to_owned())
+                .map(|m| Some(m.title)),
+            None => {
+                if let Some(id) = self.tmdb_id {
+                    tmdb::get_media_info(&state.client, &state.config().tmdb_api_key, id)
+                        .await
+                        .with_context(|| "TMDB returned an error. Please try again later.".to_owned())?
+                        .with_context(|| "TMDB did not return results for this URL.".to_owned())
+                        .map(|m| Some(m.titles()))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
+
+    fn path(&self, name: &str, anime: bool, state: &AppState) -> PathBuf {
+        // Series names aren't unique but directory names are
+        // So try to give it some noise depending on the anilist ID or tmdb ID
+        // This ordeal could also be entirely avoided by just using numeric folder names
+        // But having human readable folder names is fine
+
+        // A prefix is used for the flat directory structure since it's easier to
+        // reason about in the code.
+        let prefix = if !anime { "[drama] " } else { "" };
+        let directory_name = if let Some(id) = self.anilist_id {
+            sanitise_file_name::sanitise(&format!("{prefix}{name} [{id}]"))
+        } else if let Some(id) = self.tmdb_id {
+            sanitise_file_name::sanitise(&format!("{prefix}{name} [{id}]"))
+        } else {
+            // Avoid the extra allocation if possible
+            if anime {
+                sanitise_file_name::sanitise(name)
+            } else {
+                sanitise_file_name::sanitise(&format!("[drama] {name}"))
+            }
+        };
+
+        state.config().subtitle_path.join(directory_name)
+    }
 }
 
 async fn raw_create_directory_entry(
     state: AppState,
     account: Account,
-    name: Option<String>,
-    anilist_id: Option<u32>,
+    pending: PendingDirectoryEntry,
 ) -> anyhow::Result<(i64, PathBuf)> {
     let creator_id = account.id;
 
-    let names = match anilist_id {
-        Some(id) => {
-            let media = anilist::search_by_id(&state.client, id)
-                .await
-                .with_context(|| "AniList returned an error. Please try again later.".to_owned())?
-                .with_context(|| "AniList did not return results for this URL.".to_owned())?;
-            media.title
-        }
+    let names = match pending.get_title(&state).await? {
+        Some(title) => title,
         None if account.flags.is_editor() => {
-            if let Some(name) = name {
+            if let Some(name) = pending.name.clone() {
                 MediaTitle::new(name)
             } else {
                 bail!("Missing name for directory.");
             }
         }
-        None => bail!("Missing anilist_id for directory."),
+        None => bail!("Missing anilist_id or tmdb_id for directory."),
     };
 
-    // Series names aren't unique but directory names are
-    // So try to give it some noise depending on the anilist ID
-    // This ordeal could also be entirely avoided by just using numeric folder names
-    // But having human readable folder names is fine
-    let directory_name = if let Some(id) = anilist_id {
-        sanitise_file_name::sanitise(&format!("{} [{}]", names.romaji, id))
-    } else {
-        sanitise_file_name::sanitise(&names.romaji)
-    };
-
-    // Verify that the path can be created
-    let path = state.config().subtitle_path.join(directory_name);
-
+    let path = pending.path(&names.romaji, pending.anime, &state);
     if path.exists() {
         bail!("Path already exists.");
     }
@@ -224,12 +279,16 @@ async fn raw_create_directory_entry(
     };
 
     let query = r#"
-        INSERT INTO directory_entry(path, creator_id, anilist_id, name, english_name, japanese_name)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO directory_entry(path, creator_id, tmdb_id, anilist_id, flags, name, english_name, japanese_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id;
     "#;
     let path_string = path_string.to_owned();
     let wh = state.clone();
+    let mut flags = DirectoryFlags::new();
+    flags.set_anime(pending.anime);
+
+    let romaji = names.romaji.clone();
     let response = state
         .database()
         .call(move |con| -> anyhow::Result<(i64, PathBuf)> {
@@ -240,8 +299,10 @@ async fn raw_create_directory_entry(
                     (
                         path_string.to_owned(),
                         creator_id,
-                        anilist_id,
-                        names.romaji.as_str(),
+                        pending.tmdb_id,
+                        pending.anilist_id,
+                        flags,
+                        names.romaji,
                         names.english,
                         names.native,
                     ),
@@ -253,24 +314,6 @@ async fn raw_create_directory_entry(
                 Ok(entry_id) => {
                     std::fs::create_dir(&path)
                         .with_context(|| format!("Could not create directory {}", path.display()))?;
-                    info!(
-                        entry_id,
-                        name = &names.romaji,
-                        anilist_id,
-                        account.id,
-                        account.name,
-                        "Directory entry created"
-                    );
-                    let anilist_url = match anilist_id {
-                        Some(id) => format!("https://anilist.co/anime/{id}"),
-                        None => String::from("Unknown"),
-                    };
-                    wh.send_alert(
-                        discord::Alert::success(format!("New Entry: {}", &names.romaji))
-                            .url(format!("/entry/{entry_id}"))
-                            .account(account)
-                            .field("AniList URL", anilist_url),
-                    );
                     (entry_id, path)
                 }
                 Err(e) if is_unique_constraint_violation(&e) => return Err(anyhow::anyhow!("Entry already exists.")),
@@ -282,7 +325,32 @@ async fn raw_create_directory_entry(
         })
         .await;
 
-    if response.is_ok() {
+    if let Ok((entry_id, _)) = &response {
+        info!(
+            entry_id,
+            name = &romaji,
+            tmdb_id = pending.tmdb_id.map(|id| id.to_string()),
+            anilist_id = pending.anilist_id,
+            account.id,
+            account.name,
+            "Directory entry created"
+        );
+        let anilist_url = match pending.anilist_id {
+            Some(id) => format!("https://anilist.co/anime/{id}"),
+            None => String::from("Unknown"),
+        };
+        let tmdb_url = match pending.tmdb_id {
+            Some(id) => id.url(),
+            None => String::from("Unknown"),
+        };
+        wh.send_alert(
+            discord::Alert::success(format!("New Entry: {}", &romaji))
+                .url(format!("/entry/{entry_id}"))
+                .account(account)
+                .field("Anime", pending.anime)
+                .field("AniList URL", anilist_url)
+                .field("TMDB URL", tmdb_url),
+        );
         state.cached_directories().invalidate().await;
     }
     response
@@ -295,8 +363,7 @@ async fn create_directory_entry(
     Referrer(url): Referrer,
     Form(payload): Form<CreateDirectoryEntry>,
 ) -> Response {
-    let anilist_id = payload.anilist_url.as_deref().and_then(crate::utils::get_anilist_id);
-    let response = raw_create_directory_entry(state, account, payload.name, anilist_id).await;
+    let response = raw_create_directory_entry(state, account, payload.into()).await;
     match response {
         Ok((entry_id, _)) => Redirect::to(&format!("/entry/{entry_id}")).into_response(),
         Err(e) => flasher.add(e.to_string()).bail(&url),
@@ -314,6 +381,8 @@ struct EditDirectoryEntry {
     anilist_id: Option<u32>,
     #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
     notes: Option<String>,
+    #[serde(rename = "tmdb_url", deserialize_with = "tmdb_url")]
+    tmdb_id: Option<tmdb::Id>,
     #[serde(default)]
     low_quality: bool,
 }
@@ -335,6 +404,20 @@ where
                     .map(Some)
             }
         }
+    }
+}
+
+fn tmdb_url<'de, D>(de: D) -> Result<Option<tmdb::Id>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    let opt = opt.as_deref();
+    match opt {
+        None | Some("") => Ok(None),
+        Some(s) => tmdb::get_tmdb_id(s)
+            .ok_or_else(|| serde::de::Error::custom("Invalid TMDB URL provided"))
+            .map(Some),
     }
 }
 
@@ -375,8 +458,8 @@ async fn edit_directory_entry(
     }
 
     // maybe refactor this?
-    let mut columns = Vec::with_capacity(10);
-    let mut params: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::with_capacity(10);
+    let mut columns = Vec::with_capacity(11);
+    let mut params: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::with_capacity(11);
     if entry.name != payload.name {
         columns.push("name");
         params.push(Box::new(payload.name));
@@ -392,6 +475,10 @@ async fn edit_directory_entry(
     if entry.anilist_id != payload.anilist_id {
         columns.push("anilist_id");
         params.push(Box::new(payload.anilist_id));
+    }
+    if entry.tmdb_id != payload.tmdb_id {
+        columns.push("tmdb_id");
+        params.push(Box::new(payload.tmdb_id));
     }
     if entry.notes != payload.notes {
         columns.push("notes");
@@ -450,6 +537,8 @@ struct SearchQueryParams {
     #[serde(default)]
     anilist_id: Option<u32>,
     #[serde(default)]
+    tmdb_id: Option<String>,
+    #[serde(default)]
     name: Option<String>,
 }
 
@@ -467,7 +556,7 @@ async fn search_directory_entries(
         return Err(ApiError::forbidden());
     }
 
-    if params.anilist_id.is_none() && params.name.is_none() {
+    if params.anilist_id.is_none() && params.name.is_none() && params.tmdb_id.is_none() {
         return Err(ApiError::new("Missing search parameter"));
     }
 
@@ -480,8 +569,8 @@ async fn search_directory_entries(
     let entry = state
         .database()
         .get_row(
-            "SELECT id FROM directory_entry WHERE anilist_id = ? OR name = ? OR path = ?",
-            (params.anilist_id, params.name, path),
+            "SELECT id FROM directory_entry WHERE anilist_id = ? OR tmdb_id = ? OR name = ? OR path = ?",
+            (params.anilist_id, params.tmdb_id, params.name, path),
             |row| row.get(0),
         )
         .await
@@ -496,10 +585,14 @@ async fn search_directory_entries(
 struct MoveDirectoryEntries {
     #[serde(default)]
     anilist_id: Option<u32>,
+    #[serde(default, rename = "tmdb")]
+    tmdb_id: Option<tmdb::Id>,
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
     entry_id: Option<i64>,
+    #[serde(default = "crate::utils::default_true")]
+    anime: bool,
     files: Vec<String>,
 }
 
@@ -530,7 +623,19 @@ async fn move_directory_entries(
             };
             (entry_id, path)
         }
-        None => raw_create_directory_entry(state.clone(), account.clone(), payload.name, payload.anilist_id).await?,
+        None => {
+            raw_create_directory_entry(
+                state.clone(),
+                account.clone(),
+                PendingDirectoryEntry {
+                    anilist_id: payload.anilist_id,
+                    tmdb_id: payload.tmdb_id,
+                    name: payload.name,
+                    anime: payload.anime,
+                },
+            )
+            .await?
+        }
     };
 
     let mut success = 0;
@@ -852,6 +957,28 @@ async fn relations(
     Ok(Json(entries))
 }
 
+#[derive(Deserialize)]
+struct TitleQuery {
+    #[serde(deserialize_with = "tmdb::string_id_representation")]
+    tmdb_id: tmdb::Id,
+}
+
+async fn titles(
+    State(state): State<AppState>,
+    account: Account,
+    Query(query): Query<TitleQuery>,
+) -> Result<Json<Option<MediaTitle>>, ApiError> {
+    if !account.flags.is_editor() {
+        return Err(ApiError::forbidden());
+    }
+
+    Ok(Json(
+        tmdb::get_media_info(&state.client, &state.config().tmdb_api_key, query.tmdb_id)
+            .await?
+            .map(|info| info.titles()),
+    ))
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/entry/:id", get(get_entry))
@@ -873,4 +1000,5 @@ pub fn routes() -> Router<AppState> {
             post(bulk_download).layer(RateLimit::default().quota(5, 5.0).build()),
         )
         .route("/entry/relations", post(relations))
+        .route("/entry/titles", get(titles))
 }

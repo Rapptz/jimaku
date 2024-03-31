@@ -42,3 +42,7 @@ pub fn canonical_url(url: impl Display) -> askama::Result<String> {
     url.push_str(&path);
     Ok(url)
 }
+
+pub fn maybe_tmdb_url(opt: &Option<crate::tmdb::Id>) -> askama::Result<String> {
+    Ok(opt.as_ref().map(|x| x.url()).unwrap_or_default())
+}

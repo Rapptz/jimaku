@@ -41,18 +41,17 @@
   flex-wrap: wrap;
 }
 
-.external-link {
+.external-links {
   display: flex;
 }
 
-.entry-info > .external-link {
+.entry-info > .external-links {
   margin-right: auto;
-  width: 24px;
   height: 24px;
   align-self: center;
 }
 
-.entry-info:has(> .external-link) > .title {
+.entry-info:has(> .external-links) > .title {
   margin-right: 0.5rem;
 }
 

@@ -1,4 +1,5 @@
 const anilistRegex = /^https:\/\/anilist\.co\/anime\/(\d+)\//m;
+const tmdbRegex = /^https:\/\/(?:www\.)?themoviedb\.org\/(tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(?:\/.*)?/m;
 const main = document.querySelector('main');
 const settings = document.getElementById('settings');
 const settingsModal = document.getElementById('settings-modal');
@@ -9,6 +10,11 @@ const rtf = new Intl.RelativeTimeFormat(undefined, {
 const getAnilistId = (url) => {
   const m = url.match(anilistRegex);
   return m == null || m.length !== 2 ? null : parseInt(m[1], 10);
+}
+
+const getTmdbId = (url) => {
+  const m = url.match(tmdbRegex);
+  return m == null || m.length !== 3 ? null : { type: m[1], id: parseInt(m[2], 10) };
 }
 
 function debounced(func, timeout = 300) {

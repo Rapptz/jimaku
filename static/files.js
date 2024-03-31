@@ -136,6 +136,7 @@ function filterEntries(query) {
 
   let parentNode = entries[0].parentNode;
   let anilistId = getAnilistId(query);
+  let tmdb = getTmdbId(query);
   let mapped = [];
   if (anilistId !== null) {
     mapped = entries.map(e => {
@@ -143,6 +144,15 @@ function filterEntries(query) {
       return {
         entry: e,
         score: id !== null && parseInt(id, 10) === anilistId ? 0 : -1000,
+      };
+    });
+  } else if (tmdb !== null) {
+    let tmdbId = `${tmdb.type}:${tmdb.id}`;
+    mapped = entries.map(e => {
+      let id = e.getAttribute('data-tmdb-id');
+      return {
+        entry: e,
+        score: id !== null && id == tmdbId ? 0 : -1000,
       };
     });
   } else {

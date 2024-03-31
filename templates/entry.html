@@ -22,12 +22,28 @@
   <h1 class="title">{{ entry.name }}</h1>
   {% match entry.anilist_id -%}
     {% when Some with (id) -%}
-  <div class="external-link">
+  <div class="external-links">
     <a href="https://anilist.co/anime/{{ id }}/" title="AniList page for this anime">
       <img src="https://anilist.co/img/icons/favicon-32x32.png" width="24px" height="24px" alt="AniList icon" />
     </a>
+    {% match entry.tmdb_id %}
+    {% when Some with (id) %}
+    <a href="{{ id.url() }}" title="TMDB page for this series">
+      <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="48px" height="24px" alt="TMDB icon" />
+    </a>
+    {% when None %}
+    {% endmatch %}
   </div>
     {% when None -%}
+      {% match entry.tmdb_id %}
+      {% when Some with (id) %}
+      <div class="external-links">
+        <a href="{{ id.url() }}" title="TMDB page for this series">
+          <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="48px" height="24px" alt="TMDB icon" />
+        </a>
+      </div>
+      {% when None %}
+      {% endmatch %}
   {% endmatch -%}
   <div class="badges">
     {% if entry.flags.is_low_quality() -%}
@@ -111,6 +127,11 @@
       <input class="form-field" value="{{ entry.anilist_id|maybe_display }}"
              pattern="^(?:[0-9]*|(?:https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?))$"
              name="anilist_id" id="entry-anilist-id" autocomplete="off" type="text">
+      <label for="entry-tmdb-url">TMDB URL</label>
+      <input class="form-field" value="{{ entry.tmdb_id|maybe_tmdb_url }}"
+             pattern="https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?"
+             placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="entry-tmdb-url"
+             autocomplete="off" type="text">
       <div class="form-field checkbox-container">
         <input value="true" {%- if entry.flags.is_low_quality() -%}checked{% endif %}
                name="low_quality" id="entry-low-quality" type="checkbox">
@@ -123,7 +144,7 @@
     </div>
     <footer>
       <button class="button" value="cancel" formmethod="dialog">Cancel</button>
-      <button id="anilist-sync" type="button" class="button" value="sync">Sync with AniList</button>
+      <button id="refresh-names" type="button" class="button" value="sync">Refresh Names</button>
       <button id="confirm-edit" class="button primary">Confirm</button>
     </footer>
   </form>
@@ -133,15 +154,23 @@
   <form autocomplete="off">
     <h1>Move Entries</h1>
     <p>
-      This operation moves the selected files to either a new or pre-existing folder with
-      the given AniList URL or directory name or entry ID. Providing the directory name is
-      not required if the AniList URL or entry ID is given.
+      This operation moves the selected files to either a new or pre-existing folder.
+      The entry is created either by the provided AniList URL, the TMDB URL, or the name,
+      in that order. If an entry ID is given then that takes priority.
+    </p>
+    <p>
+      If a TMDB URL is given, then it is moved to the Drama portion of the site.
     </p>
     <div class="form-container">
       <label for="anilist-url">AniList URL</label>
-      <input class="form-field" required
+      <input class="form-field"
              pattern="https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?"
              placeholder="https://anilist.co/anime/12345/" name="anilist_url" id="anilist-url"
+             autocomplete="off" type="text">
+      <label for="tmdb-url">TMDB URL</label>
+      <input class="form-field"
+             pattern="https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?"
+             placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="tmdb-url"
              autocomplete="off" type="text">
       <label for="move-to-entry-id">Entry ID</label>
       <input class="form-field" pattern="[0-9]+" name="entry_id" id="move-to-entry-id" autocomplete="off" type="text">
