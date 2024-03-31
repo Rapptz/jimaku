@@ -29,6 +29,8 @@ impl DirectoryFlags {
     const ANIME: u32 = 1 << 0;
     const LOW_QUALITY: u32 = 1 << 1;
     const EXTERNAL: u32 = 1 << 2;
+    const MOVIE: u32 = 1 << 3;
+    const ADULT: u32 = 1 << 4;
 
     pub const fn new() -> Self {
         Self(Self::ANIME)
@@ -70,6 +72,22 @@ impl DirectoryFlags {
 
     pub fn set_external(&mut self, toggle: bool) {
         self.toggle_flag(Self::EXTERNAL, toggle)
+    }
+
+    pub fn is_movie(&self) -> bool {
+        self.has_flag(Self::MOVIE)
+    }
+
+    pub fn set_movie(&mut self, toggle: bool) {
+        self.toggle_flag(Self::MOVIE, toggle)
+    }
+
+    pub fn is_adult(&self) -> bool {
+        self.has_flag(Self::ADULT)
+    }
+
+    pub fn set_adult(&mut self, toggle: bool) {
+        self.toggle_flag(Self::ADULT, toggle)
     }
 }
 

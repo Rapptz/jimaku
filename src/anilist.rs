@@ -5,6 +5,8 @@ use reqwest::header::{HeaderValue, ACCEPT, CONTENT_TYPE, RETRY_AFTER};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::warn;
 
+use crate::borrowed::MaybeBorrowedString;
+
 const FIXTURE_SEARCH_QUERY: &str = r#"
 query ($id: Int, $page: Int, $perPage: Int, $search: String) {
   Page (page: $page, perPage: $perPage) {
@@ -15,6 +17,8 @@ query ($id: Int, $page: Int, $perPage: Int, $search: String) {
         english
         native
       }
+      isAdult
+      format
     }
   }
 }
@@ -76,6 +80,64 @@ struct PageResult {
     page: SearchQueryResult,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(from = "MaybeBorrowedString", into = "&'static str")]
+pub enum MediaFormat {
+    Tv,
+    TvShort,
+    Movie,
+    Special,
+    Ova,
+    Ona,
+    Music,
+    Manga,
+    Novel,
+    OneShot,
+    Unknown,
+}
+
+impl MediaFormat {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Tv => "TV",
+            Self::TvShort => "TV_SHORT",
+            Self::Movie => "MOVIE",
+            Self::Special => "SPECIAL",
+            Self::Ova => "OVA",
+            Self::Ona => "ONA",
+            Self::Music => "MUSIC",
+            Self::Manga => "MANGA",
+            Self::Novel => "NOVEL",
+            Self::OneShot => "ONE_SHOT",
+            Self::Unknown => "",
+        }
+    }
+}
+
+impl<'a> From<MaybeBorrowedString<'a>> for MediaFormat {
+    fn from(value: MaybeBorrowedString<'a>) -> Self {
+        match value.as_str() {
+            "TV" => Self::Tv,
+            "TV_SHORT" => Self::TvShort,
+            "MOVIE" => Self::Movie,
+            "SPECIAL" => Self::Special,
+            "OVA" => Self::Ova,
+            "ONA" => Self::Ona,
+            "MUSIC" => Self::Music,
+            "MANGA" => Self::Manga,
+            "NOVEL" => Self::Novel,
+            "ONE_SHOT" => Self::OneShot,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+impl From<MediaFormat> for &'static str {
+    fn from(val: MediaFormat) -> Self {
+        val.as_str()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MediaTitle {
     pub romaji: String,
@@ -97,6 +159,15 @@ impl MediaTitle {
 pub struct Media {
     pub id: u32,
     pub title: MediaTitle,
+    #[serde(rename = "isAdult")]
+    pub adult: bool,
+    pub format: MediaFormat,
+}
+
+impl Media {
+    pub fn is_movie(&self) -> bool {
+        self.format == MediaFormat::Movie
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

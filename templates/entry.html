@@ -46,11 +46,17 @@
       {% endmatch %}
   {% endmatch -%}
   <div class="badges">
+    {% if entry.flags.is_adult() -%}
+    <span class="badge danger" title="Entry is meant for adults">Adult</span>
+    {% endif -%}
     {% if entry.flags.is_low_quality() -%}
-    <span class="badge danger" title="Entry has quality issues">Low Quality</span>
+    <span class="badge warning" title="Entry has quality issues">Low Quality</span>
+    {% endif -%}
+    {% if entry.flags.is_movie() -%}
+    <span class="badge success" title="Entry is a movie">Movie</span>
     {% endif -%}
     {% if entry.flags.is_external() -%}
-    <span class="badge warning" title="Entry originated from Kitsunekko">Legacy</span>
+    <span class="badge info" title="Entry originated from Kitsunekko">Legacy</span>
     {% endif -%}
   </div>
 </div>
@@ -132,10 +138,22 @@
              pattern="https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?"
              placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="entry-tmdb-url"
              autocomplete="off" type="text">
-      <div class="form-field checkbox-container">
-        <input value="true" {%- if entry.flags.is_low_quality() -%}checked{% endif %}
-               name="low_quality" id="entry-low-quality" type="checkbox">
-        <label for="entry-low-quality">Low Quality</label>
+      <div class="form-field checkboxes">
+        <div class="checkbox-container">
+          <input value="true" {%- if entry.flags.is_low_quality() -%}checked{% endif %}
+                 name="low_quality" id="entry-low-quality" type="checkbox">
+          <label for="entry-low-quality">Low Quality</label>
+        </div>
+        <div class="checkbox-container">
+          <input value="true" {%- if entry.flags.is_movie() -%}checked{% endif %}
+                 name="movie" id="entry-movie" type="checkbox">
+          <label for="entry-movie">Movie</label>
+        </div>
+        <div class="checkbox-container">
+          <input value="true" {%- if entry.flags.is_adult() -%}checked{% endif %}
+                 name="adult" id="entry-adult" type="checkbox">
+          <label for="entry-adult">Adult</label>
+        </div>
       </div>
       <label for="entry-notes">Notes</label>
       <textarea class="form-field" name="notes" id="entry-notes" autocomplete="off"
@@ -144,7 +162,7 @@
     </div>
     <footer>
       <button class="button" value="cancel" formmethod="dialog">Cancel</button>
-      <button id="refresh-names" type="button" class="button" value="sync">Refresh Names</button>
+      <button id="update-info" type="button" class="button" value="sync">Sync</button>
       <button id="confirm-edit" class="button primary">Confirm</button>
     </footer>
   </form>

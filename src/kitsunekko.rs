@@ -186,6 +186,10 @@ pub struct Fixture {
     pub edits_likely: bool,
     #[serde(default)]
     pub in_database: bool,
+    #[serde(default)]
+    pub movie: bool,
+    #[serde(default)]
+    pub adult: bool,
 }
 
 #[inline]
@@ -289,6 +293,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                         path: directory.clone(),
                         last_updated_at: entry.date,
                         anilist_id: Some(media.id),
+                        adult: media.adult,
+                        movie: media.is_movie(),
                         title: media.title,
                         contains_zip: entry.contains_zip(),
                         edits_likely,
@@ -305,6 +311,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 contains_zip: entry.contains_zip(),
                 edits_likely: true,
                 in_database: false,
+                adult: false,
+                movie: false,
             });
         }
 
@@ -348,6 +356,8 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
                     let mut flags = DirectoryFlags::default();
                     flags.set_low_quality(fixture.edits_likely || fixture.anilist_id.is_none());
                     flags.set_external(true);
+                    flags.set_movie(fixture.movie);
+                    flags.set_adult(fixture.adult);
                     stmt.execute((
                         fixture.path.to_string_lossy(),
                         fixture.last_updated_at,

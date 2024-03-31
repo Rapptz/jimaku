@@ -49,6 +49,14 @@ impl Id {
             Id::Movie(id) => format!("https://api.themoviedb.org/3/movie/{id}"),
         }
     }
+
+    /// Returns `true` if the id is [`Movie`].
+    ///
+    /// [`Movie`]: Id::Movie
+    #[must_use]
+    pub fn is_movie(&self) -> bool {
+        matches!(self, Self::Movie(..))
+    }
 }
 
 impl std::fmt::Display for Id {
@@ -164,7 +172,7 @@ impl AlternativeTitles {
 
 #[derive(Debug, Deserialize)]
 pub struct Info {
-    // adult: bool, // for future reasons
+    adult: bool,
     original_language: LangCode,
     #[serde(alias = "original_name")]
     original_title: String,
@@ -201,11 +209,10 @@ impl Info {
     fn is_valid(&self) -> bool {
         self.original_language != LangCode::Other && self.spoken_languages.iter().any(|l| l.code != LangCode::Other)
     }
-}
 
-pub struct MediaInfo {
-    pub id: Id,
-    pub title: MediaTitle,
+    pub fn is_adult(&self) -> bool {
+        self.adult
+    }
 }
 
 pub async fn get_media_info(client: &reqwest::Client, api_key: &str, id: Id) -> anyhow::Result<Option<Info>> {

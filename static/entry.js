@@ -10,7 +10,7 @@ const moveFilesButton = document.getElementById('move-files');
 const uploadForm = document.getElementById('upload-form');
 const uploadInput = document.getElementById('upload-file-input');
 
-const refreshNames = document.getElementById('refresh-names');
+const updateInfo = document.getElementById('update-info');
 
 const checkedSelector = '.entry:not(.hidden) > .file-bulk > input[type="checkbox"]';
 const query = `
@@ -22,6 +22,8 @@ query ($id: Int) {
       english
       native
     }
+    isAdult
+    format
   }
 }`;
 
@@ -76,6 +78,20 @@ function modalAlertHook(modal) {
   return (e) => el.parentNode.insertBefore(e, el.nextSibling);
 }
 
+function updateEntryFields(titles, adult, movie) {
+  if (titles?.romaji) {
+    document.getElementById('entry-name').value = titles.romaji;
+  }
+  if (titles?.native) {
+    document.getElementById('entry-japanese-name').value = titles.native;
+  }
+  if (titles?.english) {
+    document.getElementById('entry-english-name').value = titles.english;
+  }
+  document.getElementById('entry-movie').checked = movie;
+  document.getElementById('entry-adult').checked = adult;
+}
+
 async function getAnimeInfo(id) {
   let response = await fetch('https://graphql.anilist.co', {
     method: 'POST',
@@ -89,17 +105,11 @@ async function getAnimeInfo(id) {
   });
   if (response.ok) {
     let js = await response.json();
-    let titles = js?.data?.Media?.title;
-    if (titles?.romaji) {
-      document.getElementById('entry-name').value = titles.romaji;
+    let media = js?.data?.Media;
+    if(media) {
+      updateEntryFields(media.title, media.isAdult, media.format === 'MOVIE');
     }
-    if (titles?.native) {
-      document.getElementById('entry-japanese-name').value = titles.native;
-    }
-    if (titles?.english) {
-      document.getElementById('entry-english-name').value = titles.english;
-    }
-    showModalAlert(editModal, {level: 'success', content: `Updated names from AniList`});
+    showModalAlert(editModal, {level: 'success', content: `Updated info from AniList`});
   } else {
     showModalAlert(editModal, {level: 'error', content: `AniList returned ${response.status}`})
   }
@@ -107,19 +117,13 @@ async function getAnimeInfo(id) {
 
 async function refreshTmdbNames(id) {
   let param = encodeURIComponent(`${id.type}:${id.id}`);
-  let response = await fetch(`/entry/titles?tmdb_id=${param}`);
+  let response = await fetch(`/entry/tmdb?id=${param}`);
   if (response.ok) {
-    let titles = await response.json();
-    if (titles?.romaji) {
-      document.getElementById('entry-name').value = titles.romaji;
+    let js = await response.json();
+    if(js) {
+      updateEntryFields(js.titles, js.adult, js.movie);
     }
-    if (titles?.native) {
-      document.getElementById('entry-japanese-name').value = titles.native;
-    }
-    if (titles?.english) {
-      document.getElementById('entry-english-name').value = titles.english;
-    }
-    showModalAlert(editModal, {level: 'success', content: `Updated names from TMDB`});
+    showModalAlert(editModal, {level: 'success', content: `Updated info from TMDB`});
   } else {
     showModalAlert(editModal, {level: 'error', content: `API returned ${response.status}`})
   }
@@ -229,7 +233,7 @@ async function downloadFiles() {
 }
 
 editButton?.addEventListener('click', () => editModal?.showModal());
-refreshNames?.addEventListener('click', async (e) => {
+updateInfo?.addEventListener('click', async (e) => {
   e.preventDefault();
   let text = document.getElementById('entry-anilist-id').value;
   let id = parseInt(text, 10);

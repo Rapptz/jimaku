@@ -203,20 +203,31 @@ impl From<CreateDirectoryEntry> for PendingDirectoryEntry {
 }
 
 impl PendingDirectoryEntry {
-    async fn get_title(&self, state: &AppState) -> anyhow::Result<Option<MediaTitle>> {
+    async fn get_info(&self, state: &AppState) -> anyhow::Result<Option<(MediaTitle, DirectoryFlags)>> {
         match self.anilist_id {
-            Some(id) => anilist::search_by_id(&state.client, id)
-                .await
-                .with_context(|| "AniList returned an error. Please try again later.".to_owned())?
-                .with_context(|| "AniList did not return results for this URL.".to_owned())
-                .map(|m| Some(m.title)),
+            Some(id) => {
+                let media = anilist::search_by_id(&state.client, id)
+                    .await
+                    .with_context(|| "AniList returned an error. Please try again later.".to_owned())?
+                    .with_context(|| "AniList did not return results for this URL.".to_owned())?;
+                let mut flags = DirectoryFlags::new();
+                flags.set_anime(self.anime);
+                flags.set_movie(media.is_movie());
+                flags.set_adult(media.adult);
+                Ok(Some((media.title, flags)))
+            }
             None => {
                 if let Some(id) = self.tmdb_id {
-                    tmdb::get_media_info(&state.client, &state.config().tmdb_api_key, id)
+                    let info = tmdb::get_media_info(&state.client, &state.config().tmdb_api_key, id)
                         .await
                         .with_context(|| "TMDB returned an error. Please try again later.".to_owned())?
-                        .with_context(|| "TMDB did not return results for this URL.".to_owned())
-                        .map(|m| Some(m.titles()))
+                        .with_context(|| "TMDB did not return results for this URL.".to_owned())?;
+
+                    let mut flags = DirectoryFlags::new();
+                    flags.set_anime(self.anime);
+                    flags.set_movie(id.is_movie());
+                    flags.set_adult(info.is_adult());
+                    Ok(Some((info.titles(), flags)))
                 } else {
                     Ok(None)
                 }
@@ -257,11 +268,13 @@ async fn raw_create_directory_entry(
 ) -> anyhow::Result<(i64, PathBuf)> {
     let creator_id = account.id;
 
-    let names = match pending.get_title(&state).await? {
+    let (names, flags) = match pending.get_info(&state).await? {
         Some(title) => title,
         None if account.flags.is_editor() => {
             if let Some(name) = pending.name.clone() {
-                MediaTitle::new(name)
+                let mut flags = DirectoryFlags::new();
+                flags.set_anime(pending.anime);
+                (MediaTitle::new(name), flags)
             } else {
                 bail!("Missing name for directory.");
             }
@@ -285,9 +298,6 @@ async fn raw_create_directory_entry(
     "#;
     let path_string = path_string.to_owned();
     let wh = state.clone();
-    let mut flags = DirectoryFlags::new();
-    flags.set_anime(pending.anime);
-
     let romaji = names.romaji.clone();
     let response = state
         .database()
@@ -385,6 +395,19 @@ struct EditDirectoryEntry {
     tmdb_id: Option<tmdb::Id>,
     #[serde(default)]
     low_quality: bool,
+    #[serde(default)]
+    adult: bool,
+    #[serde(default)]
+    movie: bool,
+}
+
+impl EditDirectoryEntry {
+    fn apply_flags(&self, mut flags: DirectoryFlags) -> DirectoryFlags {
+        flags.set_low_quality(self.low_quality);
+        flags.set_adult(self.adult);
+        flags.set_movie(self.movie);
+        flags
+    }
 }
 
 fn anilist_id_or_url<'de, D>(de: D) -> Result<Option<u32>, D::Error>
@@ -460,6 +483,8 @@ async fn edit_directory_entry(
     // maybe refactor this?
     let mut columns = Vec::with_capacity(11);
     let mut params: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::with_capacity(11);
+    let flags = payload.apply_flags(entry.flags);
+
     if entry.name != payload.name {
         columns.push("name");
         params.push(Box::new(payload.name));
@@ -484,11 +509,9 @@ async fn edit_directory_entry(
         columns.push("notes");
         params.push(Box::new(payload.notes));
     }
-    if entry.flags.is_low_quality() != payload.low_quality {
+    if entry.flags != flags {
         columns.push("flags");
-        let mut flag = entry.flags;
-        flag.set_low_quality(payload.low_quality);
-        params.push(Box::new(flag));
+        params.push(Box::new(flags));
     }
 
     if !columns.is_empty() {
@@ -958,24 +981,35 @@ async fn relations(
 }
 
 #[derive(Deserialize)]
-struct TitleQuery {
+struct TmdbQuery {
     #[serde(deserialize_with = "tmdb::string_id_representation")]
-    tmdb_id: tmdb::Id,
+    id: tmdb::Id,
 }
 
-async fn titles(
+#[derive(Serialize)]
+struct TmdbInfo {
+    title: MediaTitle,
+    adult: bool,
+    movie: bool,
+}
+
+async fn tmdb_lookup(
     State(state): State<AppState>,
     account: Account,
-    Query(query): Query<TitleQuery>,
-) -> Result<Json<Option<MediaTitle>>, ApiError> {
+    Query(query): Query<TmdbQuery>,
+) -> Result<Json<Option<TmdbInfo>>, ApiError> {
     if !account.flags.is_editor() {
         return Err(ApiError::forbidden());
     }
 
     Ok(Json(
-        tmdb::get_media_info(&state.client, &state.config().tmdb_api_key, query.tmdb_id)
+        tmdb::get_media_info(&state.client, &state.config().tmdb_api_key, query.id)
             .await?
-            .map(|info| info.titles()),
+            .map(|info| TmdbInfo {
+                title: info.titles(),
+                adult: info.is_adult(),
+                movie: query.id.is_movie(),
+            }),
     ))
 }
 
@@ -1000,5 +1034,5 @@ pub fn routes() -> Router<AppState> {
             post(bulk_download).layer(RateLimit::default().quota(5, 5.0).build()),
         )
         .route("/entry/relations", post(relations))
-        .route("/entry/titles", get(titles))
+        .route("/entry/tmdb", get(tmdb_lookup))
 }

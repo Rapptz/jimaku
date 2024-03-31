@@ -231,6 +231,12 @@ input[type="radio"] {
   justify-content: space-evenly;
 }
 
+.checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .checkbox-container {
   display: flex;
   align-items: center;
