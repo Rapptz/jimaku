@@ -26,6 +26,15 @@
   color: var(--nav-link-hover);
 }
 
+.grid {
+  grid-template-areas:
+    "h"
+    "s"
+    "c"
+    "f"
+  ;
+}
+
 @media (min-width: 840px) {
   .grid {
     grid-template-areas:
