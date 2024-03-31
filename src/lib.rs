@@ -1,5 +1,6 @@
 pub mod anilist;
 pub mod auth;
+pub mod borrowed;
 pub mod cached;
 pub mod cli;
 mod config;

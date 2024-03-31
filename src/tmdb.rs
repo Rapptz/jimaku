@@ -4,7 +4,7 @@ use regex::Regex;
 use rusqlite::{types::FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
-use crate::anilist::MediaTitle;
+use crate::{anilist::MediaTitle, borrowed::MaybeBorrowedString};
 
 fn url_parser_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
@@ -126,8 +126,8 @@ impl<'de> Deserialize<'de> for LangCode {
     where
         D: serde::Deserializer<'de>,
     {
-        let value = std::borrow::Cow::<'de, str>::deserialize(deserializer)?;
-        match value.as_ref() {
+        let value = MaybeBorrowedString::deserialize(deserializer)?;
+        match value.as_str() {
             "JP" | "ja" => Ok(Self::Japanese),
             "US" | "GB" | "en" => Ok(Self::English),
             _ => Ok(Self::Other),
