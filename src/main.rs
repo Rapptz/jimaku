@@ -140,6 +140,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     let router = jimaku::routes::all()
         .nest_service("/favicon.ico", ServeFile::new("static/icons/favicon.ico"))
         .nest_service("/site.webmanifest", ServeFile::new("static/icons/site.webmanifest"))
+        .nest_service("/robots.txt", ServeFile::new("static/robots.txt"))
         .nest_service("/static", ServeDir::new("static"))
         .layer(jimaku::logging::HttpTrace)
         .layer(middleware::from_fn(jimaku::flash::process_flash_messages))

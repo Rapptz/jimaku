@@ -1,0 +1,20 @@
+User-agent: Applebot
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Slurp
+User-agent: DuckDuckBot
+User-agent: Baiduspider
+User-agent: Yandex
+User-agent: Yandexbot
+Allow: /
+Disallow: /static/
+Disallow: /logout
+Disallow: /account
+Disallow: /account/
+Disallow: /user/
+Disallow: /entry/*/download/
+Disallow: /entry/*/bulk
+Disallow: /entry/relations
+
+User-agent: *
+Disallow: /
