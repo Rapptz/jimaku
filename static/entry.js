@@ -125,7 +125,7 @@ async function refreshTmdbNames(id) {
   if (response.ok) {
     let js = await response.json();
     if(js) {
-      updateEntryFields(js.titles, js.adult, js.movie);
+      updateEntryFields(js.title, js.adult, js.movie);
     }
     showModalAlert(editModal, {level: 'success', content: `Updated info from TMDB`});
   } else {
