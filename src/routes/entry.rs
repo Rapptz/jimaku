@@ -1099,7 +1099,6 @@ async fn get_pending_directory_entry(state: &AppState, anime: bool, name: String
 async fn import_entry(
     State(state): State<AppState>,
     account: Account,
-    Referrer(url): Referrer,
     flashes: Flashes,
     flasher: Flasher,
     Form(payload): Form<ImportEntry>,
