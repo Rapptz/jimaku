@@ -195,8 +195,10 @@ impl Info {
         let romaji = self.alternative_titles.romaji();
         let english = if self.original_language == LangCode::English {
             Some(self.original_title.clone())
-        } else {
+        } else if self.title.as_bytes().is_ascii() {
             Some(self.title.clone())
+        } else {
+            None
         };
         let native = if self.original_language == LangCode::Japanese {
             Some(self.original_title.clone())
@@ -207,8 +209,15 @@ impl Info {
                 .find(|t| t.lang == LangCode::Japanese)
                 .map(|t| t.title.clone())
         };
+        let romaji = match romaji {
+            Some(romaji) => romaji,
+            None => match &english {
+                Some(english) => english.clone(),
+                None => self.original_title.clone(),
+            },
+        };
         MediaTitle {
-            romaji: romaji.unwrap_or(self.original_title.clone()),
+            romaji,
             english,
             native,
         }
