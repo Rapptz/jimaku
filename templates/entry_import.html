@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/entry.css" type="text/css">
+{% endblock %}
+
+{% block body %}
+{% for flash in flashes %}
+{{ flash.html()|safe }}
+{% endfor %}
+<h1>Import Entry</h1>
+<p>
+  Please check over the information below to ensure it's correct before creating this entry.
+</p>
+<hr>
+<form class="form-container" autocomplete="off" action="/entry/import/create?anime={{ anime }}">
+    <label for="entry-name">Name</label>
+    <input class="form-field" required value="{{ pending.name }}" name="name"
+           id="entry-name" autocomplete="off" type="text">
+    <label for="entry-japanese-name">Japanese Name</label>
+    <input class="form-field" value="{{ pending.japanese_name|maybe_display }}"
+           name="japanese_name" id="entry-japanese-name" autocomplete="off" type="text">
+    <label for="entry-english-name">English Name</label>
+    <input class="form-field" value="{{ pending.english_name|maybe_display }}"
+           name="english_name" id="entry-english-name" autocomplete="off" type="text">
+    <label for="entry-anilist-id">AniList ID or URL</label>
+    <input class="form-field" value="{{ pending.anilist_id|maybe_anilist_url }}"
+           pattern="^(?:[0-9]*|(?:https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?))$"
+           name="anilist_id" id="entry-anilist-id" autocomplete="off" type="text">
+    <label for="entry-tmdb-url">TMDB URL</label>
+    <input class="form-field" value="{{ pending.tmdb_id|maybe_tmdb_url }}"
+           pattern="https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?"
+           placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="entry-tmdb-url"
+           autocomplete="off" type="text">
+    <div class="form-field checkboxes">
+      <div class="checkbox-container">
+        <input value="true" {%- if pending.flags.is_low_quality() -%}checked{% endif %}
+               name="low_quality" id="entry-low-quality" type="checkbox">
+        <label for="entry-low-quality">Low Quality</label>
+      </div>
+      <div class="checkbox-container">
+        <input value="true" {%- if pending.flags.is_movie() -%}checked{% endif %}
+               name="movie" id="entry-movie" type="checkbox">
+        <label for="entry-movie">Movie</label>
+      </div>
+      <div class="checkbox-container">
+        <input value="true" {%- if pending.flags.is_adult() -%}checked{% endif %}
+               name="adult" id="entry-adult" type="checkbox">
+        <label for="entry-adult">Adult</label>
+      </div>
+    </div>
+    <label for="entry-notes">Notes</label>
+    <textarea class="form-field" name="notes" id="entry-notes" autocomplete="off"
+              placeholder="Series specific notes. Markdown supported." rows="10"
+              maxlength="1024" spellcheck="true">{{ pending.notes|maybe_display }}</textarea>
+  <div class="commands">
+    <div class="command-buttons left">
+      <button id="update-info" type="button" class="button" value="sync">Sync</button>
+      <button id="confirm-import" class="button primary">Confirm</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block body_end %}
+<script>const entryData = {{pending.data()|json|safe}};</script>
+<script src="/static/entry.js"></script>
+<script src="/static/entry_import.js"></script>
+{% endblock %}

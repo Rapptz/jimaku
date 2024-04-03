@@ -46,3 +46,10 @@ pub fn canonical_url(url: impl Display) -> askama::Result<String> {
 pub fn maybe_tmdb_url(opt: &Option<crate::tmdb::Id>) -> askama::Result<String> {
     Ok(opt.as_ref().map(|x| x.url()).unwrap_or_default())
 }
+
+pub fn maybe_anilist_url(opt: &Option<u32>) -> askama::Result<String> {
+    Ok(opt
+        .as_ref()
+        .map(|x| format!("https://anilist.co/anime/{x}"))
+        .unwrap_or_default())
+}

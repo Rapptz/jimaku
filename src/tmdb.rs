@@ -59,6 +59,12 @@ impl Id {
     }
 }
 
+impl Default for Id {
+    fn default() -> Self {
+        Self::Tv(0)
+    }
+}
+
 impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -172,6 +178,8 @@ impl AlternativeTitles {
 
 #[derive(Debug, Deserialize)]
 pub struct Info {
+    #[serde(skip)]
+    pub id: Id,
     adult: bool,
     original_language: LangCode,
     #[serde(alias = "original_name")]
@@ -215,6 +223,27 @@ impl Info {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct SearchResult {
+    id: u32,
+    media_type: String,
+}
+
+impl SearchResult {
+    fn to_id(&self) -> Option<Id> {
+        match self.media_type.as_str() {
+            "tv" => Some(Id::Tv(self.id)),
+            "movie" => Some(Id::Movie(self.id)),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct PagedSearchResults {
+    results: Vec<SearchResult>,
+}
+
 pub async fn get_media_info(client: &reqwest::Client, api_key: &str, id: Id) -> anyhow::Result<Option<Info>> {
     let mut url = reqwest::Url::parse(&id.api_url())?;
     url.query_pairs_mut()
@@ -228,11 +257,37 @@ pub async fn get_media_info(client: &reqwest::Client, api_key: &str, id: Id) -> 
         return Ok(None);
     }
 
-    let info = resp.error_for_status()?.json::<Info>().await?;
+    let mut info = resp.error_for_status()?.json::<Info>().await?;
+    info.id = id;
 
     if !info.is_valid() {
         anyhow::bail!("TMDB entry is not aimed at a Japanese audience")
     }
 
     Ok(Some(info))
+}
+
+pub async fn find_match(client: &reqwest::Client, api_key: &str, query: &str) -> anyhow::Result<Option<Info>> {
+    let mut url = reqwest::Url::parse("https://api.themoviedb.org/3/search/multi")?;
+    url.query_pairs_mut()
+        .append_pair("query", query)
+        .append_pair("page", "1")
+        .append_pair("include_adult", "true")
+        .append_pair("language", "en-US")
+        .append_pair("api_key", api_key);
+
+    let resp = client.get(url).header("accept", "application/json").send().await?;
+    if !resp.status().is_success() {
+        return Ok(None);
+    }
+
+    let mut info = resp.json::<PagedSearchResults>().await?.results;
+    if info.is_empty() {
+        Ok(None)
+    } else {
+        match info.swap_remove(0).to_id() {
+            Some(id) => get_media_info(client, api_key, id).await,
+            None => Ok(None),
+        }
+    }
 }

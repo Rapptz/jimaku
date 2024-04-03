@@ -68,9 +68,13 @@ const disableButtons = (disabled) => {
 }
 
 function showModalAlert(modal, {level, content}) {
-  let alert = createAlert({level, content});
-  let el = modal.querySelector('h1');
-  el.parentNode.insertBefore(alert, el.nextSibling);
+  if(modal) {
+    let alert = createAlert({level, content});
+    let el = modal.querySelector('h1');
+    el.parentNode.insertBefore(alert, el.nextSibling);
+  } else {
+    showAlert({level, content});
+  }
 }
 
 function modalAlertHook(modal) {
@@ -253,7 +257,7 @@ updateInfo?.addEventListener('click', async (e) => {
 });
 
 const bulkCheck = document.getElementById('bulk-check');
-bulkCheck.addEventListener('click', () => {
+bulkCheck?.addEventListener('click', () => {
   let indeterminate = bulkCheck.getAttribute('tribool') === 'yes';
   let checked = indeterminate ? false : bulkCheck.checked;
   document.querySelectorAll(checkedSelector).forEach(ch => {
@@ -400,8 +404,12 @@ moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click',
   e.preventDefault();
   moveModal.close();
 });
-document.getElementById('clear-search-filter').addEventListener('click', setCheckboxState);
-filterElement.addEventListener('input', setCheckboxState);
+document.getElementById('clear-search-filter')?.addEventListener('click', setCheckboxState);
+try {
+  filterElement.addEventListener('input', setCheckboxState);
+}
+catch(_) {}
+
 document.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
   ch.addEventListener('click', setCheckboxState);
 });
@@ -409,4 +417,4 @@ document.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
 uploadInput?.addEventListener('change', () => {
   uploadForm.submit();
 });
-downloadFilesButton.addEventListener('click', downloadFiles);
+downloadFilesButton?.addEventListener('click', downloadFiles);

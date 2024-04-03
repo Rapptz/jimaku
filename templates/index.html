@@ -24,6 +24,9 @@
   </div>
   {% match account %}
     {% when Some with (account) %}
+    {% if editor %}
+    <button id="import-button" class="button import">Import ZIP</button>
+    {% endif %}
     <button id="upload-button" data-type="directory" class="button upload primary">Create Folder</button>
     {% when None %}
     <a class="button upload primary" href="/login">Login to upload</a>
@@ -72,10 +75,46 @@
     </footer>
   </form>
 </dialog>
+{% if editor %}
+<dialog id="import-modal">
+  <form method="post" action="/entry/import" autocomplete="off">
+    <h1>Import ZIP</h1>
+    <p>
+      ZIP files allow you to instantly create an entry from the files within the ZIP file.
+      The ZIP file name should be the name of the series.
+    </p>
+    <p>
+      Note that this ZIP file is extracted client side.
+      You can either provide a URL to a ZIP file or upload a ZIP file yourself.
+    </p>
+    <p>
+      The uploaded ZIP file takes priority over the URL.
+    </p>
+    <div class="form-container">
+      <label for="import-url">ZIP URL</label>
+      <input class="form-field" autocomplete="off" id="import-url" type="text">
+      <label for="import-file">ZIP File</label>
+      <input class="form-field" autocomplete="off" type="file" id="import-file" accept="application/zip">
+      <input type="hidden" name="anime" value="{{ anime }}">
+      <input type="hidden" id="import-name" name="name">
+    </div>
+    <footer>
+      <button class="button" formmethod="dialog">Cancel</button>
+      <button id="confirm-import" class="button primary">Next</button>
+    </footer>
+  </form>
+</dialog>
+{% endif %}
 {% endblock %}
 
 {% block body_end %}
 <script src="/static/fuzzysort.min.js"></script>
+{% if editor %}
+<script src="/static/zip.min.js"></script>
+{% endif %}
 <script src="/static/files.js"></script>
 <script src="/static/index.js"></script>
+{% if editor %}
+<script src="/static/index_import.js"></script>
+{% endif %}
 {% endblock %}

@@ -666,6 +666,9 @@ dialog > form > footer > button:not(:last-child) {
 
 dialog > form > p {
   padding: 0 1.25rem;
+}
+
+dialog > form > p:last-of-type {
   margin-bottom: 0;
 }
 

@@ -15,12 +15,11 @@ use anyhow::{bail, Context};
 use askama::Template;
 use axum::body::{Body, Bytes};
 use axum::extract::multipart::Field;
-use axum::extract::{Multipart, Query};
-use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
-use axum::http::{HeaderName, StatusCode};
+use axum::extract::{Json, Multipart, Query};
+use axum::http::header::{CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_TYPE};
+use axum::http::{HeaderName, HeaderValue, StatusCode};
 use axum::response::Redirect;
 use axum::routing::{delete, get, post};
-use axum::Json;
 use axum::{
     extract::{Form, Path, Request, State},
     response::{IntoResponse, Response},
@@ -188,6 +187,8 @@ struct PendingDirectoryEntry {
     anilist_id: Option<u32>,
     tmdb_id: Option<tmdb::Id>,
     name: Option<String>,
+    titles: Option<MediaTitle>,
+    flags: Option<DirectoryFlags>,
     anime: bool,
 }
 
@@ -198,12 +199,17 @@ impl From<CreateDirectoryEntry> for PendingDirectoryEntry {
             tmdb_id: value.tmdb_url.as_deref().and_then(tmdb::get_tmdb_id),
             name: value.name,
             anime: value.anime,
+            titles: None,
+            flags: None,
         }
     }
 }
 
 impl PendingDirectoryEntry {
     async fn get_info(&self, state: &AppState) -> anyhow::Result<Option<(MediaTitle, DirectoryFlags)>> {
+        if let Some((title, flags)) = self.titles.as_ref().zip(self.flags) {
+            return Ok(Some((title.clone(), flags)));
+        }
         match self.anilist_id {
             Some(id) => {
                 let media = anilist::search_by_id(&state.client, id)
@@ -408,6 +414,33 @@ impl EditDirectoryEntry {
         flags.set_movie(self.movie);
         flags
     }
+
+    fn titles(self) -> MediaTitle {
+        MediaTitle {
+            romaji: self.name,
+            english: self.english_name,
+            native: self.japanese_name,
+        }
+    }
+
+    fn validate(&self) -> Vec<&'static str> {
+        let mut errors = Vec::new();
+        if self.name.len() > 1024 {
+            errors.push("Name cannot be more than 1024 bytes.");
+        }
+        if is_over_length(&self.english_name, 1024) {
+            errors.push("English name cannot be more than 1024 bytes.");
+        }
+
+        if is_over_length(&self.japanese_name, 1024) {
+            errors.push("Japanese name cannot be more than 1024 bytes.");
+        }
+
+        if is_over_length(&self.notes, 1024) {
+            errors.push("Notes cannot be more than 1024 bytes.");
+        }
+        errors
+    }
 }
 
 fn anilist_id_or_url<'de, D>(de: D) -> Result<Option<u32>, D::Error>
@@ -460,23 +493,11 @@ async fn edit_directory_entry(
         return flasher.add("Directory entry not found.").bail(&url);
     };
 
-    let mut invalid = false;
-    if is_over_length(&payload.english_name, 1024) {
-        flasher.add("English name cannot be more than 1024 bytes.");
-        invalid = true;
-    }
-
-    if is_over_length(&payload.japanese_name, 1024) {
-        flasher.add("Japanese name cannot be more than 1024 bytes.");
-        invalid = true;
-    }
-
-    if is_over_length(&payload.notes, 1024) {
-        flasher.add("Notes cannot be more than 1024 bytes.");
-        invalid = true;
-    }
-
-    if invalid {
+    let errors = payload.validate();
+    if !errors.is_empty() {
+        for error in errors {
+            flasher.add(error);
+        }
         return Redirect::to(&url).into_response();
     }
 
@@ -655,6 +676,8 @@ async fn move_directory_entries(
                     tmdb_id: payload.tmdb_id,
                     name: payload.name,
                     anime: payload.anime,
+                    titles: None,
+                    flags: None,
                 },
             )
             .await?
@@ -759,6 +782,21 @@ impl ProcessedFile {
     fn write_to_disk(self) -> std::io::Result<()> {
         let mut fp = std::fs::File::create(self.path)?;
         fp.write_all(&self.bytes)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingFileEntry {
+    pub name: String,
+    #[serde(with = "crate::utils::base64_bytes")]
+    pub data: Vec<u8>,
+}
+
+impl PendingFileEntry {
+    pub fn write_to_disk(self, base_path: PathBuf) -> std::io::Result<()> {
+        let mut fp = std::fs::File::create(base_path.join(sanitise_file_name::sanitise(&self.name)))?;
+        fp.write_all(&self.data)?;
         Ok(())
     }
 }
@@ -1013,6 +1051,140 @@ async fn tmdb_lookup(
     ))
 }
 
+#[derive(Deserialize)]
+struct ImportEntry {
+    anime: bool,
+    name: String,
+}
+
+#[derive(Template)]
+#[template(path = "entry_import.html")]
+struct ImportEntryTemplate {
+    account: Option<Account>,
+    flashes: Flashes,
+    pending: DirectoryEntry,
+    anime: bool,
+}
+
+async fn get_pending_directory_entry(state: &AppState, anime: bool, name: String) -> DirectoryEntry {
+    let mut temporary = DirectoryEntry::temporary(name.clone());
+    temporary.flags.set_anime(anime);
+    if anime {
+        let media = anilist::search(&state.client, &name)
+            .await
+            .map(|m| m.into_iter().next());
+        if let Ok(Some(media)) = media {
+            temporary.anilist_id = Some(media.id);
+            temporary.flags.set_movie(media.is_movie());
+            temporary.flags.set_adult(media.adult);
+            temporary.name = media.title.romaji;
+            temporary.japanese_name = media.title.native;
+            temporary.english_name = media.title.english;
+        }
+    } else {
+        let info = tmdb::find_match(&state.client, &state.config().tmdb_api_key, &name).await;
+        if let Ok(Some(info)) = info {
+            temporary.tmdb_id = Some(info.id);
+            temporary.flags.set_movie(info.id.is_movie());
+            temporary.flags.set_adult(info.is_adult());
+            let titles = info.titles();
+            temporary.name = titles.romaji;
+            temporary.japanese_name = titles.native;
+            temporary.english_name = titles.english;
+        }
+    }
+    temporary
+}
+
+async fn import_entry(
+    State(state): State<AppState>,
+    account: Account,
+    Referrer(url): Referrer,
+    flashes: Flashes,
+    flasher: Flasher,
+    Form(payload): Form<ImportEntry>,
+) -> Response {
+    if !account.flags.is_editor() {
+        return flasher.add("You do not have permissions to do this.").bail("/");
+    }
+
+    let pending = get_pending_directory_entry(&state, payload.anime, payload.name).await;
+    let mut response = ImportEntryTemplate {
+        account: Some(account),
+        flashes,
+        pending,
+        anime: payload.anime,
+    }
+    .into_response();
+    response
+        .headers_mut()
+        .insert(CACHE_CONTROL, HeaderValue::from_static("private, no-store"));
+    response
+}
+
+#[derive(Deserialize)]
+struct ImportQuery {
+    anime: bool,
+}
+
+#[derive(Serialize)]
+struct ImportResult {
+    entry_id: i64,
+    errors: usize,
+}
+
+#[derive(Deserialize)]
+struct CreateImportedEntry {
+    files: Vec<PendingFileEntry>,
+    #[serde(flatten)]
+    inner: EditDirectoryEntry,
+}
+
+async fn create_imported_entry(
+    State(state): State<AppState>,
+    account: Account,
+    Query(query): Query<ImportQuery>,
+    Json(payload): Json<CreateImportedEntry>,
+) -> Result<Json<ImportResult>, ApiError> {
+    if !account.flags.is_editor() {
+        return Err(ApiError::forbidden());
+    }
+
+    let validation_errors = payload.inner.validate();
+    if !validation_errors.is_empty() {
+        return Err(ApiError::new(validation_errors.join("\n")));
+    }
+
+    let mut flags = DirectoryFlags::new();
+    flags.set_anime(query.anime);
+    let flags = payload.inner.apply_flags(flags);
+    let pending = PendingDirectoryEntry {
+        anilist_id: payload.inner.anilist_id,
+        tmdb_id: payload.inner.tmdb_id,
+        name: None,
+        flags: Some(flags),
+        anime: query.anime,
+        titles: Some(payload.inner.titles()),
+    };
+
+    let (id, path) = raw_create_directory_entry(state, account, pending).await?;
+    let mut set = JoinSet::new();
+    for file in payload.files {
+        let p = path.clone();
+        set.spawn_blocking(move || file.write_to_disk(p));
+    }
+
+    let mut errors = 0;
+    while let Some(task) = set.join_next().await {
+        match task {
+            Ok(Ok(())) => continue,
+            _ => errors += 1,
+        }
+    }
+
+    Ok(Json(ImportResult { entry_id: id, errors }))
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/entry/:id", get(get_entry))
@@ -1035,4 +1207,6 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/entry/relations", post(relations))
         .route("/entry/tmdb", get(tmdb_lookup))
+        .route("/entry/import", post(import_entry))
+        .route("/entry/import/create", post(create_imported_entry))
 }

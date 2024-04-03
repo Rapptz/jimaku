@@ -131,6 +131,10 @@
   margin-left: auto;
 }
 
+.commands > .command-buttons.left {
+  margin-left: initial;
+}
+
 .text-input-container {
   display: flex;
   align-items: stretch;

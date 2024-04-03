@@ -199,6 +199,26 @@ pub struct DirectoryEntryData<'a> {
 }
 
 impl DirectoryEntry {
+    /// Returns a temporary DirectoryEntry suitable for editing.
+    ///
+    /// The [`DirectoryEntry::id`] and [`DirectoryEntry::path`] fields
+    /// are filled with nonsense values, so do not rely on them.
+    pub fn temporary(name: String) -> Self {
+        Self {
+            id: 0,
+            name,
+            path: Default::default(),
+            flags: Default::default(),
+            last_updated_at: OffsetDateTime::now_utc(),
+            creator_id: Default::default(),
+            anilist_id: Default::default(),
+            tmdb_id: Default::default(),
+            notes: Default::default(),
+            english_name: Default::default(),
+            japanese_name: Default::default(),
+        }
+    }
+
     /// Returns data safe for embedding into the frontend
     pub fn data(&self) -> DirectoryEntryData<'_> {
         DirectoryEntryData {

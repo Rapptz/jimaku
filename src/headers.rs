@@ -3,7 +3,7 @@ use std::convert::Infallible;
 use axum::{
     extract::FromRequestParts,
     http::{
-        header::{ACCEPT_ENCODING, REFERER},
+        header::{ACCEPT_ENCODING, REFERER, USER_AGENT},
         request::Parts,
         HeaderValue, StatusCode, Uri,
     },
@@ -67,5 +67,27 @@ pub fn get_safe_referrer(config: &crate::Config, header: Option<&HeaderValue>) -
         Some(host) => config.is_valid_host(host).then(|| uri.to_string()),
         // If this is None then it's a relative URI and should be fine, even if it 404s.
         None => Some(uri.to_string()),
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UserAgent(pub String);
+
+#[async_trait::async_trait]
+impl<S> FromRequestParts<S> for UserAgent
+where
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(Self(
+            parts
+                .headers
+                .get(USER_AGENT)
+                .and_then(|x| x.to_str().ok())
+                .map(String::from)
+                .unwrap_or_default(),
+        ))
     }
 }

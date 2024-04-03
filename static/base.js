@@ -95,7 +95,7 @@ function detectOS() {
 
 const defaultAlertHook = (alert) => main.insertBefore(alert, main.firstChild);
 
-async function callApi(url, options, alertHook) {
+async function callApi(url, options, alertHook, blob = false) {
   let resp = await fetch(url, options);
   let hook = alertHook ?? defaultAlertHook;
 
@@ -112,7 +112,7 @@ async function callApi(url, options, alertHook) {
      if(resp.headers.get('content-type') === 'application/json') {
       return await resp.json();
     } else {
-      return await resp.text();
+      return blob ? await resp.blob() : await resp.text();
     }
   }
 }
