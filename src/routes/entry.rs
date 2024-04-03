@@ -813,7 +813,7 @@ impl ProcessedFiles {
         let mut base_url = config.canonical_url();
         base_url.push_str("/entry/");
         base_url.push_str(&entry_id.to_string());
-        base_url.push('/');
+        base_url.push_str("/download/");
         for file in &self.files {
             let Ok(path) = file.path.strip_prefix(entry_path) else {
                 continue;
@@ -825,7 +825,7 @@ impl ProcessedFiles {
             buffer.push_str(name);
             buffer.push_str("](");
             buffer.push_str(&base_url);
-            buffer.push_str(name);
+            buffer.push_str(&percent_encode(name.as_bytes(), FRAGMENT).to_string());
             buffer.push_str("]\n");
         }
         buffer
