@@ -215,7 +215,7 @@ impl Info {
     }
 
     fn is_valid(&self) -> bool {
-        self.original_language != LangCode::Other && self.spoken_languages.iter().any(|l| l.code != LangCode::Other)
+        self.original_language == LangCode::Japanese || self.spoken_languages.iter().any(|l| l.code != LangCode::Other)
     }
 
     pub fn is_adult(&self) -> bool {
