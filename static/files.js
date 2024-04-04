@@ -40,7 +40,12 @@ const parseEntryObjects = () => {
       if (obj[attr] === null) {
         continue;
       }
-      el.setAttribute(`data-${attr.replaceAll('_', '-')}`, obj[attr]);
+      if (attr == 'tmdb_id') {
+        let value = obj[attr];
+        el.setAttribute('data-tmdb-id', `${value.type}:${value.id}`);
+      } else {
+        el.setAttribute(`data-${attr.replaceAll('_', '-')}`, obj[attr]);
+      }
     }
     el.removeAttribute('data-extra');
   });
