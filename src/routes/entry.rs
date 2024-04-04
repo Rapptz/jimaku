@@ -189,6 +189,7 @@ struct PendingDirectoryEntry {
     name: Option<String>,
     titles: Option<MediaTitle>,
     flags: Option<DirectoryFlags>,
+    notes: Option<String>,
     anime: bool,
 }
 
@@ -199,6 +200,7 @@ impl From<CreateDirectoryEntry> for PendingDirectoryEntry {
             tmdb_id: value.tmdb_url.as_deref().and_then(tmdb::get_tmdb_id),
             name: value.name,
             anime: value.anime,
+            notes: None,
             titles: None,
             flags: None,
         }
@@ -298,8 +300,8 @@ async fn raw_create_directory_entry(
     };
 
     let query = r#"
-        INSERT INTO directory_entry(path, creator_id, tmdb_id, anilist_id, flags, name, english_name, japanese_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO directory_entry(path, creator_id, tmdb_id, anilist_id, flags, notes, name, english_name, japanese_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id;
     "#;
     let path_string = path_string.to_owned();
@@ -318,6 +320,7 @@ async fn raw_create_directory_entry(
                         pending.tmdb_id,
                         pending.anilist_id,
                         flags,
+                        pending.notes,
                         names.romaji,
                         names.english,
                         names.native,
@@ -678,6 +681,7 @@ async fn move_directory_entries(
                     anime: payload.anime,
                     titles: None,
                     flags: None,
+                    notes: None,
                 },
             )
             .await?
@@ -1156,6 +1160,7 @@ async fn create_imported_entry(
         name: None,
         flags: Some(flags),
         anime: query.anime,
+        notes: payload.inner.notes.clone(),
         titles: Some(payload.inner.titles()),
     };
 
