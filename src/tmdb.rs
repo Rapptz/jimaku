@@ -159,12 +159,6 @@ struct AlternativeTitle {
 }
 
 #[derive(Debug, Deserialize)]
-struct SpokenLanguage {
-    #[serde(rename = "iso_639_1")]
-    code: LangCode,
-}
-
-#[derive(Debug, Deserialize)]
 struct AlternativeTitles {
     #[serde(alias = "results")]
     titles: Vec<AlternativeTitle>,
@@ -187,7 +181,6 @@ pub struct Info {
     #[serde(alias = "name")]
     title: String,
     alternative_titles: AlternativeTitles,
-    spoken_languages: Vec<SpokenLanguage>,
 }
 
 impl Info {
@@ -221,10 +214,6 @@ impl Info {
             english,
             native,
         }
-    }
-
-    fn is_valid(&self) -> bool {
-        self.original_language == LangCode::Japanese || self.spoken_languages.iter().any(|l| l.code != LangCode::Other)
     }
 
     pub fn is_adult(&self) -> bool {
@@ -268,11 +257,6 @@ pub async fn get_media_info(client: &reqwest::Client, api_key: &str, id: Id) -> 
 
     let mut info = resp.error_for_status()?.json::<Info>().await?;
     info.id = id;
-
-    if !info.is_valid() {
-        anyhow::bail!("TMDB entry is not aimed at a Japanese audience")
-    }
-
     Ok(Some(info))
 }
 
