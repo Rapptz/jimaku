@@ -158,6 +158,21 @@ struct AlternativeTitle {
     info: String,
 }
 
+impl AlternativeTitle {
+    fn is_romaji(&self) -> bool {
+        if self.lang != LangCode::Japanese {
+            false
+        } else {
+            // This field is not consistent and depends heavily on the entry
+            // Some examples are Romaji, romanji, Hepburn romanization, etc.
+            // As a hack, just check if "roma" or "hepburn" is included in
+            // the lowercased version of the string
+            let lower = self.info.to_lowercase();
+            lower.contains("roma") || lower.contains("hepburn")
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct AlternativeTitles {
     #[serde(alias = "results")]
@@ -166,7 +181,7 @@ struct AlternativeTitles {
 
 impl AlternativeTitles {
     fn romaji(&self) -> Option<String> {
-        self.titles.iter().find(|t| t.info == "Romaji").map(|t| t.title.clone())
+        self.titles.iter().find(|t| t.is_romaji()).map(|t| t.title.clone())
     }
 }
 
