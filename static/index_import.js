@@ -17,8 +17,12 @@ async function downloadZipFromUrl(url) {
 }
 
 async function blobToBase64(blob) {
-  const buffer = await blob.arrayBuffer();
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const url = await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+  return url.slice(url.indexOf(',') + 1);
 }
 
 async function compressJson(payload) {
