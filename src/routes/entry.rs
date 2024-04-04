@@ -807,13 +807,9 @@ struct ProcessedFiles {
 }
 
 impl ProcessedFiles {
-    fn to_formatted_list(&self, entry_path: &std::path::Path, entry_id: i64, config: &crate::Config) -> String {
+    fn to_formatted_list(&self, entry_path: &std::path::Path) -> String {
         // Basically turns the files into e.g. - [name](url) items
         let mut buffer = String::with_capacity(256);
-        let mut base_url = config.canonical_url();
-        base_url.push_str("/entry/");
-        base_url.push_str(&entry_id.to_string());
-        base_url.push_str("/download/");
         for file in &self.files {
             let Ok(path) = file.path.strip_prefix(entry_path) else {
                 continue;
@@ -821,12 +817,9 @@ impl ProcessedFiles {
             let Some(name) = path.to_str() else {
                 continue;
             };
-            buffer.push_str("- [");
+            buffer.push_str("- ");
             buffer.push_str(name);
-            buffer.push_str("](");
-            buffer.push_str(&base_url);
-            buffer.push_str(&percent_encode(name.as_bytes(), FRAGMENT).to_string());
-            buffer.push_str("]\n");
+            buffer.push('\n');
         }
         buffer
     }
@@ -893,7 +886,7 @@ async fn upload_file(
 
     let mut errored = 0usize;
     let total = processed.files.len();
-    let as_list = processed.to_formatted_list(&entry, entry_id, state.config());
+    let as_list = processed.to_formatted_list(&entry);
     let mut set = JoinSet::new();
     for file in processed.files.into_iter() {
         set.spawn_blocking(move || file.write_to_disk());
