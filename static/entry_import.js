@@ -27,8 +27,9 @@ async function getImportedFiles() {
 
 confirmImport.addEventListener('click', async (e) => {
   e.preventDefault();
-  let data = new FormData(entryForm);
+  confirmImport.disabled = true;
 
+  let data = new FormData(entryForm);
   let anilistId = data.get('anilist_id');
   if(anilistId !== null && !anilistId.startsWith('http')) {
     anilistId = parseInt(anilistId, 10);
@@ -59,6 +60,8 @@ confirmImport.addEventListener('click', async (e) => {
     localStorage.removeItem('pending_import_file');
     await sleep(3000);
     window.location.href = `/entry/${js.entry_id}`;
+  } else {
+    confirmImport.disabled = false;
   }
 });
 

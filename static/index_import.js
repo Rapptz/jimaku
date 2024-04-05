@@ -102,12 +102,15 @@ function showModalAlert(modal, {level, content}) {
 
 confirmImport?.addEventListener('click', async (e) => {
   e.preventDefault();
+  confirmImport.disabled = true;
   try {
     await handleImport();
   } catch(e) {
     showModalAlert(importModal, {level: 'error', content: e.toString() });
+    confirmImport.disabled = false;
     return false;
   }
+  confirmImport.disabled = false;
   importForm.requestSubmit(confirmImport);
 });
 
