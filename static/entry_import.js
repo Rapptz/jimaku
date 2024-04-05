@@ -47,13 +47,18 @@ confirmImport.addEventListener('click', async (e) => {
     files: await getImportedFiles(),
   };
 
-  let js = await callApi(entryForm.action, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    headers: {
-      'content-type': 'application/json',
-    },
-  });
+  let js = null;
+  try {
+    js = await callApi(entryForm.action, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+  } catch(e) {
+    showAlert({level: 'error', content: `Failed to call API: ${e}`});
+  }
 
   if(js !== null) {
     showAlert({level: 'success', content: 'Successfully created entry, redirecting there in 3 seconds...'});
