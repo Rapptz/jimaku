@@ -12,6 +12,9 @@ const uploadInput = document.getElementById('upload-file-input');
 
 const updateInfo = document.getElementById('update-info');
 
+const dropZone = document.getElementById('file-upload-drop-zone');
+let lastDraggedTarget = null;
+
 const checkedSelector = '.entry:not(.hidden) > .file-bulk > input[type="checkbox"]';
 const query = `
 query ($id: Int) {
@@ -47,6 +50,16 @@ query ($id: Int) {
   }
 }
 `;
+
+const fileExtension = (name) => name.slice((name.lastIndexOf('.') - 1 >>> 0) + 2);
+const allowedExtensions = ["srt", "ssa", "ass", "zip", "sub", "sup", "idx"];
+
+function filterValidFileList(files) {
+  let filtered = Array.from(files).filter(f => allowedExtensions.includes(fileExtension(f.name)));
+  const dt = new DataTransfer();
+  filtered.forEach(f => dt.items.add(f));
+  return dt.files;
+}
 
 function getSelectedFiles() {
   return [...document.querySelectorAll(checkedSelector + ':checked')].map(e => {
@@ -418,3 +431,30 @@ uploadInput?.addEventListener('change', () => {
   uploadForm.submit();
 });
 downloadFilesButton?.addEventListener('click', downloadFiles);
+
+if (uploadInput !== null) {
+  window.addEventListener('dragenter', (e) => {
+    lastDraggedTarget = e.target;
+    dropZone.classList.add('dragged');
+  });
+
+  window.addEventListener('dragleave', (e) => {
+    if (e.target === lastDraggedTarget || e.target == document) {
+      dropZone.classList.remove('dragged');
+    }
+  });
+
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragged');
+    let files = filterValidFileList(e.dataTransfer.files);
+    if(files.length > 0) {
+      uploadInput.files = files;
+      uploadForm.submit();
+    }
+  });
+}

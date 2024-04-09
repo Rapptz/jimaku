@@ -203,6 +203,28 @@ a.relation:not(:last-child)::after {
   content: ': ';
 }
 
+#file-upload-drop-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 99;
+  background-color: rgba(0, 0, 0, 40%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 150ms, opacity 150ms;
+}
+
+#file-upload-drop-zone.dragged {
+  visibility: visible;
+  opacity: 1;
+}
+
 /* tables are easier as desktop first */
 @media (max-width: 480px) {
   .files[data-columns="2"] {
