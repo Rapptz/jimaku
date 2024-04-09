@@ -3,6 +3,8 @@ const importModal = document.getElementById('import-modal');
 const confirmImport = document.getElementById('confirm-import');
 const payloadJson = document.getElementById('import-payload');
 const importForm = importModal.querySelector('form');
+const dropZone = document.getElementById('file-upload-drop-zone');
+let lastDraggedTarget = null;
 
 importModal?.querySelector('button[formmethod=dialog]').addEventListener('click', (e) => {
   e.preventDefault();
@@ -120,3 +122,27 @@ importModal.addEventListener('close', () => {
 });
 
 importButton?.addEventListener('click', () => importModal.showModal());
+
+window.addEventListener('dragenter', (e) => {
+  lastDraggedTarget = e.target;
+  dropZone.classList.add('dragged');
+});
+
+window.addEventListener('dragleave', (e) => {
+  if (e.target === lastDraggedTarget || e.target == document) {
+    dropZone.classList.remove('dragged');
+  }
+});
+
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragged');
+  if(e.dataTransfer.files.length === 1 && e.dataTransfer.files[0].name.endsWith('.zip')) {
+    document.getElementById('import-file').files = e.dataTransfer.files;
+    confirmImport.click();
+  }
+});
