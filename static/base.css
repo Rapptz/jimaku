@@ -532,13 +532,17 @@ a.nav-item.branding:hover {
 }
 
 .hamburger-menu {
-  position: fixed;
+  position: absolute;
   top: 29px;
   right: 1rem;
   width: 26px;
   height: 26px;
   cursor: pointer;
   z-index: 2;
+}
+
+#hamburger-toggle:checked + .hamburger-menu {
+  position: fixed;
 }
 
 .hamburger-menu > span,
