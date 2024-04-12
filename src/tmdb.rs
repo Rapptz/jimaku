@@ -153,6 +153,7 @@ impl<'de> Deserialize<'de> for LangCode {
 struct AlternativeTitle {
     #[serde(rename = "iso_3166_1")]
     lang: LangCode,
+    #[serde(deserialize_with = "crate::japanese::normalized_ascii_representation")]
     title: String,
     #[serde(rename = "type")]
     info: String,
@@ -168,7 +169,7 @@ impl AlternativeTitle {
             // As a hack, just check if "roma" or "hepburn" is included in
             // the lowercased version of the string
             let lower = self.info.to_lowercase();
-            lower.contains("roma") || lower.contains("hepburn")
+            lower.contains("roma") || lower.contains("hepburn") || (self.info.is_empty() && self.title.is_ascii())
         }
     }
 }
@@ -193,7 +194,10 @@ pub struct Info {
     original_language: LangCode,
     #[serde(alias = "original_name")]
     original_title: String,
-    #[serde(alias = "name")]
+    #[serde(
+        alias = "name",
+        deserialize_with = "crate::japanese::normalized_ascii_representation"
+    )]
     title: String,
     alternative_titles: AlternativeTitles,
 }

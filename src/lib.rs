@@ -10,6 +10,7 @@ pub mod error;
 pub mod filters;
 pub mod flash;
 pub mod headers;
+pub mod japanese;
 pub mod key;
 pub mod kitsunekko;
 pub mod logging;
