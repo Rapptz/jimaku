@@ -215,6 +215,8 @@ fn case_insensitive_search(title: &MediaTitle, query: &str) -> bool {
             } else {
                 return true;
             }
+        } else if let Some(jp) = &title.native {
+            return jp.eq_ignore_ascii_case(query);
         }
     }
     base
