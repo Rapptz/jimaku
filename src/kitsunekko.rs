@@ -202,6 +202,24 @@ fn levenshtein_distance(title: &MediaTitle, query: &str) -> usize {
     }
 }
 
+#[inline]
+fn case_insensitive_search(title: &MediaTitle, query: &str) -> bool {
+    let base = title.romaji.eq_ignore_ascii_case(query);
+    if !base {
+        if let Some(s) = &title.english {
+            let result = s.eq_ignore_ascii_case(query);
+            if !result {
+                if let Some(jp) = &title.native {
+                    return jp.eq_ignore_ascii_case(query);
+                }
+            } else {
+                return true;
+            }
+        }
+    }
+    base
+}
+
 async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Result<Option<(Media, bool)>> {
     // The order of this is weird because I wanna rely on the response sort order before doing any
     // postprocessing, but doing it this way avoids the needless clone
@@ -227,6 +245,11 @@ async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Resu
     // Sort and remove duplicate entries by ID
     result.sort_by_key(|s| s.id);
     result.dedup_by_key(|s| s.id);
+
+    // Check if there's an exact match using case insensitive search
+    if let Some(idx) = result.iter().position(|m| case_insensitive_search(&m.title, query)) {
+        return Ok(Some((result.swap_remove(idx), false)));
+    }
 
     match result.len() {
         0 => Ok(None),
@@ -458,6 +481,7 @@ mod tests {
             "Boku no Kokoro no Yabai Yatsu",
             "Haikyuu!! S4",
             "Haikyuu!! Second Season",
+            "Beyblade X",
         ];
 
         for query in queries {
