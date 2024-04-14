@@ -159,6 +159,8 @@ impl Table for DirectoryEntry {
         "name",
     ];
 
+    type Id = i64;
+
     fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
         let path: String = row.get("path")?;
         Ok(Self {
@@ -354,6 +356,8 @@ impl Table for Account {
 
     const COLUMNS: &'static [&'static str] = &["id", "name", "password", "flags"];
 
+    type Id = i64;
+
     fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
             id: row.get("id")?,
@@ -390,4 +394,37 @@ pub fn is_valid_username(s: &str) -> bool {
         && s.as_bytes()
             .iter()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'.' || *c == b'_' || *c == b'-')
+}
+
+/// An authentication session.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Session {
+    /// The session ID.
+    pub id: String,
+    /// The account ID.
+    pub account_id: i64,
+    /// When the session was created
+    pub created_at: OffsetDateTime,
+    /// The description associated with this session
+    pub description: Option<String>,
+    /// Whether the session is an API key.
+    pub api_key: bool,
+}
+
+impl Table for Session {
+    const NAME: &'static str = "session";
+
+    const COLUMNS: &'static [&'static str] = &["id", "account_id", "created_at", "description", "api_key"];
+
+    type Id = String;
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: row.get("id")?,
+            account_id: row.get("account_id")?,
+            created_at: row.get("created_at")?,
+            description: row.get("description")?,
+            api_key: row.get("api_key")?,
+        })
+    }
 }

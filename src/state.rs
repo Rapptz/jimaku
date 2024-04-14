@@ -5,15 +5,32 @@ use tokio::sync::RwLockReadGuard;
 use crate::{
     auth::hash_password,
     cached::TimedCachedValue,
-    models::{Account, DirectoryEntry},
+    database::Table,
+    models::{Account, DirectoryEntry, Session},
     Config, Database,
 };
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct SessionInfo {
+    pub id: i64,
+    pub api_key: bool,
+}
+
+impl From<Session> for SessionInfo {
+    fn from(value: Session) -> Self {
+        Self {
+            id: value.account_id,
+            api_key: value.api_key,
+        }
+    }
+}
 
 struct InnerState {
     config: Config,
     database: Database,
     cached_directories: TimedCachedValue<Vec<DirectoryEntry>>,
     cached_users: Cache<i64, Account>,
+    valid_sessions: Cache<String, SessionInfo>,
 }
 
 /// Global application state for the axum Router.
@@ -34,6 +51,7 @@ impl AppState {
                 database,
                 cached_directories: TimedCachedValue::new(Duration::from_secs(60 * 30)),
                 cached_users: Cache::new(1000),
+                valid_sessions: Cache::new(1000),
             }),
             client: reqwest::Client::builder()
                 .timeout(Duration::from_secs(600))
@@ -85,6 +103,117 @@ impl AppState {
 
     pub fn clear_account_cache(&self) {
         self.inner.cached_users.clear();
+    }
+
+    pub fn clear_session_cache(&self) {
+        self.inner.valid_sessions.clear();
+    }
+
+    /// Returns if the session is valid (i.e. in the database or cache).
+    pub async fn is_session_valid(&self, session: &str) -> Option<SessionInfo> {
+        match self.inner.valid_sessions.get_value_or_guard_async(session).await {
+            Ok(session) => Some(session),
+            Err(guard) => match self
+                .database()
+                .get_by_id::<Session>(session.to_owned())
+                .await
+                .ok()
+                .flatten()
+            {
+                Some(session) => {
+                    let info = session.into();
+                    let _ = guard.insert(info);
+                    Some(info)
+                }
+                None => None,
+            },
+        }
+    }
+
+    /// Returns the account associated with the session and account ID if they're valid.
+    ///
+    /// This is merely an optimisation to avoid doing multiple database lookups.
+    pub async fn get_session_account(&self, session: &str, id: i64) -> Option<Account> {
+        match self.inner.valid_sessions.get_value_or_guard_async(session).await {
+            Ok(info) => {
+                let account = self.get_account(info.id).await;
+                if account.is_none() {
+                    self.inner.valid_sessions.remove(session);
+                }
+                account
+            }
+            Err(guard) => {
+                let query = r#"
+                    SELECT account.id AS id, account.name AS name, account.password AS password,
+                           account.flags AS flags, session.api_key AS api_key
+                    FROM account INNER JOIN session ON session.account_id = account.id
+                    WHERE session.id = ? AND session.account_id = ?
+                "#;
+                match self
+                    .database()
+                    .get_row(
+                        query,
+                        (session.to_owned(), id),
+                        |row| -> rusqlite::Result<(Account, SessionInfo)> {
+                            let account = Account::from_row(row)?;
+                            let info = SessionInfo {
+                                id: account.id,
+                                api_key: row.get("api_key")?,
+                            };
+                            Ok((account, info))
+                        },
+                    )
+                    .await
+                    .ok()
+                {
+                    Some((account, info)) => {
+                        let _ = guard.insert(info);
+                        self.inner.cached_users.insert(account.id, account.clone());
+                        Some(account)
+                    }
+                    None => None,
+                }
+            }
+        }
+    }
+
+    /// Invalidate the given session
+    ///
+    /// This can invalidate API tokens as well.
+    pub async fn invalidate_session(&self, session: &str) -> bool {
+        self.inner.valid_sessions.remove(session);
+        self.database()
+            .execute("DELETE FROM session WHERE id = ?", (session.to_owned(),))
+            .await
+            .is_ok()
+    }
+
+    /// Saves the session given by the token to the database
+    pub async fn save_session(&self, token: &crate::token::Token, description: Option<String>) {
+        let query =
+            "INSERT INTO session(id, account_id, description, api_key) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING";
+        let _ = self
+            .database()
+            .execute(query, (token.base64(), token.id, description, token.api_key))
+            .await;
+    }
+
+    /// Invalidate all sessions used by the account.
+    ///
+    /// This does *not* invalidate API tokens.
+    pub async fn invalidate_account_sessions(&self, id: i64) {
+        let sessions: Vec<Session> = self
+            .database()
+            .all(
+                "DELETE FROM session WHERE account_id = ? AND api_key != 0 RETURNING *",
+                [id],
+            )
+            .await
+            .unwrap_or_default();
+
+        for session in sessions {
+            self.inner.valid_sessions.remove(&session.id);
+        }
     }
 
     pub async fn directory_entries(&self) -> RwLockReadGuard<'_, Vec<DirectoryEntry>> {

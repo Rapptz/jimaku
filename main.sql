@@ -50,3 +50,15 @@ CREATE TABLE IF NOT EXISTS storage(
   name TEXT PRIMARY KEY,
   value TEXT
 ) WITHOUT ROWID;
+
+
+CREATE TABLE IF NOT EXISTS session (
+  id TEXT PRIMARY KEY,
+  account_id INTEGER REFERENCES account(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  description TEXT,
+  api_key INTEGER NOT NULL DEFAULT 0
+) WITHOUT ROWID;
+
+CREATE INDEX IF NOT EXISTS session_account_id_idx ON session(account_id);
+CREATE INDEX IF NOT EXISTS session_api_key_idx ON session(api_key);

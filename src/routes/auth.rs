@@ -60,6 +60,8 @@ impl<'de> Deserialize<'de> for AuthenticationAction {
 struct Credentials {
     username: String,
     password: String,
+    #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
+    session_description: Option<String>,
     action: AuthenticationAction,
 }
 
@@ -71,37 +73,33 @@ fn cookie_to_response(cookie: Cookie<'static>) -> Response {
     response
 }
 
-async fn register(
-    state: &AppState,
-    token: &Option<Token>,
-    username: String,
-    password: String,
-) -> Result<Response, ApiError> {
+async fn register(state: &AppState, token: &Option<Token>, credentials: Credentials) -> Result<Response, ApiError> {
     if token.is_some() {
         return Err(ApiError::new("user already has an account"));
     }
 
-    if !is_valid_username(&username) {
+    if !is_valid_username(&credentials.username) {
         return Err(ApiError::new("invalid username given"));
     }
 
-    if !((8..=128).contains(&password.len())) {
+    if !((8..=128).contains(&credentials.password.len())) {
         return Err(ApiError::new("password length must be 8 to 128 characters"));
     }
 
-    let password_hash = hash_password(&password)?;
+    let password_hash = hash_password(&credentials.password)?;
     let result: rusqlite::Result<Option<Account>> = state
         .database()
         .get(
             "INSERT INTO account(name, password) VALUES (?, ?) RETURNING *",
-            [username, password_hash],
+            [credentials.username, password_hash],
         )
         .await;
 
     match result {
         Ok(Some(account)) => {
-            let token = Token::new(account.id);
-            let cookie = token.to_cookie(&state.config().secret_key)?;
+            let token = Token::new(account.id)?;
+            let cookie = token.to_cookie(&state.config().secret_key);
+            state.save_session(&token, credentials.session_description).await;
             Ok(cookie_to_response(cookie))
         }
         Ok(None) => Err(ApiError {
@@ -118,18 +116,18 @@ async fn register(
     }
 }
 
-async fn authenticate(state: &AppState, username: String, password: String) -> Result<Response, ApiError> {
-    if !is_valid_username(&username) {
+async fn authenticate(state: &AppState, credentials: Credentials) -> Result<Response, ApiError> {
+    if !is_valid_username(&credentials.username) {
         return Err(ApiError::new("invalid username given"));
     }
 
-    if !((8..=128).contains(&password.len())) {
+    if !((8..=128).contains(&credentials.password.len())) {
         return Err(ApiError::new("password length must be 8 to 128 characters"));
     }
 
     let account: Option<Account> = state
         .database()
-        .get("SELECT * FROM account WHERE name = ?", [username])
+        .get("SELECT * FROM account WHERE name = ?", [credentials.username])
         .await?;
 
     // Mitigate timing attacks by always comparing password hashes regardless of whether it's found or not
@@ -138,12 +136,13 @@ async fn authenticate(state: &AppState, username: String, password: String) -> R
         .map(|a| &a.password)
         .unwrap_or(&state.incorrect_default_password_hash);
 
-    if validate_password(&password, hash).is_ok() {
+    if validate_password(&credentials.password, hash).is_ok() {
         match account {
             Some(acc) => {
                 state.invalidate_account_cache(acc.id);
-                let token = Token::new(acc.id);
-                let cookie = token.to_cookie(&state.config().secret_key)?;
+                let token = Token::new(acc.id)?;
+                let cookie = token.to_cookie(&state.config().secret_key);
+                state.save_session(&token, credentials.session_description).await;
                 Ok(cookie_to_response(cookie))
             }
             None => Err(ApiError::incorrect_login()),
@@ -155,6 +154,7 @@ async fn authenticate(state: &AppState, username: String, password: String) -> R
 
 async fn logout(State(state): State<AppState>, token: Token) -> TokenRejection {
     state.invalidate_account_cache(token.id);
+    state.invalidate_session(&token.base64()).await;
     TokenRejection
 }
 
@@ -162,6 +162,8 @@ async fn logout(State(state): State<AppState>, token: Token) -> TokenRejection {
 struct ChangePasswordForm {
     old_password: String,
     new_password: String,
+    #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
+    session_description: Option<String>,
 }
 
 async fn change_password(
@@ -210,10 +212,12 @@ async fn change_password(
         .await
     {
         Ok(_) => {
-            let token = Token::new(account.id);
-            let Ok(cookie) = token.to_cookie(&state.config().secret_key) else {
+            let Ok(token) = Token::new(account.id) else {
                 return flasher.add("Failed to obtain new token cookie").bail(&url);
             };
+            let cookie = token.to_cookie(&state.config().secret_key);
+            state.invalidate_account_sessions(account.id).await;
+            state.save_session(&token, form.session_description).await;
             flasher.add(FlashMessage::success("Successfully changed password."));
             cookie_to_response(cookie)
         }
@@ -228,8 +232,8 @@ async fn login_form(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let result = match credentials.action {
-        AuthenticationAction::Login => authenticate(&state, credentials.username, credentials.password).await,
-        AuthenticationAction::Register => register(&state, &token, credentials.username, credentials.password).await,
+        AuthenticationAction::Login => authenticate(&state, credentials).await,
+        AuthenticationAction::Register => register(&state, &token, credentials).await,
     };
     match result {
         Ok(r) => r,

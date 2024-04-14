@@ -75,6 +75,10 @@ pub const fn default_true() -> bool {
     true
 }
 
+pub const fn is_false(s: &bool) -> bool {
+    !*s
+}
+
 pub mod base64_bytes {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use serde::{Deserialize, Deserializer, Serializer};

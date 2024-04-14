@@ -107,6 +107,7 @@ async fn invalidate_caches(
     if account.flags.is_admin() {
         state.cached_directories().invalidate().await;
         state.clear_account_cache();
+        state.clear_session_cache();
         cache.invalidate_all();
     }
     Redirect::to("/")

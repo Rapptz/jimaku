@@ -73,24 +73,57 @@ function showAlert({ level, content }) {
   main.insertBefore(alert, main.firstChild);
 }
 
-function detectOS() {
-  const userAgent = window.navigator.userAgent,
+function detectOS(ua) {
+  const userAgent = ua || window.navigator.userAgent,
     windowsPlatforms = ['Win32', 'Win64', 'Windows'],
     iosPlatforms = ['iPhone', 'iPad', 'iPod'];
 
-  if (/Macintosh/.test(userAgent)) {
+  if (userAgent.indexOf('Macintosh') !== -1) {
+    if(navigator.standalone && navigator.maxTouchPoints > 2) {
+      return 'iPadOS';
+    }
     return 'macOS';
-  } else if (iosPlatforms.indexOf(userAgent) !== -1) {
+  } else if (iosPlatforms.some(p => userAgent.indexOf(p) !== -1)) {
     return 'iOS';
-  } else if (windowsPlatforms.indexOf(userAgent) !== -1) {
-    return 'windows';
-  } else if (/Android/.test(userAgent)) {
-    return 'android';
-  } else if (/Linux/.test(platform)) {
-    return 'linux';
+  } else if (windowsPlatforms.some(p => userAgent.indexOf(p) !== -1)) {
+    return 'Windows';
+  } else if (userAgent.indexOf('Android') !== -1) {
+    return 'Android';
+  } else if (userAgent.indexOf('Linux') !== -1) {
+    return 'Linux';
   } else {
     return null;
   }
+}
+
+function detectBrowser(ua) {
+  const userAgent = ua || window.navigator.userAgent;
+  let match = userAgent.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+  if(/trident/i.test(match[1])) {
+    return 'Internet Explorer';
+  }
+  if(match[1] == 'Chrome') {
+    let inner = userAgent.match(/\b(OPR|Edge)\/(\d+)/);
+    if(inner !== null) {
+      return inner[1].replace('OPR', 'Opera');
+    }
+    if(/\bEdg\/\d+/.test(userAgent)) {
+      return 'Edge';
+    }
+    return 'Chrome';
+  }
+  return match[1];
+}
+
+function deviceDescription() {
+  const ua = window.navigator.userAgent;
+  let browser = detectBrowser(ua);
+  let os = detectOS(ua);
+  if(!browser && !os) {
+    return '';
+  }
+  browser = browser ?? 'Unknown Browser';
+  return !!os ? `${browser} on ${os}` : browser;
 }
 
 const defaultAlertHook = (alert) => main.insertBefore(alert, main.firstChild);

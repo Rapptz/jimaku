@@ -15,6 +15,9 @@ pub trait Table: Sized {
     const NAME: &'static str;
     /// An array of all the columns of the table.
     const COLUMNS: &'static [&'static str];
+    /// The type of the table's ID column
+    type Id;
+
     /// Conversion from a rusqlite Row to the target type.
     fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self>;
 
@@ -238,9 +241,10 @@ impl Database {
     }
 
     /// Gets a row from its ID.
-    pub async fn get_by_id<T>(&self, id: i64) -> rusqlite::Result<Option<T>>
+    pub async fn get_by_id<T>(&self, id: T::Id) -> rusqlite::Result<Option<T>>
     where
         T: Table + Send + 'static,
+        T::Id: rusqlite::ToSql + Send + 'static,
     {
         self.call(move |conn| -> rusqlite::Result<Option<T>> {
             let query = format!("SELECT * FROM {} WHERE id=?", T::NAME);
@@ -545,6 +549,7 @@ mod tests {
     impl Table for Foo {
         const NAME: &'static str = "foo";
         const COLUMNS: &'static [&'static str] = &["id", "name", "age"];
+        type Id = i64;
 
         fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
             Ok(Foo {

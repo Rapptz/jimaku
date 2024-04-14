@@ -22,10 +22,11 @@ Login · Jimaku
     <label for="username">Username</label>
     <input class="form-field" required placeholder=" " pattern="[a-z0-9._\-]{0,32}" name="username" id="username" type="text">
     <label for="password">Password</label>
-      <div class="password-container form-field">
-        <input class="form-field" required placeholder=" " minlength="8" maxlength="128" name="password" id="password" type="password">
-        <span class="password-icon"><img alt="Password visibility icon" src="/static/visibility.svg" width="24px" height="24px"/></span>
-      </div>
+    <div class="password-container form-field">
+      <input class="form-field" required placeholder=" " minlength="8" maxlength="128" name="password" id="password" type="password">
+      <span class="password-icon"><img alt="Password visibility icon" src="/static/visibility.svg" width="24px" height="24px"/></span>
+    </div>
+    <input type="hidden" id="session-description" name="session_description" value="">
     <div class="form-field button-container">
       <button id="authenticate" name="action" value="login" class="button primary" tabindex="0">Login</button>
       <button id="register" name="action" value="register" class="button" tabindex="-1">Register</button>

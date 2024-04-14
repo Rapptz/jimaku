@@ -45,3 +45,5 @@ toggleEditor?.addEventListener('click', async () => {
     window.location.reload();
   }
 })
+
+document.getElementById('session-description')?.setAttribute('value', deviceDescription());
