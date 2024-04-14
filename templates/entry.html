@@ -159,6 +159,11 @@
                  name="adult" id="entry-adult" type="checkbox">
           <label for="entry-adult">Adult</label>
         </div>
+        <div class="checkbox-container">
+          <input value="true" {%- if entry.flags.is_anime() -%}checked{% endif %}
+                 name="anime" id="entry-anime" type="checkbox">
+          <label for="entry-anime">Anime</label>
+        </div>
       </div>
       <label for="entry-notes">Notes</label>
       <textarea class="form-field" name="notes" id="entry-notes" autocomplete="off"

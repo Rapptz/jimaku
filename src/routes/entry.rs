@@ -408,6 +408,8 @@ struct EditDirectoryEntry {
     adult: bool,
     #[serde(default)]
     movie: bool,
+    #[serde(default)]
+    anime: bool,
 }
 
 impl EditDirectoryEntry {
@@ -415,6 +417,7 @@ impl EditDirectoryEntry {
         flags.set_low_quality(self.low_quality);
         flags.set_adult(self.adult);
         flags.set_movie(self.movie);
+        flags.set_anime(self.anime);
         flags
     }
 
@@ -1151,9 +1154,8 @@ async fn create_imported_entry(
         return Err(ApiError::new(validation_errors.join("\n")));
     }
 
-    let mut flags = DirectoryFlags::new();
+    let mut flags = payload.inner.apply_flags(DirectoryFlags::new());
     flags.set_anime(query.anime);
-    let flags = payload.inner.apply_flags(flags);
     let pending = PendingDirectoryEntry {
         anilist_id: payload.inner.anilist_id,
         tmdb_id: payload.inner.tmdb_id,
