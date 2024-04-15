@@ -77,3 +77,13 @@ document.querySelectorAll('.invalidate[data-token]').forEach(el => {
   el.removeAttribute('data-token');
   el.addEventListener('click', () => invalidateToken(el, token));
 });
+
+document.getElementById('copy-api-key')?.addEventListener('click', async (e) => {
+  const key = document.getElementById('api-key').textContent;
+  await navigator.clipboard.writeText(key);
+  e.target.textContent = 'Done';
+  e.target.disabled = true;
+  await sleep(500);
+  e.target.textContent = 'Copy';
+  e.target.disabled = false;
+});

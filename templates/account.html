@@ -15,6 +15,9 @@ My Account · Jimaku
 {% endblock %}
 
 {% block body %}
+{% for flash in flashes %}
+{{ flash.html()|safe }}
+{% endfor %}
 {% let account = account.as_ref().unwrap() %}
 <div class="account-info">
   <h2 class="account-name">{{ user.name }}</h2>
@@ -38,6 +41,29 @@ My Account · Jimaku
   {% endif %}
   </div>
 </div>
+<form method="POST" action="/account/api_key" id="api-section">
+  <h3>Developer Access</h3>
+  <div class="form-container">
+  {% match api_key %}
+  {% when Some with (api) %}
+  <label for="api-key">API Key</label>
+  <div class="form-field"><pre id="api-key">{{ api }}</pre></div>
+  <div class="commands">
+    <div class="command-buttons left">
+      <button type="button" id="copy-api-key" class="button primary">Copy</button>
+      <button type="submit" name="new" value="false" class="button danger">Regenerate</button>
+    </div>
+  </div>
+  {% when None %}
+  <p>In order to use the API, you must have an API token.</p>
+  <div class="commands">
+    <div class="command-buttons left">
+      <button type="submit" name="new" value="true" class="button primary">Generate</button>
+    </div>
+  </div>
+  {% endmatch %}
+  </div>
+</form>
 {% if current_session.is_some() || !sessions.is_empty() %}
 <section id="session-section">
 <h3>Sessions</h3>

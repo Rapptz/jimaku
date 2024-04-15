@@ -198,6 +198,34 @@ impl AppState {
             .await;
     }
 
+    pub async fn invalidate_api_keys(&self, id: i64) {
+        let sessions: Vec<Session> = self
+            .database()
+            .all(
+                "DELETE FROM session WHERE account_id = ? AND api_key != 0 RETURNING *",
+                [id],
+            )
+            .await
+            .unwrap_or_default();
+
+        for session in sessions {
+            self.inner.valid_sessions.remove(&session.id);
+        }
+    }
+
+    pub async fn generate_api_key(&self, id: i64) -> anyhow::Result<()> {
+        let mut token = crate::token::Token::new(id)?;
+        token.api_key = true;
+        let key = token.base64();
+        self.database()
+            .execute(
+                "INSERT INTO session(id, account_id, description, api_key) VALUES (?, ?, 'API Key', 1)",
+                (key, id),
+            )
+            .await?;
+        Ok(())
+    }
+
     /// Invalidate all sessions used by the account.
     ///
     /// This does *not* invalidate API tokens.
@@ -205,7 +233,7 @@ impl AppState {
         let sessions: Vec<Session> = self
             .database()
             .all(
-                "DELETE FROM session WHERE account_id = ? AND api_key != 0 RETURNING *",
+                "DELETE FROM session WHERE account_id = ? AND api_key = 0 RETURNING *",
                 [id],
             )
             .await

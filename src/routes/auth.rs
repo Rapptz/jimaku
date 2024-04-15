@@ -275,16 +275,18 @@ async fn login_form(
 #[derive(Template)]
 #[template(path = "account.html")]
 struct AccountInfoTemplate {
+    flashes: Flashes,
     account: Option<Account>,
     user: Account,
     entries: Vec<DirectoryEntry>,
     sessions: Vec<Session>,
     current_session: Option<Session>,
+    api_key: Option<String>,
     key: SecretKey,
 }
 
 impl AccountInfoTemplate {
-    async fn new(account: Account, user: Account, current_token: Token, state: &AppState) -> Self {
+    async fn new(flashes: Flashes, account: Account, user: Account, current_token: Token, state: &AppState) -> Self {
         let entries = state
             .database()
             .all("SELECT * FROM directory_entry WHERE creator_id = ?", [user.id])
@@ -307,28 +309,41 @@ impl AccountInfoTemplate {
             .position(|s| s.id == session_id)
             .map(|idx| sessions.swap_remove(idx));
 
+        let api_key = sessions
+            .iter()
+            .position(|s| s.api_key)
+            .map(|idx| sessions.swap_remove(idx).id);
+
         sessions.sort_by_key(|s| std::cmp::Reverse(s.created_at));
         let key = state.config().secret_key;
 
         Self {
+            flashes,
             account: Some(account),
             user,
             entries,
             sessions,
             current_session,
+            api_key,
             key,
         }
     }
 }
 
-async fn account_info(State(state): State<AppState>, token: Token, account: Account) -> AccountInfoTemplate {
-    AccountInfoTemplate::new(account.clone(), account, token, &state).await
+async fn account_info(
+    State(state): State<AppState>,
+    token: Token,
+    account: Account,
+    flashes: Flashes,
+) -> AccountInfoTemplate {
+    AccountInfoTemplate::new(flashes, account.clone(), account, token, &state).await
 }
 
 async fn show_other_account_info(
     State(state): State<AppState>,
     token: Token,
     account: Account,
+    flashes: Flashes,
     Path(name): Path<String>,
 ) -> Result<AccountInfoTemplate, Redirect> {
     let Some(user) = state
@@ -341,7 +356,7 @@ async fn show_other_account_info(
         return Err(Redirect::to("/"));
     };
 
-    Ok(AccountInfoTemplate::new(account, user, token, &state).await)
+    Ok(AccountInfoTemplate::new(flashes, account, user, token, &state).await)
 }
 
 #[derive(Deserialize)]
@@ -370,6 +385,30 @@ async fn edit_account(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Deserialize)]
+struct GenerateApiKey {
+    new: bool,
+}
+
+async fn generate_api_key(
+    State(state): State<AppState>,
+    account: Account,
+    flasher: Flasher,
+    Referrer(url): Referrer,
+    Form(payload): Form<GenerateApiKey>,
+) -> Response {
+    if !payload.new {
+        state.invalidate_api_keys(account.id).await;
+    }
+    if let Err(e) = state.generate_api_key(account.id).await {
+        flasher.add(format!("Internal error: {e}")).bail(&url)
+    } else {
+        flasher
+            .add(FlashMessage::info("Successfully created API key."))
+            .bail(&url)
+    }
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -381,6 +420,10 @@ pub fn routes() -> Router<AppState> {
         .route("/logout/all", get(logout_all))
         .route("/account/invalidate", post(invalidate_session))
         .route("/account", get(account_info))
+        .route(
+            "/account/api_key",
+            post(generate_api_key).layer(RateLimit::default().quota(1, 600.0).build()),
+        )
         .route("/account/change_password", post(change_password))
         .route("/user/:name", get(show_other_account_info))
         .route("/account/:id/edit", post(edit_account))

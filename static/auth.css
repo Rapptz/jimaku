@@ -123,7 +123,7 @@
   height: 2rem;
 }
 
-#session-section {
+#session-section, #api-section {
   margin: 1rem 0;
 }
 
@@ -146,4 +146,13 @@
 
 .sessions > .session:hover {
   background-color: var(--table-background-hover);
+}
+
+#api-key {
+  width: fit-content;
+  border: 1px solid var(--box-border);
+  padding: 0.5rem;
+  background: var(--box);
+  margin: 0.5rem 0;
+  border-radius: 0.25rem;
 }
