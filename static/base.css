@@ -318,9 +318,14 @@ input[type="radio"] {
 }
 
 .button.danger.outline {
-  color: rgb(var(--danger-button-rgb));
   background-color: transparent;
   border: 1px solid rgb(var(--danger-button-rgb));
+}
+
+.button.danger.outline:hover:not(:disabled) {
+  background-color: rgb(var(--danger-button-rgb));
+  color: var(--button-text);
+  opacity: 0.9;
 }
 
 /* tables */

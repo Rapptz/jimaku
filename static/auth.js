@@ -1,5 +1,24 @@
 const username = document.getElementById('username');
 
+async function invalidateToken(button, token) {
+  await fetch('/account/invalidate', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      session_id: token,
+    })
+  });
+  let element = button.parentElement;
+  let parent = element.parentElement;
+  console.log(element, parent);
+  parent.removeChild(element);
+  if(parent.childElementCount === 0) {
+    window.location.reload();
+  }
+}
+
 username?.addEventListener('input', () => {
   if (username.validity.patternMismatch) {
     username.setCustomValidity("Must be all lowercase letters, numbers, or .-_ characters");
@@ -47,3 +66,14 @@ toggleEditor?.addEventListener('click', async () => {
 })
 
 document.getElementById('session-description')?.setAttribute('value', deviceDescription());
+
+document.querySelectorAll('.created[data-timestamp]').forEach(el => {
+  let seconds = parseInt(el.dataset.timestamp, 10);
+  el.textContent = formatRelative(seconds);
+});
+
+document.querySelectorAll('.invalidate[data-token]').forEach(el => {
+  const token = el.dataset.token;
+  el.removeAttribute('data-token');
+  el.addEventListener('click', () => invalidateToken(el, token));
+});

@@ -103,3 +103,47 @@
 #authenticate {
   order: 2;
 }
+
+.session {
+  display: flex;
+  align-items: center;
+}
+
+.session > .info {
+  display: flex;
+  flex-direction: column;
+  margin-right: auto;
+}
+
+.session > .info > .created {
+  font-size: 0.8rem;
+}
+
+.session > .invalidate {
+  height: 2rem;
+}
+
+#session-section {
+  margin: 1rem 0;
+}
+
+.session ~ h4 {
+  margin-top: 0.5rem;
+}
+
+.sessions {
+  margin-bottom: 0.5rem;
+}
+
+.sessions > .session {
+  border-bottom: 2px solid var(--table-border);
+  padding: 0.25rem 0rem;
+}
+
+.sessions > .session:last-of-type {
+  border-bottom: none;
+}
+
+.sessions > .session:hover {
+  background-color: var(--table-background-hover);
+}

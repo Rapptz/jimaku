@@ -28,7 +28,7 @@ My Account · Jimaku
   </div>
 </div>
 <div class="commands">
-  <div class="command-buttons">
+  <div class="command-buttons left">
   {% if account.id == user.id %}
   <button class="button" id="change-password">Change Password</button>
   {% endif %}
@@ -38,6 +38,46 @@ My Account · Jimaku
   {% endif %}
   </div>
 </div>
+{% if current_session.is_some() || !sessions.is_empty() %}
+<section id="session-section">
+<h3>Sessions</h3>
+<p>
+  These are all the sessions that are currently logged in with your account. You can log out of each one individually or revoke all of them.
+</p>
+<p>
+  If you see an entry you don't recognize, log out that session and change your password immediately.
+</p>
+{% match current_session %}
+{% when Some with (session) %}
+<h4>Current Session</h4>
+<div class="sessions">
+<div class="session">
+  <div class="info">
+    <span class="description">{{ session.label() }}</span>
+    <span class="created" title="{{ session.created_at|isoformat }}" data-timestamp="{{ session.created_at.unix_timestamp() }}">{{ session.created_at|isoformat }}</span>
+  </div>
+  <a class="invalidate button danger outline" href="/logout">Logout</a>
+</div>
+</div>
+{% when None %}
+{% endmatch %}
+{% if !sessions.is_empty() %}
+<h4>Other Sessions</h4>
+<div class="sessions">
+{% for session in sessions %}
+<div class="session">
+  <div class="info">
+    <span class="description">{{ session.label() }}</span>
+    <span class="created" title="{{ session.created_at|isoformat }}" data-timestamp="{{ session.created_at.unix_timestamp() }}">{{ session.created_at|isoformat }}</span>
+  </div>
+  <button class="invalidate button danger outline" data-token="{{ session.signed(key)|as_ref|maybe_display }}">Logout</button>
+</div>
+{% endfor %}
+</div>
+<a class="button danger outline" href="/logout/all">Logout All Sessions</a>
+{% endif %}
+</section>
+{% endif %}
 {% if !entries.is_empty() %}
 <h3>Created Entries</h3>
 <div class="files" data-columns="2">
@@ -53,11 +93,6 @@ My Account · Jimaku
   {% endfor %}
 </div>
 {% endif %}
-<div class="commands">
-  <div class="command-buttons">
-    <a class="button danger outline" href="/logout">Logout</a>
-  </div>
-</div>
 <dialog id="change-password-modal">
   <form autocomplete="off" method="POST" action="/account/change_password">
     <h1>Change Password</h1>

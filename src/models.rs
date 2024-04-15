@@ -7,7 +7,7 @@ use rusqlite::{
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{database::Table, tmdb};
+use crate::{database::Table, key::SecretKey, tmdb, token::Token};
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 pub struct DirectoryFlags(u32);
@@ -426,5 +426,16 @@ impl Table for Session {
             description: row.get("description")?,
             api_key: row.get("api_key")?,
         })
+    }
+}
+
+impl Session {
+    /// A human readable label used for the user.
+    pub fn label(&self) -> &str {
+        self.description.as_deref().unwrap_or("No description")
+    }
+
+    pub fn signed(&self, key: &SecretKey) -> Option<String> {
+        Token::from_base64(&self.id).map(|t| t.signed(key))
     }
 }

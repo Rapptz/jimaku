@@ -5,7 +5,8 @@ use crate::{
     filters,
     flash::{FlashMessage, Flasher, Flashes},
     headers::Referrer,
-    models::{is_valid_username, Account, AccountFlags, DirectoryEntry},
+    key::SecretKey,
+    models::{is_valid_username, Account, AccountFlags, DirectoryEntry, Session},
     ratelimit::RateLimit,
     token::{Token, TokenRejection},
     AppState,
@@ -158,6 +159,36 @@ async fn logout(State(state): State<AppState>, token: Token) -> TokenRejection {
     TokenRejection
 }
 
+async fn logout_all(State(state): State<AppState>, account: Account) -> TokenRejection {
+    state.invalidate_account_cache(account.id);
+    state.invalidate_account_sessions(account.id).await;
+    TokenRejection
+}
+
+#[derive(Deserialize)]
+struct InvalidateSessionPayload {
+    session_id: String,
+}
+
+async fn invalidate_session(
+    State(state): State<AppState>,
+    account: Account,
+    Json(payload): Json<InvalidateSessionPayload>,
+) -> StatusCode {
+    let key = state.config().secret_key;
+    match Token::from_signed(&payload.session_id, &key) {
+        Some(token) => {
+            if token.id == account.id {
+                state.invalidate_session(&token.base64()).await;
+                StatusCode::NO_CONTENT
+            } else {
+                StatusCode::NOT_FOUND
+            }
+        }
+        None => StatusCode::NOT_FOUND,
+    }
+}
+
 #[derive(Deserialize)]
 struct ChangePasswordForm {
     old_password: String,
@@ -247,24 +278,56 @@ struct AccountInfoTemplate {
     account: Option<Account>,
     user: Account,
     entries: Vec<DirectoryEntry>,
+    sessions: Vec<Session>,
+    current_session: Option<Session>,
+    key: SecretKey,
 }
 
-async fn account_info(State(state): State<AppState>, account: Account) -> AccountInfoTemplate {
-    let entries = state
-        .database()
-        .all("SELECT * FROM directory_entry WHERE creator_id = ?", [account.id])
-        .await
-        .unwrap_or_default();
+impl AccountInfoTemplate {
+    async fn new(account: Account, user: Account, current_token: Token, state: &AppState) -> Self {
+        let entries = state
+            .database()
+            .all("SELECT * FROM directory_entry WHERE creator_id = ?", [user.id])
+            .await
+            .unwrap_or_default();
 
-    AccountInfoTemplate {
-        account: Some(account.clone()),
-        user: account,
-        entries,
+        let mut sessions = if user.id == account.id {
+            state
+                .database()
+                .all("SELECT * FROM session WHERE account_id = ?", [user.id])
+                .await
+                .unwrap_or_default()
+        } else {
+            Vec::<Session>::new()
+        };
+
+        let session_id = current_token.base64();
+        let current_session = sessions
+            .iter()
+            .position(|s| s.id == session_id)
+            .map(|idx| sessions.swap_remove(idx));
+
+        sessions.sort_by_key(|s| std::cmp::Reverse(s.created_at));
+        let key = state.config().secret_key;
+
+        Self {
+            account: Some(account),
+            user,
+            entries,
+            sessions,
+            current_session,
+            key,
+        }
     }
+}
+
+async fn account_info(State(state): State<AppState>, token: Token, account: Account) -> AccountInfoTemplate {
+    AccountInfoTemplate::new(account.clone(), account, token, &state).await
 }
 
 async fn show_other_account_info(
     State(state): State<AppState>,
+    token: Token,
     account: Account,
     Path(name): Path<String>,
 ) -> Result<AccountInfoTemplate, Redirect> {
@@ -278,17 +341,7 @@ async fn show_other_account_info(
         return Err(Redirect::to("/"));
     };
 
-    let entries = state
-        .database()
-        .all("SELECT * FROM directory_entry WHERE creator_id = ?", [user.id])
-        .await
-        .unwrap_or_default();
-
-    Ok(AccountInfoTemplate {
-        account: Some(account),
-        user,
-        entries,
-    })
+    Ok(AccountInfoTemplate::new(account, user, token, &state).await)
 }
 
 #[derive(Deserialize)]
@@ -325,6 +378,8 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/login", get(login))
         .route("/logout", get(logout))
+        .route("/logout/all", get(logout_all))
+        .route("/account/invalidate", post(invalidate_session))
         .route("/account", get(account_info))
         .route("/account/change_password", post(change_password))
         .route("/user/:name", get(show_other_account_info))
