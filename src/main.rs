@@ -12,7 +12,6 @@ use tower::Layer;
 use tower_http::{
     normalize_path::NormalizePathLayer,
     services::{ServeDir, ServeFile},
-    timeout::TimeoutLayer,
 };
 use tracing::{error, info};
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
@@ -149,7 +148,6 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .layer(Extension(jimaku::cached::BodyCache::new(Duration::from_secs(120))))
         .layer(DefaultBodyLimit::max(jimaku::MAX_BODY_SIZE))
         .layer(tower_http::limit::RequestBodyLimitLayer::new(jimaku::MAX_BODY_SIZE))
-        .layer(TimeoutLayer::new(Duration::from_secs(10)))
         .with_state(state);
 
     let app = NormalizePathLayer::trim_trailing_slash().layer(router);
