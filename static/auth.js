@@ -97,6 +97,11 @@ document.querySelector('#api-section button[type=submit][name="new"]')?.addEvent
     },
     body: JSON.stringify({new: e.target.getAttribute('new') === 'true' })
   });
-  document.getElementById('api-key').textContent = response.token;
-  showAlert({level: 'success', content: 'Successfully generated API key.'})
+  let apiKey = document.getElementById('api-key');
+  if(apiKey === null) {
+    window.location.reload();
+  } else {
+    apiKey.textContent = response.token;
+    showAlert({level: 'success', content: 'Successfully regenerated API key.'})
+  }
 })
