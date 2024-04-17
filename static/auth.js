@@ -87,3 +87,16 @@ document.getElementById('copy-api-key')?.addEventListener('click', async (e) => 
   e.target.textContent = 'Copy';
   e.target.disabled = false;
 });
+
+document.querySelector('#api-section button[type=submit][name="new"]')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  let response = await callApi('/account/api_key', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({new: e.target.getAttribute('new') === 'true' })
+  });
+  document.getElementById('api-key').textContent = response.token;
+  showAlert({level: 'success', content: 'Successfully generated API key.'})
+})

@@ -15,9 +15,6 @@ My Account · Jimaku
 {% endblock %}
 
 {% block body %}
-{% for flash in flashes %}
-{{ flash.html()|safe }}
-{% endfor %}
 {% let account = account.as_ref().unwrap() %}
 <div class="account-info">
   <h2 class="account-name">{{ user.name }}</h2>

@@ -20,7 +20,7 @@ use axum::{
     Form, Json, Router,
 };
 use cookie::Cookie;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Template)]
 #[template(path = "login.html")]
@@ -275,7 +275,6 @@ async fn login_form(
 #[derive(Template)]
 #[template(path = "account.html")]
 struct AccountInfoTemplate {
-    flashes: Flashes,
     account: Option<Account>,
     user: Account,
     entries: Vec<DirectoryEntry>,
@@ -286,7 +285,7 @@ struct AccountInfoTemplate {
 }
 
 impl AccountInfoTemplate {
-    async fn new(flashes: Flashes, account: Account, user: Account, current_token: Token, state: &AppState) -> Self {
+    async fn new(account: Account, user: Account, current_token: Token, state: &AppState) -> Self {
         let entries = state
             .database()
             .all("SELECT * FROM directory_entry WHERE creator_id = ?", [user.id])
@@ -318,7 +317,6 @@ impl AccountInfoTemplate {
         let key = state.config().secret_key;
 
         Self {
-            flashes,
             account: Some(account),
             user,
             entries,
@@ -330,20 +328,14 @@ impl AccountInfoTemplate {
     }
 }
 
-async fn account_info(
-    State(state): State<AppState>,
-    token: Token,
-    account: Account,
-    flashes: Flashes,
-) -> AccountInfoTemplate {
-    AccountInfoTemplate::new(flashes, account.clone(), account, token, &state).await
+async fn account_info(State(state): State<AppState>, token: Token, account: Account) -> AccountInfoTemplate {
+    AccountInfoTemplate::new(account.clone(), account, token, &state).await
 }
 
 async fn show_other_account_info(
     State(state): State<AppState>,
     token: Token,
     account: Account,
-    flashes: Flashes,
     Path(name): Path<String>,
 ) -> Result<AccountInfoTemplate, Redirect> {
     let Some(user) = state
@@ -356,7 +348,7 @@ async fn show_other_account_info(
         return Err(Redirect::to("/"));
     };
 
-    Ok(AccountInfoTemplate::new(flashes, account, user, token, &state).await)
+    Ok(AccountInfoTemplate::new(account, user, token, &state).await)
 }
 
 #[derive(Deserialize)]
@@ -390,23 +382,21 @@ struct GenerateApiKey {
     new: bool,
 }
 
+#[derive(Serialize)]
+struct GeneratedApiKey {
+    token: String,
+}
+
 async fn generate_api_key(
     State(state): State<AppState>,
     account: Account,
-    flasher: Flasher,
-    Referrer(url): Referrer,
-    Form(payload): Form<GenerateApiKey>,
-) -> Response {
+    Json(payload): Json<GenerateApiKey>,
+) -> Result<Json<GeneratedApiKey>, ApiError> {
     if !payload.new {
         state.invalidate_api_keys(account.id).await;
     }
-    if let Err(e) = state.generate_api_key(account.id).await {
-        flasher.add(format!("Internal error: {e}")).bail(&url)
-    } else {
-        flasher
-            .add(FlashMessage::info("Successfully created API key."))
-            .bail(&url)
-    }
+    let token = state.generate_api_key(account.id).await?;
+    Ok(Json(GeneratedApiKey { token }))
 }
 
 pub fn routes() -> Router<AppState> {

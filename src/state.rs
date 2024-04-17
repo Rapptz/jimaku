@@ -213,17 +213,17 @@ impl AppState {
         }
     }
 
-    pub async fn generate_api_key(&self, id: i64) -> anyhow::Result<()> {
+    pub async fn generate_api_key(&self, id: i64) -> anyhow::Result<String> {
         let mut token = crate::token::Token::new(id)?;
         token.api_key = true;
         let key = token.base64();
         self.database()
             .execute(
                 "INSERT INTO session(id, account_id, description, api_key) VALUES (?, ?, 'API Key', 1)",
-                (key, id),
+                (key.clone(), id),
             )
             .await?;
-        Ok(())
+        Ok(key)
     }
 
     pub async fn get_api_key(&self, id: i64) -> Option<String> {
