@@ -38,9 +38,9 @@ My Account · Jimaku
   {% endif %}
   </div>
 </div>
-<form method="POST" action="/account/api_key" id="api-section">
+<form id="api-section">
   <h3>Developer Access</h3>
-  <p>Please check the <a href="/api/docs">documentation</a> for knowing how to use the API.</p>
+  <p>Please check the <a href="/api/docs">documentation</a> to learn how to use the API.</p>
   <div class="form-container">
   {% match api_key %}
   {% when Some with (api) %}
