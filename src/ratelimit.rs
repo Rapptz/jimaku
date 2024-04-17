@@ -57,6 +57,7 @@ pub trait KeyExtractor: Clone {
 struct RateLimitInfo {
     limit: u16,
     remaining: u16,
+    ratelimited: bool,
     reset_time: SystemTime,
     retry_after: f32,
 }
@@ -77,6 +78,7 @@ impl<T: KeyExtractor> RateLimitLayer<T> {
 
         let tat = self.lookup.get(&key).unwrap_or(now);
         let new_tat = tat.max(now) + Duration::from_secs_f32(emission_interval);
+        let tau = delay_variation_tolerance - emission_interval;
 
         let allow_at = new_tat - Duration::from_secs_f32(delay_variation_tolerance);
         let diff = diff_seconds(now, allow_at);
@@ -88,10 +90,12 @@ impl<T: KeyExtractor> RateLimitLayer<T> {
             0.0
         };
 
+        let ratelimited = now < (tat - Duration::from_secs_f32(tau));
         self.lookup.insert(key, new_tat);
         RateLimitInfo {
             limit,
             remaining,
+            ratelimited,
             reset_time: now + Duration::from_secs_f32(retry_after),
             retry_after,
         }
@@ -100,12 +104,13 @@ impl<T: KeyExtractor> RateLimitLayer<T> {
 
 impl RateLimitInfo {
     fn is_ratelimited(&self) -> bool {
-        self.remaining == 0
+        self.ratelimited
     }
 
     fn banned() -> Self {
         Self {
             limit: 0,
+            ratelimited: true,
             remaining: 0,
             reset_time: UNIX_EPOCH,
             retry_after: 0.0,
