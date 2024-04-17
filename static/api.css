@@ -1,0 +1,35 @@
+.dark-mode {
+  --theme-background-1: #091624;
+  --theme-border-color: #132f4d;
+  --theme-background-2: #0d2039;
+  --theme-color-accent: #c4a058;
+  --theme-color-1: #e0e0e0;
+  --theme-button-1-color: #e0e0e0;
+  --theme-background-3: #091729;
+  --theme-button-1: rgb(47,96,164);
+  --theme-button-1-hover: rgba(47, 96, 164, 0.9);
+  --theme-color-2: #c3c3c3;
+  --sidebar-background-1: var(--theme-background-1);
+  --sidebar-color-1: var(--theme-color-1);
+  --sidebar-color-2: var(--theme-color-2);
+  --sidebar-border-color: var(--theme-border-color);
+  --sidebar-item-hover-background: var(--theme-background-2);
+  --sidebar-item-hover-color: currentColor;
+  --sidebar-item-active-background: var(--theme-background-2);
+  --sidebar-color-active: var(--theme-color-1);
+  --sidebar-search-background: transparent;
+  --sidebar-search-border-color: var(--theme-border-color);
+  --theme-color-3: #afafaf;
+}
+
+.scalar-api-client__item__options {
+  display: none;
+}
+
+.darklight-reference-promo {
+  display: none !important;
+}
+
+.darklight-reference > button.darklight {
+  padding-bottom: 18px;
+}

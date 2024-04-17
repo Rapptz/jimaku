@@ -107,7 +107,7 @@ p {
   margin-bottom: 1rem;
 }
 
-code {
+:not(pre) > code {
   border: 1px solid var(--box-border);
   background: var(--box);
   border-radius: 0.25rem;

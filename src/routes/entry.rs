@@ -3,10 +3,10 @@ use std::path::{Component, PathBuf};
 
 use crate::anilist::{self, MediaTitle};
 use crate::database::{is_unique_constraint_violation, Table};
-use crate::error::{ApiError, InternalError};
+use crate::error::{ApiError, ApiErrorCode, InternalError};
 use crate::flash::{FlashMessage, Flasher, Flashes};
 use crate::headers::Referrer;
-use crate::models::{Account, AccountCheck, DirectoryEntry, DirectoryFlags};
+use crate::models::{Account, AccountCheck, DirectoryEntry, EntryFlags};
 use crate::ratelimit::RateLimit;
 use crate::utils::is_over_length;
 use crate::{discord, filters};
@@ -31,8 +31,10 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tokio::task::JoinSet;
 use tower::ServiceExt;
+use tower_http::cors::CorsLayer;
 use tower_http::services::ServeFile;
 use tracing::info;
+use utoipa::ToSchema;
 
 const FRAGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
@@ -44,14 +46,18 @@ const FRAGMENT: &AsciiSet = &CONTROLS
     .add(b'`')
     .add(b'#');
 
-#[derive(Debug, Serialize)]
-struct FileEntry {
-    #[serde(skip)]
-    url: String,
-    name: String,
-    size: u64,
-    #[serde(with = "time::serde::timestamp")]
-    last_modified: OffsetDateTime,
+/// Represents a file entry, e.g. a subtitle or a ZIP file or whatever else.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct FileEntry {
+    /// The file's download URL.
+    pub(crate) url: String,
+    /// The file's name.
+    pub(crate) name: String,
+    /// The file's size in bytes.
+    pub(crate) size: u64,
+    /// The date the file was last modified, in UTC, as an RFC3339 string.
+    #[serde(with = "time::serde::rfc3339")]
+    pub(crate) last_modified: OffsetDateTime,
 }
 
 #[derive(Template)]
@@ -63,7 +69,7 @@ struct EntryTemplate {
     flashes: Flashes,
 }
 
-fn get_file_entries(entry_id: i64, path: &std::path::Path) -> std::io::Result<Vec<FileEntry>> {
+pub(crate) fn get_file_entries(entry_id: i64, path: &std::path::Path) -> std::io::Result<Vec<FileEntry>> {
     let mut entries = Vec::new();
     for file in path.read_dir()? {
         let entry = file?;
@@ -182,15 +188,15 @@ struct CreateDirectoryEntry {
     anime: bool,
 }
 
-#[derive(Debug)]
-struct PendingDirectoryEntry {
-    anilist_id: Option<u32>,
-    tmdb_id: Option<tmdb::Id>,
-    name: Option<String>,
-    titles: Option<MediaTitle>,
-    flags: Option<DirectoryFlags>,
-    notes: Option<String>,
-    anime: bool,
+#[derive(Debug, Default)]
+pub struct PendingDirectoryEntry {
+    pub anilist_id: Option<u32>,
+    pub tmdb_id: Option<tmdb::Id>,
+    pub name: Option<String>,
+    pub titles: Option<MediaTitle>,
+    pub flags: Option<EntryFlags>,
+    pub notes: Option<String>,
+    pub anime: bool,
 }
 
 impl From<CreateDirectoryEntry> for PendingDirectoryEntry {
@@ -208,7 +214,7 @@ impl From<CreateDirectoryEntry> for PendingDirectoryEntry {
 }
 
 impl PendingDirectoryEntry {
-    async fn get_info(&self, state: &AppState) -> anyhow::Result<Option<(MediaTitle, DirectoryFlags)>> {
+    async fn get_info(&self, state: &AppState) -> anyhow::Result<Option<(MediaTitle, EntryFlags)>> {
         if let Some((title, flags)) = self.titles.as_ref().zip(self.flags) {
             return Ok(Some((title.clone(), flags)));
         }
@@ -218,7 +224,7 @@ impl PendingDirectoryEntry {
                     .await
                     .with_context(|| "AniList returned an error. Please try again later.".to_owned())?
                     .with_context(|| "AniList did not return results for this URL.".to_owned())?;
-                let mut flags = DirectoryFlags::new();
+                let mut flags = EntryFlags::new();
                 flags.set_anime(self.anime);
                 flags.set_movie(media.is_movie());
                 flags.set_adult(media.adult);
@@ -231,7 +237,7 @@ impl PendingDirectoryEntry {
                         .with_context(|| "TMDB returned an error. Please try again later.".to_owned())?
                         .with_context(|| "TMDB did not return results for this URL.".to_owned())?;
 
-                    let mut flags = DirectoryFlags::new();
+                    let mut flags = EntryFlags::new();
                     flags.set_anime(self.anime);
                     flags.set_movie(id.is_movie());
                     flags.set_adult(info.is_adult());
@@ -269,34 +275,35 @@ impl PendingDirectoryEntry {
     }
 }
 
-async fn raw_create_directory_entry(
-    state: AppState,
+pub async fn raw_create_directory_entry(
+    state: &AppState,
     account: Account,
     pending: PendingDirectoryEntry,
-) -> anyhow::Result<(i64, PathBuf)> {
+    api: bool,
+) -> Result<(i64, PathBuf), ApiError> {
     let creator_id = account.id;
 
-    let (names, flags) = match pending.get_info(&state).await? {
+    let (names, flags) = match pending.get_info(state).await? {
         Some(title) => title,
         None if account.flags.is_editor() => {
             if let Some(name) = pending.name.clone() {
-                let mut flags = DirectoryFlags::new();
+                let mut flags = EntryFlags::new();
                 flags.set_anime(pending.anime);
                 (MediaTitle::new(name), flags)
             } else {
-                bail!("Missing name for directory.");
+                return Err(ApiError::new("Missing name, anilist_id, or tmdb_id for directory."));
             }
         }
-        None => bail!("Missing anilist_id or tmdb_id for directory."),
+        None => return Err(ApiError::new("Missing anilist_id or tmdb_id for directory.")),
     };
 
-    let path = pending.path(&names.romaji, pending.anime, &state);
+    let path = pending.path(&names.romaji, pending.anime, state);
     if path.exists() {
-        bail!("Path already exists.");
+        return Err(ApiError::new("Path already exists."));
     }
 
     let Some(path_string) = path.to_str() else {
-        bail!("Resulting path was not UTF-8.");
+        return Err(ApiError::new("Resulting path was not UTF-8."));
     };
 
     let query = r#"
@@ -309,7 +316,7 @@ async fn raw_create_directory_entry(
     let romaji = names.romaji.clone();
     let response = state
         .database()
-        .call(move |con| -> anyhow::Result<(i64, PathBuf)> {
+        .call(move |con| -> Result<(i64, PathBuf), ApiError> {
             let tx = con.transaction()?;
             let result: rusqlite::Result<i64> = {
                 let mut stmt = tx.prepare_cached(query)?;
@@ -331,11 +338,15 @@ async fn raw_create_directory_entry(
 
             let url = match result {
                 Ok(entry_id) => {
-                    std::fs::create_dir(&path)
-                        .with_context(|| format!("Could not create directory {}", path.display()))?;
+                    std::fs::create_dir(&path).map_err(|_| {
+                        ApiError::new(format!("Could not create directory {}", path.display()))
+                            .with_code(ApiErrorCode::ServerError)
+                    })?;
                     (entry_id, path)
                 }
-                Err(e) if is_unique_constraint_violation(&e) => return Err(anyhow::anyhow!("Entry already exists.")),
+                Err(e) if is_unique_constraint_violation(&e) => {
+                    return Err(ApiError::new("Entry already exists.").with_code(ApiErrorCode::EntryAlreadyExists))
+                }
                 Err(e) => return Err(e.into()),
             };
 
@@ -350,6 +361,7 @@ async fn raw_create_directory_entry(
             name = &romaji,
             tmdb_id = pending.tmdb_id.map(|id| id.to_string()),
             anilist_id = pending.anilist_id,
+            api,
             account.id,
             account.name,
             "Directory entry created"
@@ -362,8 +374,13 @@ async fn raw_create_directory_entry(
             Some(id) => id.url(),
             None => String::from("Unknown"),
         };
+        let title = if api {
+            format!("[API] New Entry: {romaji}")
+        } else {
+            format!("New Entry: {romaji}")
+        };
         wh.send_alert(
-            discord::Alert::success(format!("New Entry: {}", &romaji))
+            discord::Alert::success(title)
                 .url(format!("/entry/{entry_id}"))
                 .account(account)
                 .field("Anime", pending.anime)
@@ -382,10 +399,10 @@ async fn create_directory_entry(
     Referrer(url): Referrer,
     Form(payload): Form<CreateDirectoryEntry>,
 ) -> Response {
-    let response = raw_create_directory_entry(state, account, payload.into()).await;
+    let response = raw_create_directory_entry(&state, account, payload.into(), false).await;
     match response {
         Ok((entry_id, _)) => Redirect::to(&format!("/entry/{entry_id}")).into_response(),
-        Err(e) => flasher.add(e.to_string()).bail(&url),
+        Err(e) => flasher.add(e.error.as_ref()).bail(&url),
     }
 }
 
@@ -413,7 +430,7 @@ struct EditDirectoryEntry {
 }
 
 impl EditDirectoryEntry {
-    fn apply_flags(&self, mut flags: DirectoryFlags) -> DirectoryFlags {
+    fn apply_flags(&self, mut flags: EntryFlags) -> EntryFlags {
         flags.set_low_quality(self.low_quality);
         flags.set_adult(self.adult);
         flags.set_movie(self.movie);
@@ -675,7 +692,7 @@ async fn move_directory_entries(
         }
         None => {
             raw_create_directory_entry(
-                state.clone(),
+                &state,
                 account.clone(),
                 PendingDirectoryEntry {
                     anilist_id: payload.anilist_id,
@@ -686,6 +703,7 @@ async fn move_directory_entries(
                     flags: None,
                     notes: None,
                 },
+                false,
             )
             .await?
         }
@@ -871,24 +889,48 @@ async fn process_files(entry_path: &std::path::Path, mut multipart: Multipart) -
     Ok(ProcessedFiles { files, skipped })
 }
 
-async fn upload_file(
-    State(state): State<AppState>,
-    Path(entry_id): Path<i64>,
-    Referrer(url): Referrer,
+/// The result of an upload operation.
+#[derive(Debug, Clone, Copy, Serialize, ToSchema)]
+pub struct UploadResult {
+    /// The number of files that did not succeed due to a filesystem error.
+    errors: usize,
+    /// The number of files that were processed.
+    total: usize,
+    /// The number of files that were skipped due to some reason
+    skipped: usize,
+}
+
+impl UploadResult {
+    pub fn is_success(&self) -> bool {
+        self.total > 0 && self.errors == 0 && self.skipped == 0
+    }
+
+    pub fn is_error(&self) -> bool {
+        self.total == self.errors
+    }
+
+    pub fn successful(&self) -> usize {
+        self.total - self.errors
+    }
+}
+
+pub async fn raw_upload_file(
+    state: AppState,
+    entry_id: i64,
     account: Account,
-    flasher: Flasher,
     multipart: Multipart,
-) -> Response {
+    api: bool,
+) -> Result<UploadResult, ApiError> {
     let Some(entry) = state.get_directory_entry_path(entry_id).await else {
-        return flasher.add("Directory entry not found.").bail(&url);
+        return Err(ApiError::not_found("Entry not found"));
     };
 
     let Ok(processed) = process_files(&entry, multipart).await else {
-        return flasher.add("Internal error when processing files").bail(&url);
+        return Err(ApiError::new("Internal error when processing files").with_code(ApiErrorCode::ServerError));
     };
 
     if processed.files.is_empty() {
-        return flasher.add("Did not upload any files.").bail(&url);
+        return Err(ApiError::new("Did not upload any files."));
     }
 
     let mut errored = 0usize;
@@ -918,20 +960,6 @@ async fn upload_file(
         state.cached_directories().invalidate().await;
     }
 
-    let message = if successful {
-        FlashMessage::success("Upload successful.")
-    } else if errored == total {
-        FlashMessage::error("Upload failed.")
-    } else {
-        let successful = total - errored;
-        FlashMessage::warning(format!(
-            "Uploaded {successful} file{}, {} {} skipped and {errored} failed",
-            if successful == 1 { "" } else { "s" },
-            processed.skipped,
-            if processed.skipped == 1 { "was" } else { "were" },
-        ))
-    };
-
     info!(
         entry_id,
         total,
@@ -944,14 +972,48 @@ async fn upload_file(
     );
 
     if successful {
+        let title = if api { "[API] Files uploaded" } else { "Files uploaded" };
         state.send_alert(
-            discord::Alert::success("Files uploaded")
+            discord::Alert::success(title)
                 .url(format!("/entry/{entry_id}"))
                 .account(account)
                 .description(as_list),
         );
     }
 
+    Ok(UploadResult {
+        errors: errored,
+        total,
+        skipped: processed.skipped,
+    })
+}
+
+async fn upload_file(
+    State(state): State<AppState>,
+    Path(entry_id): Path<i64>,
+    Referrer(url): Referrer,
+    account: Account,
+    flasher: Flasher,
+    multipart: Multipart,
+) -> Response {
+    let result = match raw_upload_file(state, entry_id, account, multipart, false).await {
+        Ok(result) => result,
+        Err(msg) => return flasher.add(msg.error.as_ref()).bail(&url),
+    };
+    let message = if result.is_success() {
+        FlashMessage::success("Upload successful.")
+    } else if result.is_error() {
+        FlashMessage::error("Upload failed.")
+    } else {
+        let successful = result.successful();
+        FlashMessage::warning(format!(
+            "Uploaded {successful} file{}, {} {} skipped and {} failed",
+            if successful == 1 { "" } else { "s" },
+            result.skipped,
+            if result.skipped == 1 { "was" } else { "were" },
+            result.errors,
+        ))
+    };
     flasher.add(message).bail(&url)
 }
 
@@ -1020,7 +1082,6 @@ async fn relations(
 
 #[derive(Deserialize)]
 struct TmdbQuery {
-    #[serde(deserialize_with = "tmdb::string_id_representation")]
     id: tmdb::Id,
 }
 
@@ -1154,7 +1215,7 @@ async fn create_imported_entry(
         return Err(ApiError::new(validation_errors.join("\n")));
     }
 
-    let mut flags = payload.inner.apply_flags(DirectoryFlags::new());
+    let mut flags = payload.inner.apply_flags(EntryFlags::new());
     flags.set_anime(query.anime);
     let pending = PendingDirectoryEntry {
         anilist_id: payload.inner.anilist_id,
@@ -1166,7 +1227,7 @@ async fn create_imported_entry(
         titles: Some(payload.inner.titles()),
     };
 
-    let (id, path) = raw_create_directory_entry(state, account, pending).await?;
+    let (id, path) = raw_create_directory_entry(&state, account, pending, false).await?;
     let mut set = JoinSet::new();
     for file in payload.files {
         let p = path.clone();
@@ -1187,7 +1248,10 @@ async fn create_imported_entry(
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/entry/:id", get(get_entry))
-        .route("/entry/:id/download/*path", get(download_entry))
+        .route(
+            "/entry/:id/download/*path",
+            get(download_entry).layer(CorsLayer::permissive()),
+        )
         .route(
             "/entry/create",
             post(create_directory_entry).layer(RateLimit::default().quota(5, 30.0).build()),

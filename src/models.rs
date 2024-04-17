@@ -6,26 +6,35 @@ use rusqlite::{
 };
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use utoipa::ToSchema;
 
 use crate::{database::Table, key::SecretKey, tmdb, token::Token};
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
-pub struct DirectoryFlags(u32);
+pub struct EntryFlags(u32);
 
-impl FromSql for DirectoryFlags {
+impl FromSql for EntryFlags {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
         let value = u32::column_result(value)?;
         Ok(Self(value))
     }
 }
 
-impl ToSql for DirectoryFlags {
+impl ToSql for EntryFlags {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
         Ok(self.0.into())
     }
 }
 
-impl DirectoryFlags {
+// At the API level, we expand the flags to a dict to make it easier to work
+// with for consumers
+impl<'s> ToSchema<'s> for EntryFlags {
+    fn schema() -> (&'s str, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>) {
+        ("EntryFlags", ExpandedEntryFlags::schema().1)
+    }
+}
+
+impl EntryFlags {
     const ANIME: u32 = 1 << 0;
     const LOW_QUALITY: u32 = 1 << 1;
     const EXTERNAL: u32 = 1 << 2;
@@ -91,54 +100,132 @@ impl DirectoryFlags {
     }
 }
 
-impl Default for DirectoryFlags {
+impl Default for EntryFlags {
     fn default() -> Self {
         Self(Self::ANIME)
     }
 }
 
-impl std::fmt::Debug for DirectoryFlags {
+/// Flags associated with the given entry.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, ToSchema)]
+pub struct ExpandedEntryFlags {
+    /// The entry is for an anime.
+    anime: bool,
+    /// The entry is low quality (has not been checked by editors).
+    #[schema(example = false)]
+    low_quality: bool,
+    /// The entry comes from an external source.
+    #[schema(example = false)]
+    external: bool,
+    /// The entry is a movie.
+    #[schema(example = false)]
+    movie: bool,
+    /// The entry is meant for adult audiences.
+    #[schema(example = false)]
+    adult: bool,
+}
+
+impl From<EntryFlags> for ExpandedEntryFlags {
+    fn from(value: EntryFlags) -> Self {
+        Self {
+            anime: value.is_anime(),
+            low_quality: value.is_low_quality(),
+            external: value.is_external(),
+            movie: value.is_movie(),
+            adult: value.is_adult(),
+        }
+    }
+}
+
+impl From<ExpandedEntryFlags> for EntryFlags {
+    fn from(value: ExpandedEntryFlags) -> Self {
+        let mut flags = Self::new();
+        flags.set_anime(value.anime);
+        flags.set_low_quality(value.low_quality);
+        flags.set_external(value.external);
+        flags.set_movie(value.movie);
+        flags.set_adult(value.adult);
+        flags
+    }
+}
+
+impl std::fmt::Debug for EntryFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DirectoryFlags")
             .field("value", &self.0)
             .field("anime", &self.is_anime())
             .field("low_quality", &self.is_low_quality())
             .field("external", &self.is_external())
+            .field("movie", &self.is_movie())
+            .field("adult", &self.is_adult())
             .finish()
     }
 }
 
-/// A directory entry that contains subtitles.
+pub mod expand_flags {
+    use super::{EntryFlags, ExpandedEntryFlags};
+    use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S>(value: &EntryFlags, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ExpandedEntryFlags::from(*value).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<EntryFlags, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(EntryFlags::from(ExpandedEntryFlags::deserialize(deserializer)?))
+    }
+}
+
+/// An entry that contains subtitles.
 ///
 /// These are typically backed by e.g. an anilist or tmdb entry to
 /// facilitate some features.
-#[derive(Debug, Serialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Serialize, PartialEq, Eq, Clone, ToSchema)]
+#[schema(as = Entry)]
 pub struct DirectoryEntry {
-    /// The ID of the directory entry.
+    /// The ID of the entry.
     pub id: i64,
     /// The physical exact path where this entry belongs in the filesystem.
+    #[serde(skip)]
     pub path: PathBuf,
     /// The romaji name of the entry.
+    #[schema(example = "Sousou no Frieren")]
     pub name: String,
-    /// The flags associated with this entry
-    pub flags: DirectoryFlags,
-    /// The date of the newest uploaded file
+    /// The flags associated with this entry.
+    #[serde(with = "expand_flags")]
+    pub flags: EntryFlags,
+    /// The date of the newest uploaded file as an RFC3339 timestamp.
     #[serde(rename = "last_modified")]
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::rfc3339")]
     pub last_updated_at: OffsetDateTime,
     /// The account ID that created this entry
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creator_id: Option<i64>,
     /// The anilist ID of this entry.
+    #[schema(example = 154587)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub anilist_id: Option<u32>,
     /// The TMDB ID of this entry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(pattern = r#"(tv|movie):(\d+)"#, value_type = Option<String>, example = "tv:12345")]
     pub tmdb_id: Option<tmdb::Id>,
     /// Extra notes that the entry might have.
     ///
     /// Supports a limited set of markdown. Can only be set by editors.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
     /// The English name of the entry.
+    #[schema(example = "Frieren: Beyond Journey’s End")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub english_name: Option<String>,
     /// The Japanese name of the entry, i.e. with kanji and kana.
+    #[schema(example = "葬送のフリーレン")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub japanese_name: Option<String>,
 }
 
@@ -185,7 +272,7 @@ pub struct DirectoryEntryData<'a> {
     /// The romaji name of the entry.
     pub name: &'a str,
     /// The flags associated with this entry
-    pub flags: DirectoryFlags,
+    pub flags: EntryFlags,
     /// When the entry was last updated
     #[serde(rename = "last_modified")]
     #[serde(with = "time::serde::timestamp")]

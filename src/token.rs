@@ -211,7 +211,7 @@ impl FromRequestParts<AppState> for Account {
         // This unwrap is safe because it's validated above
         let (session_id, _) = cookie.value().split_once('.').unwrap();
         state
-            .get_session_account(session_id, token.id)
+            .get_session_account(session_id, token.id, false)
             .await
             .ok_or(TokenRejection)
     }

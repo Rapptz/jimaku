@@ -358,9 +358,9 @@ async function moveFiles() {
     }
     let tmdbId = getTmdbId(document.getElementById('tmdb-url')?.value);
     if (tmdbId !== null) {
-      payload.tmdb = tmdbId;
+      payload.tmdb = `${tmdbId.type}:${tmdbId.id}`;
       payload.anime = false;
-      params.append('tmdb_id', `${tmdbId.type}:${tmdbId.id}`);
+      params.append('tmdb_id', payload.tmdb);
     }
     let name = document.getElementById('directory-name').value;
     if(name) {

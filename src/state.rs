@@ -133,7 +133,7 @@ impl AppState {
     /// Returns the account associated with the session and account ID if they're valid.
     ///
     /// This is merely an optimisation to avoid doing multiple database lookups.
-    pub async fn get_session_account(&self, session: &str, id: i64) -> Option<Account> {
+    pub async fn get_session_account(&self, session: &str, id: i64, api_key: bool) -> Option<Account> {
         match self.inner.valid_sessions.get_value_or_guard_async(session).await {
             Ok(info) => {
                 let account = self.get_account(info.id).await;
@@ -147,13 +147,13 @@ impl AppState {
                     SELECT account.id AS id, account.name AS name, account.password AS password,
                            account.flags AS flags, session.api_key AS api_key
                     FROM account INNER JOIN session ON session.account_id = account.id
-                    WHERE session.id = ? AND session.account_id = ?
+                    WHERE session.id = ? AND session.account_id = ? AND session.api_key = ?
                 "#;
                 match self
                     .database()
                     .get_row(
                         query,
-                        (session.to_owned(), id),
+                        (session.to_owned(), id, api_key),
                         |row| -> rusqlite::Result<(Account, SessionInfo)> {
                             let account = Account::from_row(row)?;
                             let info = SessionInfo {
@@ -224,6 +224,17 @@ impl AppState {
             )
             .await?;
         Ok(())
+    }
+
+    pub async fn get_api_key(&self, id: i64) -> Option<String> {
+        self.database()
+            .get_row(
+                "SELECT id FROM session WHERE account_id = ? AND api_key = 1",
+                [id],
+                |row| row.get("id"),
+            )
+            .await
+            .ok()
     }
 
     /// Invalidate all sessions used by the account.

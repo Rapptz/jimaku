@@ -7,6 +7,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::models::Account;
 
@@ -43,23 +44,43 @@ where
 }
 
 /// An error type that represents its errors as a JSON response
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 pub struct ApiError {
+    /// The error message for this error.
     pub error: Cow<'static, str>,
+    /// The associated error code.
+    #[schema(value_type = u8)]
     pub code: ApiErrorCode,
 }
 
 /// An error code that the client can use to quickly check error conditions.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, ToSchema)]
 #[repr(u8)]
 pub enum ApiErrorCode {
+    /// An internal server error happened. This should be rather rare.
     ServerError = 0,
+    /// The client provided request was invalid in some way or another.
     BadRequest = 1,
+    /// An internal error code that represents that the account is already registered.
+    ///
+    /// Do not rely on this or use it.
+    #[schema(deprecated)]
     UsernameRegistered = 2,
+    /// An internal error code that represents that the account has provided valid credentials.
+    ///
+    /// Do not rely on this or use it.
+    #[schema(deprecated)]
     IncorrectLogin = 3,
+    /// The client does not have permission to execute this action.
     NoPermissions = 4,
+    /// The entry already exists.
     EntryAlreadyExists = 5,
+    /// The entity being searched for does not exist.
     NotFound = 6,
+    /// The client is not authorized, a proper authorization header must be provided.
+    Unauthorized = 7,
+    /// The client is being rate limited.
+    RateLimited = 8,
 }
 
 impl ApiErrorCode {
@@ -71,6 +92,8 @@ impl ApiErrorCode {
             4 => Some(Self::NoPermissions),
             5 => Some(Self::EntryAlreadyExists),
             6 => Some(Self::NotFound),
+            7 => Some(Self::Unauthorized),
+            8 => Some(Self::RateLimited),
             _ => None,
         }
     }
@@ -139,6 +162,20 @@ impl ApiError {
         }
     }
 
+    pub fn unauthorized() -> Self {
+        Self {
+            error: "unauthorized".into(),
+            code: ApiErrorCode::Unauthorized,
+        }
+    }
+
+    pub fn rate_limited() -> Self {
+        Self {
+            error: "rate limit exceeded".into(),
+            code: ApiErrorCode::RateLimited,
+        }
+    }
+
     fn status_code(&self) -> StatusCode {
         if self.code == ApiErrorCode::ServerError {
             StatusCode::INTERNAL_SERVER_ERROR
@@ -146,6 +183,10 @@ impl ApiError {
             StatusCode::FORBIDDEN
         } else if self.code == ApiErrorCode::NotFound {
             StatusCode::NOT_FOUND
+        } else if self.code == ApiErrorCode::Unauthorized {
+            StatusCode::UNAUTHORIZED
+        } else if self.code == ApiErrorCode::RateLimited {
+            StatusCode::TOO_MANY_REQUESTS
         } else {
             StatusCode::BAD_REQUEST
         }

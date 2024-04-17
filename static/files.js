@@ -9,8 +9,14 @@ function __score(haystack, query) {
 
 const changeModifiedToRelative = () => {
   document.querySelectorAll('.file-modified').forEach(node => {
-    const seconds = parseInt(node.parentElement.getAttribute('data-last-modified'), 10);
-    node.textContent = formatRelative(seconds);
+    let lastModified = node.parentElement.getAttribute('data-last-modified');
+    if(/^[0-9]+$/.test(lastModified)) {
+      const seconds = parseInt(lastModified, 10);
+      node.textContent = formatRelative(seconds);
+    } else{
+      const date = Date.parse(lastModified);
+      node.textContent = formatRelative(date / 1000);
+    }
   });
 }
 
@@ -40,12 +46,7 @@ const parseEntryObjects = () => {
       if (obj[attr] === null) {
         continue;
       }
-      if (attr == 'tmdb_id') {
-        let value = obj[attr];
-        el.setAttribute('data-tmdb-id', `${value.type}:${value.id}`);
-      } else {
-        el.setAttribute(`data-${attr.replaceAll('_', '-')}`, obj[attr]);
-      }
+      el.setAttribute(`data-${attr.replaceAll('_', '-')}`, obj[attr]);
     }
     el.removeAttribute('data-extra');
   });

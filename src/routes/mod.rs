@@ -18,6 +18,7 @@ use reqwest::header::{CONTENT_TYPE, USER_AGENT};
 use crate::{models::DirectoryEntry, AppState};
 
 mod admin;
+mod api;
 mod auth;
 mod entry;
 
@@ -131,4 +132,5 @@ pub fn all() -> Router<AppState> {
         .merge(auth::routes())
         .merge(entry::routes())
         .merge(admin::routes())
+        .nest("/api", api::routes())
 }

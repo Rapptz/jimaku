@@ -29,7 +29,7 @@ use tracing::{info, warn};
 
 use crate::{
     anilist::{Media, MediaTitle},
-    models::DirectoryFlags,
+    models::EntryFlags,
     AppState,
 };
 
@@ -378,7 +378,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
             {
                 let mut stmt = tx.prepare(sql)?;
                 for fixture in fixtures {
-                    let mut flags = DirectoryFlags::default();
+                    let mut flags = EntryFlags::default();
                     flags.set_low_quality(fixture.edits_likely || fixture.anilist_id.is_none());
                     flags.set_external(true);
                     flags.set_movie(fixture.movie);

@@ -16,12 +16,18 @@ fn url_parser_regex() -> &'static Regex {
 /// A TMDB ID.
 ///
 /// These are scoped depending on the series.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-#[serde(tag = "type", content = "id")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Id {
-    Tv(u32),
-    Movie(u32),
+    /// The type of the TMDB ID represents a TV series.
+    Tv {
+        /// The integer TMDB ID.
+        id: u32,
+    },
+    /// The type of the TMDB ID represents a movie.
+    Movie {
+        /// The integer TMDB ID.
+        id: u32,
+    },
 }
 
 pub fn get_tmdb_id(url: &str) -> Option<Id> {
@@ -29,8 +35,8 @@ pub fn get_tmdb_id(url: &str) -> Option<Id> {
     let kind = captures.get(1)?.as_str();
     let id = captures.get(2)?.as_str().parse().ok()?;
     match kind {
-        "tv" => Some(Id::Tv(id)),
-        "movie" => Some(Id::Movie(id)),
+        "tv" => Some(Id::Tv { id }),
+        "movie" => Some(Id::Movie { id }),
         _ => None,
     }
 }
@@ -38,15 +44,15 @@ pub fn get_tmdb_id(url: &str) -> Option<Id> {
 impl Id {
     pub fn url(&self) -> String {
         match self {
-            Id::Tv(id) => format!("https://www.themoviedb.org/tv/{id}"),
-            Id::Movie(id) => format!("https://www.themoviedb.org/movie/{id}"),
+            Id::Tv { id } => format!("https://www.themoviedb.org/tv/{id}"),
+            Id::Movie { id } => format!("https://www.themoviedb.org/movie/{id}"),
         }
     }
 
     fn api_url(&self) -> String {
         match self {
-            Id::Tv(id) => format!("https://api.themoviedb.org/3/tv/{id}"),
-            Id::Movie(id) => format!("https://api.themoviedb.org/3/movie/{id}"),
+            Id::Tv { id } => format!("https://api.themoviedb.org/3/tv/{id}"),
+            Id::Movie { id } => format!("https://api.themoviedb.org/3/movie/{id}"),
         }
     }
 
@@ -55,24 +61,24 @@ impl Id {
     /// [`Movie`]: Id::Movie
     #[must_use]
     pub fn is_movie(&self) -> bool {
-        matches!(self, Self::Movie(..))
+        matches!(self, Self::Movie { .. })
     }
 }
 
 impl Default for Id {
     fn default() -> Self {
-        Self::Tv(0)
+        Self::Tv { id: 0 }
     }
 }
 
 impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Id::Tv(id) => {
+            Id::Tv { id } => {
                 f.write_str("tv:")?;
                 id.fmt(f)
             }
-            Id::Movie(id) => {
+            Id::Movie { id } => {
                 f.write_str("movie:")?;
                 id.fmt(f)
             }
@@ -88,10 +94,30 @@ impl FromStr for Id {
             return Err(InvalidId);
         };
         match key {
-            "tv" => value.parse().map(Self::Tv).map_err(|_| InvalidId),
-            "movie" => value.parse().map(Self::Movie).map_err(|_| InvalidId),
+            "tv" => value.parse().map(|id| Self::Tv { id }).map_err(|_| InvalidId),
+            "movie" => value.parse().map(|id| Self::Movie { id }).map_err(|_| InvalidId),
             _ => Err(InvalidId),
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for Id {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        MaybeBorrowedString::deserialize(deserializer)?
+            .parse()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl Serialize for Id {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 
@@ -108,13 +134,6 @@ impl FromSql for Id {
             .parse::<Self>()
             .map_err(|e| rusqlite::types::FromSqlError::Other(Box::new(e)))
     }
-}
-
-pub fn string_id_representation<'de, D>(de: D) -> Result<Id, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    String::deserialize(de)?.parse::<Id>().map_err(serde::de::Error::custom)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -249,8 +268,8 @@ struct SearchResult {
 impl SearchResult {
     fn to_id(&self) -> Option<Id> {
         match self.media_type.as_str() {
-            "tv" => Some(Id::Tv(self.id)),
-            "movie" => Some(Id::Movie(self.id)),
+            "tv" => Some(Id::Tv { id: self.id }),
+            "movie" => Some(Id::Movie { id: self.id }),
             _ => None,
         }
     }
