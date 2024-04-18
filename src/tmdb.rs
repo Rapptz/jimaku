@@ -4,7 +4,7 @@ use regex::Regex;
 use rusqlite::{types::FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
-use crate::{anilist::MediaTitle, borrowed::MaybeBorrowedString};
+use crate::{anilist::MediaTitle, borrowed::MaybeBorrowedString, japanese::is_japanese_char};
 
 fn url_parser_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
@@ -226,7 +226,7 @@ impl Info {
         let romaji = self.alternative_titles.romaji();
         let english = if self.original_language == LangCode::English {
             Some(self.original_title.clone())
-        } else if self.title.as_bytes().is_ascii() {
+        } else if self.title.chars().all(|c| !is_japanese_char(c)) {
             Some(self.title.clone())
         } else {
             None

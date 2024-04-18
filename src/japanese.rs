@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::RangeInclusive};
 
 use crate::borrowed::MaybeBorrowedString;
 
@@ -56,6 +56,16 @@ const fn is_yoon_char(ch: &char) -> bool {
 #[inline]
 const fn is_vowel(ch: &char) -> bool {
     *ch == 'a' || *ch == 'e' || *ch == 'i' || *ch == 'o' || *ch == 'u'
+}
+
+/// Returns `true` if a character is a kanji, hiragana, or katakana character
+pub fn is_japanese_char(ch: char) -> bool {
+    const CJK_MAPPING: [RangeInclusive<char>; 3] = [
+        '\u{3040}'..='\u{30ff}', // Hiragana + Katakana
+        '\u{ff66}'..='\u{ff9d}', // Half-width Katakana
+        '\u{4e00}'..='\u{9faf}', // Common + Uncommon Kanji
+    ];
+    CJK_MAPPING.iter().any(|c| c.contains(&ch))
 }
 
 /// Converts the romaji text to hiragana, in a lossy manner.
