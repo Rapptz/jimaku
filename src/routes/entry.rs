@@ -820,7 +820,8 @@ pub struct PendingFileEntry {
 
 impl PendingFileEntry {
     pub fn write_to_disk(self, base_path: PathBuf) -> std::io::Result<()> {
-        let mut fp = std::fs::File::create(base_path.join(sanitise_file_name::sanitise(&self.name)))?;
+        let path = base_path.join(sanitise_file_name::sanitise(&self.name));
+        let mut fp = std::fs::File::create(path)?;
         fp.write_all(&self.data)?;
         Ok(())
     }
@@ -1227,7 +1228,26 @@ async fn create_imported_entry(
         titles: Some(payload.inner.titles()),
     };
 
-    let (id, path) = raw_create_directory_entry(&state, account, pending, false).await?;
+    // Unfortunately have to pay this cost twice
+    let path = pending.path(pending.titles.as_ref().unwrap().romaji.as_str(), pending.anime, &state);
+    let anilist_id = pending.anilist_id;
+    let tmdb_id = pending.tmdb_id;
+
+    let (id, path) = match raw_create_directory_entry(&state, account, pending, true).await {
+        Ok(p) => p,
+        Err(e) if e.code == ApiErrorCode::EntryAlreadyExists => state
+            .database()
+            .get_row(
+                "SELECT id, path FROM directory_entry WHERE path = ? OR anilist_id = ? OR tmdb_id = ?",
+                (path.display().to_string(), anilist_id, tmdb_id),
+                |row| Ok((row.get("id")?, PathBuf::from(row.get::<_, String>("path")?))),
+            )
+            .await
+            .optional()?
+            .ok_or(e)?,
+        Err(e) => return Err(e),
+    };
+
     let mut set = JoinSet::new();
     for file in payload.files {
         let p = path.clone();
