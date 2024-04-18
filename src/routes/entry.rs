@@ -1233,7 +1233,7 @@ async fn create_imported_entry(
     let anilist_id = pending.anilist_id;
     let tmdb_id = pending.tmdb_id;
 
-    let (id, path) = match raw_create_directory_entry(&state, account, pending, true).await {
+    let (id, path) = match raw_create_directory_entry(&state, account, pending, false).await {
         Ok(p) => p,
         Err(e) if e.code == ApiErrorCode::EntryAlreadyExists => state
             .database()
