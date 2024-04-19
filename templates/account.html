@@ -38,6 +38,7 @@ My Account · Jimaku
   {% endif %}
   </div>
 </div>
+{% if account.id == user.id %}
 <form id="api-section">
   <h3>Developer Access</h3>
   <p>Please check the <a href="/api/docs">documentation</a> to learn how to use the API.</p>
@@ -62,6 +63,7 @@ My Account · Jimaku
   {% endmatch %}
   </div>
 </form>
+{% endif %}
 {% if current_session.is_some() || !sessions.is_empty() %}
 <section id="session-section">
 <h3>Sessions</h3>
