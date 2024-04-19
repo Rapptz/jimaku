@@ -15,6 +15,7 @@ const changeModifiedToRelative = () => {
       node.textContent = formatRelative(seconds);
     } else{
       const date = Date.parse(lastModified);
+      node.parentElement.setAttribute('data-last-modified', date);
       node.textContent = formatRelative(date / 1000);
     }
   });
