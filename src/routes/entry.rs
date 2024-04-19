@@ -299,7 +299,7 @@ pub async fn raw_create_directory_entry(
 
     let path = pending.path(&names.romaji, pending.anime, state);
     if path.exists() {
-        return Err(ApiError::new("Path already exists."));
+        return Err(ApiError::new("Path already exists.").with_code(ApiErrorCode::EntryAlreadyExists))
     }
 
     let Some(path_string) = path.to_str() else {
