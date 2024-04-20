@@ -186,8 +186,15 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
             .directory_lets_encrypt(config.lets_encrypt_production)
             .state();
 
-        let challenge_config = state.challenge_rustls_config();
-        let default_config = state.default_rustls_config();
+        let supported_alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+        let mut challenge_config = state.challenge_rustls_config();
+        let mut default_config = state.default_rustls_config();
+        if let Some(config) = Arc::get_mut(&mut challenge_config) {
+            config.alpn_protocols.extend(supported_alpn_protocols.clone());
+        }
+        if let Some(config) = Arc::get_mut(&mut default_config) {
+            config.alpn_protocols.extend(supported_alpn_protocols);
+        }
         tokio::spawn(async move {
             loop {
                 match state.next().await {
