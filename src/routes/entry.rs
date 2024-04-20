@@ -1049,7 +1049,7 @@ async fn bulk_download(
     let body = Body::from(buffer);
     let headers = [
         (CONTENT_TYPE, "application/zip"),
-        (CONTENT_DISPOSITION, &format!("attachment; filename=\"{filename:?}\"")),
+        (CONTENT_DISPOSITION, &format!("attachment; filename=\"{filename}\"")),
         (HeaderName::from_static("x-jimaku-filename"), &filename),
     ];
     Ok((headers, body).into_response())
