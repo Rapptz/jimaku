@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, path::PathBuf, str::FromStr, time::Duration};
+use std::{convert::Infallible, net::SocketAddr, path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::Context;
 use axum::{
@@ -6,9 +6,12 @@ use axum::{
     middleware, Extension, ServiceExt,
 };
 use futures_util::StreamExt;
-use rustls_acme::caches::DirCache;
+use hyper::body::Incoming;
+use hyper_util::rt::{TokioExecutor, TokioIo};
 use rustls_acme::AcmeConfig;
-use tower::Layer;
+use rustls_acme::{caches::DirCache, is_tls_alpn_challenge};
+use tokio_rustls::LazyConfigAcceptor;
+use tower::{Layer, Service, ServiceExt as _};
 use tower_http::{
     normalize_path::NormalizePathLayer,
     services::{ServeDir, ServeFile},
@@ -18,6 +21,13 @@ use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
 use tracing_subscriber::{
     filter::Targets, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Layer as _,
 };
+
+fn unwrap_infallible<T>(result: Result<T, Infallible>) -> T {
+    match result {
+        Ok(value) => value,
+        Err(err) => match err {},
+    }
+}
 
 fn setup_logging() -> anyhow::Result<WorkerGuard> {
     let rust_log_var = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
@@ -151,13 +161,12 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .with_state(state);
 
     let app = NormalizePathLayer::trim_trailing_slash().layer(router);
-    let service = ServiceExt::<Request>::into_make_service_with_connect_info::<SocketAddr>(app);
+    let mut service = ServiceExt::<Request>::into_make_service_with_connect_info::<SocketAddr>(app);
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .with_context(|| format!("Could not bind to {addr}"))?;
 
-    if !config.production {
-        let listener = tokio::net::TcpListener::bind(addr)
-            .await
-            .with_context(|| format!("Could not bind to {addr}"))?;
-
+    if !config.production || addr.port() != 443 {
         axum::serve(listener, service)
             .with_graceful_shutdown(shutdown_signal())
             .await
@@ -177,7 +186,8 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
             .directory_lets_encrypt(config.lets_encrypt_production)
             .state();
 
-        let acceptor = state.axum_acceptor(state.default_rustls_config());
+        let challenge_config = state.challenge_rustls_config();
+        let default_config = state.default_rustls_config();
         tokio::spawn(async move {
             loop {
                 match state.next().await {
@@ -188,18 +198,41 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
             }
         });
 
-        axum_server::bind(addr)
-            .acceptor(acceptor)
-            .serve(service)
-            .await
-            .context("Failed during server service")?;
-    } else {
-        axum_server::bind(addr)
-            .serve(service)
-            .await
-            .context("Failed during server service")?;
+        loop {
+            let (tcp, addr) = listener.accept().await.context("Failed during accept loop")?;
+            let challenge_config = challenge_config.clone();
+            let default_config = default_config.clone();
+            let tower_service = unwrap_infallible(service.call(addr).await);
+
+            tokio::spawn(async move {
+                let start_handshake = LazyConfigAcceptor::new(Default::default(), tcp).await.unwrap();
+
+                let stream = if is_tls_alpn_challenge(&start_handshake.client_hello()) {
+                    info!("Received TLS-ALPN-01 validation request");
+                    start_handshake.into_stream(challenge_config).await.unwrap()
+                } else {
+                    start_handshake.into_stream(default_config).await.unwrap()
+                };
+
+                let socket = TokioIo::new(stream);
+                let hyper_service = hyper::service::service_fn(move |request: Request<Incoming>| {
+                    tower_service.clone().oneshot(request)
+                });
+
+                let serve = hyper_util::server::conn::auto::Builder::new(TokioExecutor::new())
+                    .serve_connection(socket, hyper_service)
+                    .await;
+                if let Err(e) = serve {
+                    eprintln!("failed to serve connection: {e:#}");
+                }
+            });
+        }
     }
 
+    axum::serve(listener, service)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .context("Failed during server service")?;
     Ok(())
 }
 
