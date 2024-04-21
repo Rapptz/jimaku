@@ -1,10 +1,11 @@
 const filterElement = document.getElementById('search-files');
 const escapedRegex = /[-\/\\^$*+?.()|[\]{}]/g;
 const escapeRegex = (e) => e.replace(escapedRegex, '\\$&');
+const MIN_SCORE = -1500;
 
 function __score(haystack, query) {
   let result = fuzzysort.single(query, haystack);
-  return result?.score == null ? -1000 : result.score;
+  return result?.score == null ? MIN_SCORE : result.score;
 }
 
 const changeModifiedToRelative = () => {
@@ -150,7 +151,7 @@ function filterEntries(query) {
       let id = e.getAttribute('data-anilist-id');
       return {
         entry: e,
-        score: id !== null && parseInt(id, 10) === anilistId ? 0 : -1000,
+        score: id !== null && parseInt(id, 10) === anilistId ? 0 : MIN_SCORE,
       };
     });
   } else if (tmdb !== null) {
@@ -159,7 +160,7 @@ function filterEntries(query) {
       let id = e.getAttribute('data-tmdb-id');
       return {
         entry: e,
-        score: id !== null && id == tmdbId ? 0 : -1000,
+        score: id !== null && id == tmdbId ? 0 : MIN_SCORE,
       };
     });
   } else {
@@ -172,7 +173,7 @@ function filterEntries(query) {
   }
 
   mapped.sort((a, b) => b.score - a.score).forEach(el => {
-    el.entry.classList.toggle('hidden', el.score <= -1000);
+    el.entry.classList.toggle('hidden', el.score <= MIN_SCORE);
     parentNode.appendChild(el.entry);
   });
 }
