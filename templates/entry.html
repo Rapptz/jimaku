@@ -109,6 +109,7 @@
     <button id="delete-files" class="button danger">Delete</button>
     {% endif %}
     {% if flags.is_editor() %}
+    <button id="rename-files" disabled class="button">Rename</button>
     <button id="move-files" disabled class="button">Move</button>
     {% endif %}
     <button id="download-files" disabled class="button primary">Download</button>
@@ -208,6 +209,57 @@
     <footer>
       <button class="button" formmethod="dialog">Cancel</button>
       <button id="confirm-move" class="button primary">Move</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="rename-entries-modal">
+  <form autocomplete="off">
+    <h1>Rename Entries</h1>
+    <div class="form-contents">
+      <div class="form-container">
+        <label for="rename-search">Search</label>
+        <input class="form-field" autocomplete="off" type="text" id="rename-search">
+        <div class="form-field checkbox-container">
+          <input id="rename-use-regex" type="checkbox">
+          <label for="rename-use-regex">Use regular expressions</label>
+        </div>
+        <div class="form-field checkbox-container">
+          <input id="rename-match-all" type="checkbox">
+          <label for="rename-match-all">Match all occurrences</label>
+        </div>
+        <div class="form-field checkbox-container">
+          <input id="rename-case-sensitive" type="checkbox">
+          <label for="rename-case-sensitive">Case sensitive</label>
+        </div>
+        <label for="rename-replace">Replace</label>
+        <input class="form-field" autocomplete="off" type="text" id="rename-replace">
+        <label for="rename-apply">Apply to</label>
+        <select class="form-field" id="rename-apply" autocomplete="off">
+          <option value="file+ext" default>Filename + extension</option>
+          <option value="file">Filename only</option>
+          <option value="ext">Extension only</option>
+        </select>
+        <label for="rename-text-formatting">Text formatting</label>
+        <select class="form-field" id="rename-text-formatting" autocomplete="off">
+          <option value="none" default>None</option>
+          <option value="lower">Lowercase</option>
+          <option value="upper">Uppercase</option>
+        </select>
+      </div>
+      <table id="renamed-files">
+        <thead>
+          <tr>
+            <th>Original</th>
+            <th>Renamed</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <footer>
+      <button class="button" formmethod="dialog">Cancel</button>
+      <button id="confirm-rename" class="button primary">Apply</button>
     </footer>
   </form>
 </dialog>

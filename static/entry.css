@@ -225,6 +225,21 @@ a.relation:not(:last-child)::after {
   opacity: 1;
 }
 
+#rename-entries-modal {
+  width: 80%;
+}
+
+#rename-entries-modal > form {
+  max-width: 100%;
+}
+
+
+.form-contents > table {
+  padding: 0.5rem;
+  border-collapse: separate;
+}
+
+
 /* tables are easier as desktop first */
 @media (max-width: 480px) {
   .files[data-columns="2"] {
@@ -269,5 +284,26 @@ a.relation:not(:last-child)::after {
 
   #relations > span {
     flex-basis: auto;
+  }
+}
+
+@media (min-width: 840px) {
+  .form-contents {
+    display: flex;
+    padding-right: 1rem;
+  }
+
+  .form-contents > table {
+    padding: 0.5rem;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .form-contents > table > thead > tr {
+    height: 1rem;
+  }
+
+  .form-contents > .form-container {
+    min-width: 300px;
   }
 }

@@ -1,11 +1,14 @@
 const editModal = document.getElementById('edit-entry-modal');
 const moveModal = document.getElementById('move-entries-modal');
+const renameModal = document.getElementById('rename-entries-modal');
 const deleteModal = document.getElementById('confirm-delete-modal');
 
 const editButton = document.getElementById('edit-entry');
 const deleteFilesButton = document.getElementById('delete-files');
 const downloadFilesButton = document.getElementById('download-files');
 const moveFilesButton = document.getElementById('move-files');
+const renameFilesButton = document.getElementById('rename-files');
+const confirmRenameButton = document.getElementById('confirm-rename');
 
 const uploadForm = document.getElementById('upload-form');
 const uploadInput = document.getElementById('upload-file-input');
@@ -14,6 +17,94 @@ const updateInfo = document.getElementById('update-info');
 
 const dropZone = document.getElementById('file-upload-drop-zone');
 let lastDraggedTarget = null;
+let currentRenameOption = null;
+
+class RenameOptions {
+  constructor() {
+    this.search = document.getElementById('rename-search').value;
+    this.repl = document.getElementById('rename-replace').value;
+    this.isEmpty = this.search.length === 0;
+    this.isRegex = document.getElementById('rename-use-regex').checked;
+    this.matchAll = document.getElementById('rename-match-all').checked;
+    this.caseSensitive = document.getElementById('rename-case-sensitive').checked;
+    this.applyTo = document.getElementById('rename-apply').value;
+    this.caseTransform = document.getElementById('rename-text-formatting').value;
+
+    let flags = '';
+    if(!this.caseSensitive) flags += 'i';
+    if(this.matchAll) flags += 'g';
+
+    if(this.isRegex) {
+      this.search = new RegExp(this.search, flags);
+    } else {
+      this.search = new RegExp(escapeRegex(this.search), flags);
+    }
+
+    this.files = getSelectedFiles().map(e => e.textContent);
+    this.renamed = this.files.map(f => this.rename(f));
+  }
+
+  updateTable(tbody) {
+    tbody.innerHTML = '';
+    for(let i = 0; i < this.files.length; ++i) {
+      let original = this.files[i];
+      let renamed = this.renamed[i];
+      let tr = document.createElement('tr');
+      let left = document.createElement('td');
+      left.setAttribute('data-th', 'Original');
+      left.textContent = original;
+      let right = document.createElement('td');
+      right.setAttribute('data-th', 'Renamed');
+      if(original != renamed) {
+        right.textContent = renamed;
+        right.classList.add('changed');
+      }
+      tr.appendChild(left);
+      tr.appendChild(right);
+      tbody.appendChild(tr);
+    }
+  }
+
+  toJSON() {
+    return this.files.map((e, i) => { return {from: e, to: this.renamed[i]}; }).filter(obj => obj.from !== obj.to);
+  }
+
+  replace(s) {
+    if(this.isEmpty) return s;
+    return this.matchAll ? s.replaceAll(this.search, this.repl).trim() : s.replace(this.search, this.repl).trim();
+  }
+
+  transformCase(s) {
+    if(this.caseTransform === 'none') {
+      return s;
+    } else if(this.caseTransform === 'lower') {
+      return s.toLowerCase();
+    } else {
+      return s.toUpperCase();
+    }
+  }
+
+  rename(filename) {
+    if(this.applyTo === 'file') {
+      let idx = filename.lastIndexOf('.');
+      if(idx !== -1) {
+        let changed = this.transformCase(this.replace(filename.substring(0, idx)));
+        return changed + filename.substring(idx);
+      }
+    } else if(this.applyTo === 'ext') {
+      let idx = filename.lastIndexOf('.');
+      if(idx !== -1) {
+        let changed = this.transformCase(this.replace(filename.substring(idx + 1)));
+        if(changed.length !== 0) {
+          return filename.substring(0, idx) + '.' + changed;
+        } else {
+          return filename.substring(0, idx);
+        }
+      }
+    }
+    return this.transformCase(this.replace(filename));
+  }
+}
 
 const checkedSelector = '.entry:not(.hidden) > .file-bulk > input[type="checkbox"]';
 const query = `
@@ -77,6 +168,7 @@ function removeCheckedFiles() {
 
 const disableButtons = (disabled) => {
   if(moveFilesButton) moveFilesButton.disabled = disabled;
+  if(renameFilesButton) renameFilesButton.disabled = disabled;
   downloadFilesButton.disabled = disabled;
 }
 
@@ -397,6 +489,55 @@ async function moveFiles() {
   window.location.href = `/entry/${js.entry_id}`;
 }
 
+function updateRenameOptions() {
+  let search = document.getElementById('rename-search');
+  try {
+    currentRenameOption = new RenameOptions();
+  } catch(e) {
+    if (e instanceof SyntaxError) {
+      search.setCustomValidity('Invalid regex provided');
+    }
+    return;
+  }
+  search.setCustomValidity('');
+  currentRenameOption.updateTable(renameModal.querySelector('table#renamed-files > tbody'));
+}
+
+function openRenameModal() {
+  let form = renameModal.querySelector('form');
+  form.reset();
+  currentRenameOption = new RenameOptions();
+  currentRenameOption.updateTable(renameModal.querySelector('table#renamed-files > tbody'));
+  renameModal.showModal();
+}
+
+async function renameFiles() {
+  if(currentRenameOption === null) {
+    return;
+  }
+  let payload = currentRenameOption.toJSON();
+  if(payload.length === 0) {
+    return;
+  }
+
+  let js = await callApi(`/entry/${entryId}/rename`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(payload)
+  }, modalAlertHook);
+
+  if(js === null) {
+    return;
+  }
+
+  let total = js.success + js.failed;
+  showModalAlert(renameModal, {level: 'success', content: `Successfully renamed ${js.success}/${total} files, refreshing in 3 seconds...`});
+  await sleep(3000);
+  window.location.reload();
+}
+
 populateAnimeRelations();
 deleteFilesButton?.addEventListener('click', () => {
   let files = getSelectedFiles();
@@ -431,6 +572,12 @@ uploadInput?.addEventListener('change', () => {
   uploadForm.submit();
 });
 downloadFilesButton?.addEventListener('click', downloadFiles);
+renameFilesButton?.addEventListener('click', openRenameModal);
+renameModal?.querySelector('form')?.addEventListener('input', debounced(updateRenameOptions, 150))
+confirmRenameButton?.addEventListener('click', (e) => {
+  e.preventDefault();
+  renameFiles();
+});
 
 if (uploadInput !== null) {
   window.addEventListener('dragenter', (e) => {

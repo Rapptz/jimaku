@@ -797,6 +797,54 @@ async fn bulk_delete_files(
     }))
 }
 
+#[derive(Deserialize)]
+struct RenameFileRequest {
+    from: String,
+    to: String,
+}
+
+async fn bulk_rename_files(
+    State(state): State<AppState>,
+    Path(entry_id): Path<i64>,
+    account: Account,
+    Json(files): Json<Vec<RenameFileRequest>>,
+) -> Result<Json<BulkFileOperationResponse>, ApiError> {
+    if !account.flags.is_editor() {
+        return Err(ApiError::forbidden());
+    }
+
+    let Some(entry) = state.get_directory_entry_path(entry_id).await else {
+        return Err(ApiError::not_found("Directory entry not found."));
+    };
+
+    let mut success = 0;
+    let mut failed = 0;
+    for file in files {
+        let from = entry.join(&file.from);
+        let to = entry.join(&file.to);
+        match tokio::fs::rename(from, to).await {
+            Ok(_) => success += 1,
+            Err(_) => failed += 1,
+        }
+    }
+
+    info!(entry_id, success, failed, account.name, account.id, "Renamed files");
+
+    state.send_alert(
+        discord::Alert::info("Renamed files")
+            .url(format!("/entry/{entry_id}"))
+            .account(account)
+            .inline_field("Success", success)
+            .inline_field("Failed", failed),
+    );
+
+    Ok(Json(BulkFileOperationResponse {
+        entry_id,
+        success,
+        failed,
+    }))
+}
+
 #[derive(Debug)]
 struct ProcessedFile {
     path: PathBuf,
@@ -1278,6 +1326,7 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/entry/:id/edit", post(edit_directory_entry))
         .route("/entry/:id/move", post(move_directory_entries))
+        .route("/entry/:id/rename", post(bulk_rename_files))
         .route("/entry/:id", delete(bulk_delete_files))
         .route("/entry/search", get(search_directory_entries))
         .route(
