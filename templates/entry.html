@@ -172,9 +172,9 @@
                 maxlength="1024" spellcheck="true">{{ entry.notes|maybe_display }}</textarea>
     </div>
     <footer>
-      <button class="button" value="cancel" formmethod="dialog">Cancel</button>
-      <button id="update-info" type="button" class="button" value="sync">Sync</button>
       <button id="confirm-edit" class="button primary">Confirm</button>
+      <button id="update-info" type="button" class="button" value="sync">Sync</button>
+      <button class="button" value="cancel" formmethod="dialog">Cancel</button>
     </footer>
   </form>
 </dialog>
@@ -207,8 +207,8 @@
       <input class="form-field" name="name" id="directory-name" autocomplete="off" type="text">
     </div>
     <footer>
-      <button class="button" formmethod="dialog">Cancel</button>
       <button id="confirm-move" class="button primary">Move</button>
+      <button class="button" formmethod="dialog">Cancel</button>
     </footer>
   </form>
 </dialog>
@@ -258,8 +258,8 @@
       </table>
     </div>
     <footer>
-      <button class="button" formmethod="dialog">Cancel</button>
       <button id="confirm-rename" class="button primary">Apply</button>
+      <button class="button" formmethod="dialog">Cancel</button>
     </footer>
   </form>
 </dialog>
@@ -271,8 +271,8 @@
     <h1>Are you sure?</h1>
     <p>This will delete <span id="delete-count"></span>.</p>
     <footer>
-      <button class="button" formmethod="dialog">Cancel</button>
       <button id="confirm-delete" class="button danger">Delete</button>
+      <button class="button" formmethod="dialog">Cancel</button>
     </footer>
   </form>
 </dialog>
