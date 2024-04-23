@@ -80,7 +80,7 @@
     {% endif -%}
     <form id="upload-form" method="POST" action="/entry/{{ entry.id }}/upload" enctype="multipart/form-data">
       <label for="upload-file-input" id="upload-button" class="button upload primary">Upload</label>
-      <input name="file" type="file" id="upload-file-input" accept=".srt,.ass,.ssa,.sub,.sup,.idx,.zip" hidden multiple>
+      <input name="file" type="file" id="upload-file-input" accept=".srt,.ass,.ssa,.sub,.sup,.idx,.zip,.7z" hidden multiple>
     </form>
     {% when None %}
     <a class="button upload primary" href="/login">Login to upload</a>

@@ -143,7 +143,7 @@ query ($id: Int) {
 `;
 
 const fileExtension = (name) => name.slice((name.lastIndexOf('.') - 1 >>> 0) + 2);
-const allowedExtensions = ["srt", "ssa", "ass", "zip", "sub", "sup", "idx"];
+const allowedExtensions = ["srt", "ssa", "ass", "zip", "sub", "sup", "idx", "7z"];
 
 function filterValidFileList(files) {
   let filtered = Array.from(files).filter(f => allowedExtensions.includes(fileExtension(f.name)));

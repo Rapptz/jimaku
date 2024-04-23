@@ -905,7 +905,7 @@ async fn verify_file(
     field: Field<'_>,
 ) -> anyhow::Result<ProcessedFile> {
     match file_name.extension().and_then(|ext| ext.to_str()) {
-        Some("srt" | "ass" | "ssa" | "zip" | "sub" | "sup" | "idx") => {
+        Some("srt" | "ass" | "ssa" | "zip" | "sub" | "sup" | "idx" | "7z") => {
             let path = entry_path.join(file_name);
             if path.exists() {
                 bail!("filename already exists")
