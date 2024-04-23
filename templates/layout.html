@@ -16,7 +16,6 @@
   <body>
     <div class="grid">
       <header class="grid-item">
-        {% block navigation %}
         <nav class="main-navigation">
           <a class="nav-item branding" href="/">Jimaku</a>
           <div class="nav-item mobile-only">
@@ -24,8 +23,10 @@
             <label class="hamburger-menu" aria-hidden="true" for="hamburger-toggle"><span></span></label>
           </div>
           <div class="hamburger-menu-container">
+            {% block index_nav %}
             <a class="nav-item" href="/">Anime</a>
             <a class="nav-item" href="/dramas">Live Action</a>
+            {% endblock %}
             <span class="not-mobile nav-item spacer"></span>
           {% match account %}
             {% when Some with (account) %}
@@ -48,7 +49,6 @@
             </a>
           </div>
         </nav>
-        {% endblock %}
       </header>
       {% block sidebar %}{% endblock %}
       <main class="grid-item">

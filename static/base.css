@@ -508,6 +508,10 @@ a.nav-item.branding:hover {
   border-bottom-color: var(--branding);
 }
 
+a.nav-item.active {
+  font-weight: bold;
+}
+
 #settings > span {
   user-select: none;
 }

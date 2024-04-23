@@ -6,6 +6,11 @@
 <meta property="og:title" content="Jimaku: Japanese subtitles">
 {% endblock %}
 
+{% block index_nav %}
+<a class="nav-item {% if anime %}active{% endif %}" href="/">Anime</a>
+<a class="nav-item {% if !anime %}active{% endif %}" href="/dramas">Live Action</a>
+{% endblock %}
+
 {% block body %}
 {% for flash in flashes %}
 {{ flash.html()|safe }}
