@@ -740,6 +740,8 @@ async fn bulk_delete_files(
         tokio::fs::remove_dir_all(entry).await?;
     } else {
         let trash = crate::trash::Trash::new()?;
+        let total = payload.files.len();
+        let description = crate::utils::join_iter("\n", payload.files.iter().map(|x| format!("- {x}")).take(25));
         for file in payload.files {
             let path = entry.join(&file);
             let result = if account.flags.is_admin() {
@@ -752,7 +754,16 @@ async fn bulk_delete_files(
                 Err(_) => failed += 1,
             }
         }
+        state.send_alert(
+            discord::Alert::error("Deleted Files")
+                .url(format!("/entry/{entry_id}"))
+                .description(description)
+                .account(account)
+                .field("Total", total)
+                .field("Failed", failed),
+        );
     }
+
     Ok(Json(BulkFileOperationResponse {
         entry_id,
         success,
