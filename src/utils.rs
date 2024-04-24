@@ -1,11 +1,22 @@
 use std::{path::PathBuf, str::FromStr, sync::OnceLock};
 
+use percent_encoding::{AsciiSet, CONTROLS};
 use regex::Regex;
 use serde::{de::DeserializeOwned, Deserialize, Deserializer};
 
 /// The maximum amount of bytes an upload can have, in bytes.
 pub const MAX_UPLOAD_SIZE: u64 = 1024 * 1024 * 16;
 pub const MAX_BODY_SIZE: usize = MAX_UPLOAD_SIZE as usize;
+
+pub const FRAGMENT: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'<')
+    .add(b'>')
+    .add(b'[')
+    .add(b']')
+    .add(b'`')
+    .add(b'#');
 
 /// This is mainly for use in forms.
 ///

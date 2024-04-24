@@ -105,10 +105,8 @@
 </div>
 <div class="commands">
   <div class="command-buttons">
-    {% if flags.is_admin() %}
-    <button id="delete-files" class="button danger">Delete</button>
-    {% endif %}
     {% if flags.is_editor() %}
+    <button id="delete-files" class="button danger">Delete</button>
     <button id="rename-files" disabled class="button">Rename</button>
     <button id="move-files" disabled class="button">Move</button>
     {% endif %}
@@ -263,9 +261,7 @@
     </footer>
   </form>
 </dialog>
-{%- endif -%}
 
-{% if flags.is_admin() %}
 <dialog id="confirm-delete-modal">
   <form>
     <h1>Are you sure?</h1>

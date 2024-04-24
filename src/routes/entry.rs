@@ -1,14 +1,12 @@
-use std::io::Write;
-use std::path::{Component, PathBuf};
-
 use crate::anilist::{self, MediaTitle};
 use crate::database::{is_unique_constraint_violation, Table};
+use crate::download::{validate_path, DownloadResponse};
 use crate::error::{ApiError, ApiErrorCode, InternalError};
 use crate::flash::{FlashMessage, Flasher, Flashes};
 use crate::headers::Referrer;
 use crate::models::{Account, AccountCheck, DirectoryEntry, EntryFlags};
 use crate::ratelimit::RateLimit;
-use crate::utils::is_over_length;
+use crate::utils::{is_over_length, FRAGMENT};
 use crate::{discord, filters};
 use crate::{tmdb, AppState};
 use anyhow::{bail, Context};
@@ -17,7 +15,7 @@ use axum::body::{Body, Bytes};
 use axum::extract::multipart::Field;
 use axum::extract::{Json, Multipart, Query};
 use axum::http::header::{CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_TYPE};
-use axum::http::{HeaderName, HeaderValue, StatusCode};
+use axum::http::{HeaderName, HeaderValue};
 use axum::response::Redirect;
 use axum::routing::{delete, get, post};
 use axum::{
@@ -25,9 +23,11 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use percent_encoding::{percent_encode, AsciiSet, CONTROLS};
+use percent_encoding::percent_encode;
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
+use std::path::PathBuf;
 use time::OffsetDateTime;
 use tokio::task::JoinSet;
 use tower::ServiceExt;
@@ -35,16 +35,6 @@ use tower_http::cors::CorsLayer;
 use tower_http::services::ServeFile;
 use tracing::info;
 use utoipa::ToSchema;
-
-const FRAGMENT: &AsciiSet = &CONTROLS
-    .add(b' ')
-    .add(b'"')
-    .add(b'<')
-    .add(b'>')
-    .add(b'[')
-    .add(b']')
-    .add(b'`')
-    .add(b'#');
 
 /// Represents a file entry, e.g. a subtitle or a ZIP file or whatever else.
 #[derive(Debug, Serialize, ToSchema)]
@@ -116,42 +106,6 @@ async fn get_entry(
         flashes,
     }
     .into_response())
-}
-
-fn validate_path(base: &std::path::Path, requested: &str) -> Option<PathBuf> {
-    let path = std::path::Path::new(requested.trim_start_matches('/'));
-    let mut path_to_file = base.to_path_buf();
-    for component in path.components() {
-        match component {
-            Component::Normal(cmp) => {
-                if std::path::Path::new(&cmp)
-                    .components()
-                    .all(|c| matches!(c, Component::Normal(_)))
-                {
-                    path_to_file.push(cmp);
-                } else {
-                    return None;
-                }
-            }
-            Component::CurDir => {}
-            Component::Prefix(_) | Component::RootDir | Component::ParentDir => return None,
-        }
-    }
-    Some(path_to_file)
-}
-
-enum DownloadResponse {
-    File(Response),
-    NotFound,
-}
-
-impl IntoResponse for DownloadResponse {
-    fn into_response(self) -> Response {
-        match self {
-            DownloadResponse::File(r) => r,
-            DownloadResponse::NotFound => StatusCode::NOT_FOUND.into_response(),
-        }
-    }
 }
 
 async fn download_entry(
@@ -764,7 +718,7 @@ async fn bulk_delete_files(
     account: Account,
     Json(payload): Json<BulkFilesPayload>,
 ) -> Result<Json<BulkFileOperationResponse>, ApiError> {
-    if !account.flags.is_admin() {
+    if !account.flags.is_editor() {
         return Err(ApiError::forbidden());
     }
 
@@ -775,6 +729,9 @@ async fn bulk_delete_files(
     let mut success = 0;
     let mut failed = 0;
     if payload.delete_parent {
+        if !account.flags.is_admin() {
+            return Err(ApiError::forbidden());
+        }
         state
             .database()
             .execute("DELETE FROM directory_entry WHERE id = ?", [entry_id])
@@ -782,9 +739,15 @@ async fn bulk_delete_files(
         state.cached_directories().invalidate().await;
         tokio::fs::remove_dir_all(entry).await?;
     } else {
+        let trash = crate::trash::Trash::new()?;
         for file in payload.files {
             let path = entry.join(&file);
-            match tokio::fs::remove_file(path).await {
+            let result = if account.flags.is_admin() {
+                tokio::fs::remove_file(path).await
+            } else {
+                trash.put(path, entry_id).await
+            };
+            match result {
                 Ok(_) => success += 1,
                 Err(_) => failed += 1,
             }

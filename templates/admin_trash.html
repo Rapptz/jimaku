@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/entry.css" type="text/css">
+{% endblock %}
+
+{% block body %}
+<div class="commands">
+  <div class="text-input-container">
+    <input autocomplete="off" type="search" id="search-files" placeholder="Search files by name..." spellcheck="false">
+    <button class="clear" tabindex="-1" id="clear-search-filter">✖&#xfe0e;</button>
+  </div>
+</div>
+<div class="files" data-columns="4">
+  <div class="table-headers">
+    <span class="table-header"><input id="bulk-check" autocomplete="off" type="checkbox"></span>
+    <span class="table-header sorting-ascending" data-sort-by="name">Name</span>
+    <span class="table-header" data-sort-by="size">Size</span>
+    <span class="table-header" data-sort-by="last-modified">Deleted</span>
+  </div>
+  {% for (filename, info) in listing -%}
+  <div class="entry"
+       data-last-modified="{{ info.deletion_date.unix_timestamp() }}"
+       data-name="{{ filename.display()|e }}"
+       data-size="{{ info.size }}">
+    <span class="table-data file-bulk"><input autocomplete="off" type="checkbox"></span>
+    <span class="table-data">
+      <a href="/entry/{{ info.entry_id }}">[{{ info.entry_id }}]</a>
+      <span class="space"></span>
+      <a href="{{ trash.url_to(filename) }}" class="table-data file-name">{{ filename.display()|e }}</a>
+    </span>
+    <span class="table-data file-size">{{ info.size|filesizeformat}}</span>
+    <span class="table-data file-modified" title="{{ info.deletion_date|isoformat }}">{{ info.deletion_date|isoformat }}</span>
+  </div>
+  {% endfor -%}
+</div>
+<div class="commands">
+  <div class="command-buttons">
+    <button id="trash-files" class="button danger">Delete</button>
+    <button id="restore-files" class="button">Restore</button>
+    <button id="download-files" disabled class="hidden button">Download</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block body_end %}
+<script src="/static/fuzzysort.min.js"></script>
+<script src="/static/files.js"></script>
+<script src="/static/entry.js"></script>
+<script src="/static/admin_trash.js"></script>
+{% endblock %}
