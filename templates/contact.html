@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/help.css" type="text/css">
+<meta property="og:url" content='{{ "/help"|canonical_url }}'>
+<meta property="og:title" content="Jimaku: Help">
+{% endblock %}
+
+{% block title %}
+Contact · Jimaku
+{% endblock %}
+
+{% block body %}
+<div id="content">
+  <h1 id="contact-us">Contact us</h1>
+  <p>
+    If you need help,
+    want to report a bug or request a feature,
+    please don't hesitate to contact us.
+  </p>
+  <p>
+    <ul>
+      <li><a href="mailto:support@jimaku.cc">Email Us</a>.</li>
+      <li><a href="https://github.com/Rapptz/jimaku">GitHub</a>.</li>
+      <li><a href="https://discord.gg/xtEBbH75ph">Discord</a>.
+      Note that <a href="https://spyware.neocities.org/articles/discord" target="_blank">Discord is considered spyware</a>.
+      If possible, choose a different option to reach out.
+      </li>
+    </ul>
+  <p>
+</div>
+{% endblock %}
