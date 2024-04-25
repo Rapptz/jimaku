@@ -19,6 +19,16 @@ Configuration is done using a JSON file. The location of the configuration file 
 
 The documentation for the actual configuration options is documented in the [source code](src/config.rs).
 
+## Create the admin account
+
+To manage the site you need an admin account.
+To create one interactively,
+run `cargo run admin`.
+
+## Get help
+
+To print a help page, run `cargo run -- --help`.
+
 ## Data and Logs
 
 The server also contains a database and some logs which are written to different directories depending on the operating system as well:
