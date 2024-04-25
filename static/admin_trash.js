@@ -1,3 +1,5 @@
+/* This file is licensed under AGPL-3.0 */
+
 async function processTrashRequest(action) {
   let files = getSelectedFiles().map(e => e.textContent);
   if (files.length === 0) {

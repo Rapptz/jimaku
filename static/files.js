@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 const filterElement = document.getElementById('search-files');
 const escapedRegex = /[-\/\\^$*+?.()|[\]{}]/g;
 const escapeRegex = (e) => e.replace(escapedRegex, '\\$&');

@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 const importButton = document.getElementById('import-button');
 const importModal = document.getElementById('import-modal');
 const confirmImport = document.getElementById('confirm-import');

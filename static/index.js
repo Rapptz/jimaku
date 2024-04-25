@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 const uploadButton = document.getElementById('upload-button');
 const uploadModal = document.getElementById('upload-modal');
 const confirmUpload = document.getElementById('confirm-upload');

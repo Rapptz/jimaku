@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 const editModal = document.getElementById('edit-entry-modal');
 const moveModal = document.getElementById('move-entries-modal');
 const renameModal = document.getElementById('rename-entries-modal');

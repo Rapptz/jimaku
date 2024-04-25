@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 const confirmImport = document.getElementById('confirm-import');
 const entryForm = document.querySelector('form');
 
@@ -69,4 +70,3 @@ confirmImport.addEventListener('click', async (e) => {
     confirmImport.disabled = false;
   }
 });
-

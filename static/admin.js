@@ -1,3 +1,5 @@
+/* This file is licensed under AGPL-3.0 */
+
 const logSelect = document.getElementById('log-select');
 // Statistics
 const requestCount = document.getElementById('request-count');

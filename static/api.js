@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 const detectChanges = (mutationList, observer) => {
   const el = document.getElementById('security-scheme-Authorization');
   if (el === null) {

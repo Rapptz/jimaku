@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 const username = document.getElementById('username');
 
 async function invalidateToken(button, token) {
