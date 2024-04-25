@@ -1,4 +1,4 @@
-// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-v3-or-Later
+/* This file is licensed under AGPL-3.0 */
 const filterElement = document.getElementById('search-files');
 const escapedRegex = /[-\/\\^$*+?.()|[\]{}]/g;
 const escapeRegex = (e) => e.replace(escapedRegex, '\\$&');
@@ -194,4 +194,3 @@ document.querySelectorAll('.table-header[data-sort-by]').forEach(el => {
   el.addEventListener('click', e => sortBy(e, el.getAttribute('data-sort-by')))
 });
 filterElement?.addEventListener('input', debounced(e => filterEntries(e.target.value)))
-// @license-end

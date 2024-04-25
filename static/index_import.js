@@ -1,4 +1,4 @@
-// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-v3-or-Later
+/* This file is licensed under AGPL-3.0 */
 const importButton = document.getElementById('import-button');
 const importModal = document.getElementById('import-modal');
 const confirmImport = document.getElementById('confirm-import');
@@ -147,4 +147,3 @@ window.addEventListener('drop', (e) => {
     confirmImport.click();
   }
 });
-// @license-end
