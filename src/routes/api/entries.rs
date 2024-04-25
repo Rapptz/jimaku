@@ -114,6 +114,14 @@ pub struct SearchQuery {
     #[serde(deserialize_with = "crate::utils::generic_empty_string_is_none")]
     #[serde(default)]
     query: Option<String>,
+
+    /// Return entries that are after this UNIX timestamp (in seconds).
+    #[serde(default)]
+    after: Option<i64>,
+
+    /// Return entries that are before this UNIX timestamp (in seconds).
+    #[serde(default)]
+    before: Option<i64>,
 }
 
 impl SearchQuery {
@@ -140,6 +148,19 @@ impl SearchQuery {
 
         if self.tmdb_id.is_some() {
             return (self.tmdb_id == entry.tmdb_id).then_some(isize::MAX);
+        }
+
+        let ts = entry.last_updated_at.unix_timestamp();
+        if let Some(after) = self.after {
+            if ts < after {
+                return None;
+            }
+        }
+
+        if let Some(before) = self.before {
+            if ts > before {
+                return None;
+            }
         }
 
         if let Some(m) = self.get_best_fuzzy_score(entry) {
