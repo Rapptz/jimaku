@@ -1,17 +1,30 @@
 use std::path::PathBuf;
 
+use crate::{
+    download::{validate_path, DownloadResponse},
+    filters,
+};
 use askama::Template;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, Query, Request, State},
     http::StatusCode,
     response::Redirect,
     routing::get,
     Extension, Json, Router,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use tower::ServiceExt as _;
+use tower_http::services::ServeFile;
 
-use crate::{cached::BodyCache, error::ApiError, models::Account, utils::logs_directory, AppState};
+use crate::{
+    cached::BodyCache,
+    error::ApiError,
+    models::Account,
+    trash::{Trash, TrashListing},
+    utils::logs_directory,
+    AppState,
+};
 
 fn available_logs() -> std::io::Result<Vec<String>> {
     let path = logs_directory();
@@ -113,10 +126,99 @@ async fn invalidate_caches(
     Redirect::to("/")
 }
 
+#[derive(Template)]
+#[template(path = "admin_trash.html")]
+struct AdminTrashTemplate {
+    account: Option<Account>,
+    listing: TrashListing,
+    trash: Trash,
+}
+
+async fn show_trash(account: Account) -> Result<AdminTrashTemplate, Redirect> {
+    if !account.flags.is_admin() {
+        return Err(Redirect::to("/"));
+    }
+
+    let Ok(trash) = Trash::new() else {
+        return Err(Redirect::to("/"));
+    };
+
+    let listing = trash.list().await.unwrap_or_default();
+
+    Ok(AdminTrashTemplate {
+        account: Some(account),
+        trash,
+        listing,
+    })
+}
+
+#[derive(Debug, Deserialize, Copy, Clone, Eq, PartialEq, Hash)]
+#[serde(rename_all = "lowercase")]
+enum TrashRequestAction {
+    Delete,
+    Restore,
+}
+
+#[derive(Deserialize)]
+struct TrashRequest {
+    files: Vec<PathBuf>,
+    action: TrashRequestAction,
+}
+
+#[derive(Serialize, Default)]
+struct TrashResponse {
+    success: usize,
+    failed: usize,
+}
+
+async fn trash_management(
+    account: Account,
+    Json(payload): Json<TrashRequest>,
+) -> Result<Json<TrashResponse>, ApiError> {
+    if !account.flags.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+
+    let trash = Trash::new()?;
+    let mut response = TrashResponse::default();
+    for filename in payload.files {
+        let result = match payload.action {
+            TrashRequestAction::Delete => trash.delete(filename).await,
+            TrashRequestAction::Restore => trash.restore(filename).await,
+        };
+        match result {
+            Ok(()) => response.success += 1,
+            Err(_) => response.failed += 1,
+        }
+    }
+
+    Ok(Json(response))
+}
+
+async fn download_trash(account: Account, Path(path): Path<String>, req: Request) -> DownloadResponse {
+    if !account.flags.is_admin() {
+        return DownloadResponse::NotFound;
+    }
+
+    let Ok(trash) = Trash::new() else {
+        return DownloadResponse::NotFound;
+    };
+    let Some(path) = validate_path(trash.files_path(), path.as_str()) else {
+        return DownloadResponse::NotFound;
+    };
+
+    match ServeFile::new(path).oneshot(req).await {
+        Ok(res) => DownloadResponse::File(res.map(axum::body::Body::new)),
+        Err(_) => DownloadResponse::NotFound,
+    }
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/logs", get(get_last_logs))
         .route("/admin/logs/:date", get(get_logs_from))
         .route("/admin", get(admin_index))
+        .route("/admin/trash", get(show_trash).post(trash_management))
+        .route("/admin/trash/download/*path", get(download_trash))
         .route("/admin/cache/invalidate", get(invalidate_caches))
 }

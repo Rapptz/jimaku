@@ -6,6 +6,7 @@ pub mod cli;
 mod config;
 pub mod database;
 pub mod discord;
+pub mod download;
 pub mod error;
 pub mod filters;
 pub mod flash;
@@ -20,6 +21,7 @@ pub mod routes;
 mod state;
 pub mod tmdb;
 pub mod token;
+pub mod trash;
 pub mod utils;
 
 pub use cli::{Command, PROGRAM_NAME};
