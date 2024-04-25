@@ -9,6 +9,34 @@ Right now, Rust v1.74 or higher is required. To install just run `cargo build`.
 
 In order to actually run the server the `static` directory needs to be next to the executable. Maybe in the future there'll be a way to automatically move it.
 
+# Configuration
+
+Configuration is done using a JSON file. The location of the configuration file depends on the operating system:
+
+- Linux: `$XDG_CONFIG_HOME/jimaku/config.json` or `$HOME/.config/jimaku/config.json`
+- macOS: `$HOME/Library/Application Support/jimaku/config.json`
+- Windows: `%AppData%/jimaku/config.json`
+
+The documentation for the actual configuration options is documented in the [source code](src/config.rs).
+
+## Data and Logs
+
+The server also contains a database and some logs which are written to different directories depending on the operating system as well:
+
+For data it is as follows:
+
+- Linux: `$XDG_DATA_HOME/jimaku` or `$HOME/.local/share/jimaku`
+- macOS: `$HOME/Library/Application Support/jimaku`
+- Windows: `%AppData%/jimaku`
+
+For logs it is as follows:
+
+- Linux: `$XDG_STATE_HOME/jimaku` or `$HOME/.local/state/jimaku`
+- macOS: `./logs`
+- Windows: `./logs`
+
+The data directory contains both a database and a secluded managed "trash" directory.
+
 # Fixtures
 
 Since this site is made to be a replacement for [kitsunekko](https://kitsunekko.net), it has support for scraping and then loading the data to this server. In order to do this initially, a bootstrapping phase is necessary where it downloads all the files necessary and then generates a `fixture.json` file.
