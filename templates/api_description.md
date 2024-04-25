@@ -39,6 +39,4 @@ x-ratelimit-reset-after: 0.98
 
 ### Support
 
-If you need any more help,
-or if you want to report a bug or request a feature,
-please don't hesitate to [contact us](/contact).
+If you need any more help, or if you want to report a bug or request a feature, please don't hesitate to [contact us](/contact).
