@@ -83,6 +83,16 @@ async fn help_page(account: Option<Account>) -> impl IntoResponse {
     HelpTemplate { account }
 }
 
+#[derive(Template)]
+#[template(path = "contact.html")]
+struct ContactTemplate {
+    account: Option<Account>,
+}
+
+async fn contact_page(account: Option<Account>) -> impl IntoResponse {
+    ContactTemplate { account }
+}
+
 #[derive(serde::Deserialize)]
 struct BypassCorsDownloadZip {
     url: String,
@@ -128,6 +138,7 @@ pub fn all() -> Router<AppState> {
         .route("/", get(index))
         .route("/dramas", get(dramas))
         .route("/help", get(help_page))
+        .route("/contact", get(contact_page))
         .route("/download-zip", get(bypass_download_zip_cors))
         .merge(auth::routes())
         .merge(entry::routes())

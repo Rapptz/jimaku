@@ -39,5 +39,4 @@ x-ratelimit-reset-after: 0.98
 
 ### Support
 
-If you need any more help please don't hesitate to join the [Discord](https://discord.gg/xtEBbH75ph) server. If you want to report a bug or request a feature, you can either do that on the Discord server or on [GitHub](https://github.com/Rapptz/jimaku).
-
+If you need any more help, or if you want to report a bug or request a feature, please don't hesitate to [contact us](/contact).
