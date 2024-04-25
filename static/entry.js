@@ -260,6 +260,8 @@ async function getAnimeRelationIds(id) {
 }
 
 async function populateAnimeRelations() {
+  let div = document.getElementById('relations');
+  if (div === null) return;
   if (entryData.anilist_id == null) {
     return;
   }
@@ -283,7 +285,6 @@ async function populateAnimeRelations() {
   }
   let js = await response.json();
   if(js.length === 0) return;
-  let div = document.getElementById('relations');
   div.innerHTML = '<span>Related</span>';
   for (const entry of js) {
     let el = document.createElement('a');
