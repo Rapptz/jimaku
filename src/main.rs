@@ -74,10 +74,10 @@ async fn cleanup_old_logs() {
             let Some(filename) = path.file_name().and_then(|s| s.to_str()) else {
                 continue;
             };
-            let Some(prefix) = filename.strip_prefix(".log") else {
+            let Some(suffix) = filename.strip_suffix(".log") else {
                 continue;
             };
-            let Ok(date) = time::Date::parse(prefix, &fmt) else {
+            let Ok(date) = time::Date::parse(suffix, &fmt) else {
                 continue;
             };
 
