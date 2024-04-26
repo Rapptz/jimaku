@@ -46,7 +46,7 @@ tokio-rustls = "0.25"
 tower = "0.4.13"
 tower-http = { version = "0.5.2", features = ["fs", "timeout", "normalize-path", "limit", "cors"] }
 tracing = "0.1.40"
-tracing-appender = "0.2.3"
+tracing-appender = { git = "https://github.com/Rapptz/tracing-appender" }
 tracing-subscriber = { version = "0.3.18", features = ["json"] }
 utoipa = { version = "4.2.0", features = ["time", "axum_extras", "repr", "preserve_path_order"] }
 zip = "0.6.6"

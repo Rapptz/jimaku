@@ -33,6 +33,8 @@ fn setup_logging() -> anyhow::Result<WorkerGuard> {
     let rust_log_var = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
     let log_filter = Targets::from_str(&rust_log_var)?;
     let file_appender = tracing_appender::rolling::Builder::new()
+        .max_log_files(60)
+        .symlink("today.log")
         .rotation(Rotation::DAILY)
         .filename_suffix("log")
         .build(jimaku::utils::logs_directory())?;
@@ -48,57 +50,6 @@ fn setup_logging() -> anyhow::Result<WorkerGuard> {
         )
         .init();
     Ok(guard)
-}
-
-async fn cleanup_old_logs() {
-    let (signal_tx, signal_rx) = tokio::sync::mpsc::channel::<()>(1);
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.unwrap();
-        drop(signal_rx);
-    });
-
-    let directory = jimaku::utils::logs_directory();
-    let fmt = time::macros::format_description!("[year]-[month]-[day]");
-    loop {
-        let now = time::OffsetDateTime::now_utc();
-        let today = now.date();
-        let cut_off = today - Duration::from_secs(86400 * 60);
-        let Ok(dir) = directory.read_dir() else {
-            continue;
-        };
-        for entry in dir {
-            let Ok(entry) = entry else {
-                continue;
-            };
-            let path = entry.path();
-            let Some(filename) = path.file_name().and_then(|s| s.to_str()) else {
-                continue;
-            };
-            let Some(suffix) = filename.strip_suffix(".log") else {
-                continue;
-            };
-            let Ok(date) = time::Date::parse(suffix, &fmt) else {
-                continue;
-            };
-
-            if date < cut_off {
-                let _ = tokio::fs::remove_file(path).await;
-            }
-        }
-
-        let tomorrow = today.next_day().unwrap().midnight().assume_utc();
-        let delta = tomorrow - now;
-        let next = std::time::Instant::now() + delta;
-        tokio::select! {
-            _ = tokio::time::sleep_until(tokio::time::Instant::from_std(next)) => {
-
-            }
-            _ = signal_tx.closed() => {
-                info!("Ctrl + C signal received, stopping cleanup loop...");
-                return;
-            }
-        };
-    }
 }
 
 fn database_directory() -> anyhow::Result<PathBuf> {
@@ -141,7 +92,6 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     let addr = config.server.address();
     let secret_key = config.secret_key;
 
-    tokio::spawn(cleanup_old_logs());
     tokio::spawn(jimaku::kitsunekko::auto_scrape_loop(state.clone()));
 
     // Middleware order for request processing is top to bottom
