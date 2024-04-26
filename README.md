@@ -9,6 +9,8 @@ Right now, Rust v1.74 or higher is required. To install just run `cargo build`.
 
 In order to actually run the server the `static` directory needs to be next to the executable. Maybe in the future there'll be a way to automatically move it.
 
+In order to create an admin account, run the `admin` subcommand.
+
 # Configuration
 
 Configuration is done using a JSON file. The location of the configuration file depends on the operating system:
