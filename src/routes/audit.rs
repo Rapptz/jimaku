@@ -9,7 +9,13 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{audit::AuditLogEntry, database::Table, error::ApiError, models::Account, AppState};
+use crate::{
+    audit::{AuditLogData, AuditLogEntry},
+    database::Table,
+    error::ApiError,
+    models::{Account, DirectoryEntry},
+    AppState,
+};
 
 #[derive(Debug, Serialize)]
 struct EntryTitles {
@@ -94,7 +100,7 @@ async fn get_audit_logs(
     }
     query.push_str("ORDER BY audit_log.id DESC LIMIT 100");
 
-    let result = state
+    let mut result = state
         .database()
         .call(move |connection| -> rusqlite::Result<_> {
             let mut result = AuditLogResult::default();
@@ -118,6 +124,44 @@ async fn get_audit_logs(
             Ok(result)
         })
         .await?;
+
+    // Check what requires backfilling
+    let mut backfilled_ids = Vec::new();
+    for entry in result.logs.iter() {
+        if let AuditLogData::MoveEntry(s) = &entry.data {
+            if !result.entries.contains_key(&s.entry_id) {
+                backfilled_ids.push(s.entry_id);
+            }
+        }
+    }
+
+    if !backfilled_ids.is_empty() {
+        let mut query = "SELECT * FROM directory_entry WHERE id IN (".to_string();
+        for _ in &backfilled_ids {
+            query.push('?');
+            query.push(',');
+        }
+        if query.ends_with(',') {
+            query.pop();
+        }
+        query.push(')');
+        let entries: Vec<DirectoryEntry> = state
+            .database()
+            .all(query, rusqlite::params_from_iter(backfilled_ids))
+            .await
+            .unwrap_or_default();
+
+        for entry in entries {
+            result.entries.insert(
+                entry.id,
+                EntryTitles {
+                    name: entry.name,
+                    english_name: entry.english_name,
+                    japanese_name: entry.japanese_name,
+                },
+            );
+        }
+    }
 
     Ok(Json(result))
 }
