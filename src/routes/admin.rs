@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
+    audit,
     download::{validate_path, DownloadResponse},
     filters,
 };
@@ -161,7 +162,7 @@ enum TrashRequestAction {
 
 #[derive(Deserialize)]
 struct TrashRequest {
-    files: Vec<PathBuf>,
+    files: Vec<String>,
     action: TrashRequestAction,
 }
 
@@ -172,6 +173,7 @@ struct TrashResponse {
 }
 
 async fn trash_management(
+    State(state): State<AppState>,
     account: Account,
     Json(payload): Json<TrashRequest>,
 ) -> Result<Json<TrashResponse>, ApiError> {
@@ -181,17 +183,26 @@ async fn trash_management(
 
     let trash = Trash::new()?;
     let mut response = TrashResponse::default();
-    for filename in payload.files {
+    let mut data = audit::TrashAction {
+        restore: payload.action == TrashRequestAction::Restore,
+        files: Vec::with_capacity(payload.files.len()),
+    };
+    for name in payload.files {
+        let filename = PathBuf::from(&name);
         let result = match payload.action {
             TrashRequestAction::Delete => trash.delete(filename).await,
             TrashRequestAction::Restore => trash.restore(filename).await,
         };
+        data.add_file(name, result.is_err());
         match result {
             Ok(()) => response.success += 1,
             Err(_) => response.failed += 1,
         }
     }
 
+    state
+        .audit(audit::AuditLogEntry::new(data).with_account(account.id))
+        .await;
     Ok(Json(response))
 }
 

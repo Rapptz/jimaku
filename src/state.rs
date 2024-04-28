@@ -3,6 +3,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::RwLockReadGuard;
 
 use crate::{
+    audit::AuditLogEntry,
     auth::hash_password,
     cached::TimedCachedValue,
     database::Table,
@@ -67,6 +68,19 @@ impl AppState {
 
     pub fn database(&self) -> &Database {
         &self.inner.database
+    }
+
+    /// Sends an audit log entry.
+    ///
+    /// Errors are silently dropped, since they can't be handled anyway.
+    pub async fn audit(&self, entry: AuditLogEntry) {
+        let _ = self
+            .database()
+            .execute(
+                "INSERT INTO audit_log(id, entry_id, account_id, data) VALUES (?, ?, ?, ?)",
+                (entry.id, entry.entry_id, entry.account_id, entry.data),
+            )
+            .await;
     }
 
     /// Sends an alert webhook with the given webhook payload.

@@ -62,3 +62,19 @@ CREATE TABLE IF NOT EXISTS session (
 
 CREATE INDEX IF NOT EXISTS session_account_id_idx ON session(account_id);
 CREATE INDEX IF NOT EXISTS session_api_key_idx ON session(api_key);
+
+CREATE TABLE IF NOT EXISTS audit_log(
+  id INTEGER PRIMARY KEY,
+  entry_id INTEGER REFERENCES directory_entry(id),
+  account_id INTEGER REFERENCES account(id),
+  data TEXT NOT NULL -- JSON data
+);
+
+CREATE INDEX IF NOT EXISTS audit_log_account_id_idx ON audit_log(account_id);
+CREATE INDEX IF NOT EXISTS audit_log_entry_id_idx ON audit_log(entry_id);
+
+-- This trigger has to be remade if the limit ever changes
+CREATE TRIGGER IF NOT EXISTS cleanup_audit_log AFTER INSERT ON audit_log
+BEGIN
+  DELETE FROM audit_log WHERE id <= cast((julianday('now') - 2440587.5)*86400.0 * 1000 as integer) - (180 * 86400000);
+END;

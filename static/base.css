@@ -631,6 +631,15 @@ a.nav-item.with-icon:hover {
   cursor: pointer;
 }
 
+a.history {
+  width: 24px;
+  height: 24px;
+}
+
+a.history:hover {
+  opacity: 0.8;
+}
+
 
 /* modals */
 ::backdrop {

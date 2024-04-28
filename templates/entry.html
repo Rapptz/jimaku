@@ -58,6 +58,11 @@
     {% if entry.flags.is_external() -%}
     <span class="badge info" title="Entry originated from Kitsunekko">Legacy</span>
     {% endif -%}
+    {% if flags.is_editor() -%}
+    <a class="history" href="/logs?entry_id={{ entry.id }}">
+      <img alt="History icon" src="/static/history.svg" width="24px" height="24px">
+    </a>
+    {% endif -%}
   </div>
 </div>
 <div id="relations"></div>

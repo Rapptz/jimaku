@@ -19,6 +19,7 @@ use crate::{models::DirectoryEntry, AppState};
 
 mod admin;
 mod api;
+mod audit;
 mod auth;
 mod entry;
 
@@ -143,5 +144,6 @@ pub fn all() -> Router<AppState> {
         .merge(auth::routes())
         .merge(entry::routes())
         .merge(admin::routes())
+        .merge(audit::routes())
         .nest("/api", api::routes())
 }

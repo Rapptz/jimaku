@@ -25,6 +25,11 @@ My Account · Jimaku
     {% if user.flags.is_editor() -%}
     <span class="badge info" title="User is an editor">Editor</span>
     {% endif -%}
+    {% if account.flags.is_editor() -%}
+    <a class="history" href="/logs?account_id={{ user.id }}">
+      <img alt="History icon" src="/static/history.svg" width="24px" height="24px">
+    </a>
+    {% endif -%}
   </div>
 </div>
 <div class="commands">

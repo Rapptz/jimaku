@@ -8,6 +8,89 @@ const rtf = new Intl.RelativeTimeFormat(undefined, {
   style: 'long', numberic: 'auto',
 });
 
+function __parseQuery(query) {
+  let chunks = query.split(/([.#])/);
+  let classList = [];
+  let id = null;
+  for(let i = 1; i < chunks.length; i += 2) {
+    if(chunks[i] === '.') {
+      classList.push(chunks[i + 1]);
+    } else if(chunks[i] === '#') {
+      id = chunks[i + 1];
+    }
+  }
+  return {classList, tag: chunks[0] || 'div', id};
+}
+
+function __create(query) {
+  const {classList, tag, id} = __parseQuery(query);
+  let el = document.createElement(tag);
+  if(id !== null) el.id = id;
+  if(classList.length !== 0) el.classList.add(...classList);
+  return el;
+}
+
+function __setData(el, key, value) {
+  if(typeof key === 'object') {
+    for(const k in key) {
+      __setData(el, k, key[k]);
+    }
+    return;
+  }
+  if(value == null) {
+    delete el.dataset[key];
+  } else{
+    el.dataset[key] = value;
+  }
+}
+
+function __setAttr(el, key, value) {
+  if(typeof key === 'object') {
+    for(const k in key) {
+      __setAttr(el, k, key[k]);
+    }
+    return;
+  }
+  const isFunc = typeof value === 'function';
+  if(key === 'dataset') {
+    __setData(el, value);
+  } else if((key in el || isFunc) && (key !== 'list')) {
+    el[key] = value;
+  } else {
+    if(el.className && key === 'class') {
+      value = `${el.className} ${value}`;
+    }
+    if(value == null) {
+      el.removeAttribute(key);
+    } else {
+      el.setAttribute(key, value);
+    }
+  }
+}
+
+function __expandArgs(el, args) {
+  for(const arg of args) {
+    const type = typeof arg;
+    if(type === 'function') {
+      arg(el);
+    } else if(type === 'string' || type === 'number') {
+      el.appendChild(new Text(arg ?? ''));
+    } else if(arg && arg.nodeType) {
+      el.appendChild(arg);
+    } else if(Array.isArray(arg)) {
+      __expandArgs(el, arg);
+    } else if(type === 'object') {
+      __setAttr(el, arg, null);
+    }
+  }
+}
+
+function html(query, ...args) {
+  let el = __create(query);
+  __expandArgs(el, args);
+  return el;
+}
+
 const getAnilistId = (url) => {
   const m = url.match(anilistRegex);
   return m == null || m.length !== 2 ? null : parseInt(m[1], 10);

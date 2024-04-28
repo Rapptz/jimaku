@@ -29,6 +29,7 @@ use tracing::{info, warn};
 
 use crate::{
     anilist::{Media, MediaTitle},
+    audit::{AuditLogEntry, ScrapeDirectory, ScrapeResult},
     models::EntryFlags,
     AppState,
 };
@@ -178,6 +179,7 @@ pub async fn get_entries(client: &reqwest::Client, url: &str) -> anyhow::Result<
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Fixture {
     pub path: PathBuf,
+    pub original_name: String,
     #[serde(with = "time::serde::timestamp")]
     pub last_updated_at: OffsetDateTime,
     pub anilist_id: Option<u32>,
@@ -315,6 +317,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 potential_dupes.insert(
                     media.id,
                     Fixture {
+                        original_name: entry.name.clone(),
                         path: directory.clone(),
                         last_updated_at: entry.date,
                         anilist_id: Some(media.id),
@@ -331,6 +334,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
             result.push(Fixture {
                 path: directory.clone(),
                 last_updated_at: entry.date,
+                original_name: entry.name.clone(),
                 anilist_id: None,
                 title: MediaTitle::new(entry.name.clone()),
                 contains_zip: entry.contains_zip(),
@@ -429,21 +433,38 @@ pub async fn auto_scrape_loop(state: AppState) {
         match result {
             Ok(fixtures) => {
                 let new_date = fixtures.iter().map(|x| x.last_updated_at).max();
-                let total = fixtures.len();
-                let preview =
-                    crate::utils::join_iter("\n", fixtures.iter().map(|x| format!("- {}", x.title.romaji)).take(25));
+                let mut scrape = ScrapeResult {
+                    directories: fixtures
+                        .iter()
+                        .map(|f| ScrapeDirectory {
+                            original_name: f.original_name.clone(),
+                            name: f.title.romaji.clone(),
+                            anilist_id: f.anilist_id,
+                        })
+                        .collect(),
+                    error: false,
+                    date: new_date,
+                };
                 if let Err(e) = commit_fixtures(&state, fixtures).await {
                     tracing::error!(error = %e, "Error occurred while committing fixtures");
+                    scrape.error = true;
                 } else if let Some(dt) = new_date {
                     date = dt;
+                    let preview = crate::utils::join_iter(
+                        "\n",
+                        scrape.directories.iter().map(|x| format!("- {}", x.name)).take(25),
+                    );
                     state.send_alert(
                         crate::discord::Alert::success("Scraped from Kitsunekko")
+                            .url("/logs")
                             .description(preview)
-                            .field("Total", total),
+                            .field("Total", scrape.directories.len()),
                     );
                 }
+                state.audit(AuditLogEntry::new(scrape)).await;
             }
             Err(e) => {
+                state.audit(AuditLogEntry::new(ScrapeResult::errored())).await;
                 tracing::error!(error = %e, "Error occurred while scraping Kitsunekko");
             }
         }

@@ -179,6 +179,24 @@ pub mod expand_flags {
     {
         Ok(EntryFlags::from(ExpandedEntryFlags::deserialize(deserializer)?))
     }
+
+    pub mod option {
+        use super::*;
+
+        pub fn serialize<S>(value: &Option<EntryFlags>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            value.map(ExpandedEntryFlags::from).serialize(serializer)
+        }
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<EntryFlags>, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            Ok(Option::<ExpandedEntryFlags>::deserialize(deserializer)?.map(EntryFlags::from))
+        }
+    }
 }
 
 /// An entry that contains subtitles.

@@ -7,7 +7,7 @@ use crate::headers::Referrer;
 use crate::models::{Account, AccountCheck, DirectoryEntry, EntryFlags};
 use crate::ratelimit::RateLimit;
 use crate::utils::{is_over_length, FRAGMENT};
-use crate::{discord, filters};
+use crate::{audit, filters};
 use crate::{tmdb, AppState};
 use anyhow::{bail, Context};
 use askama::Template;
@@ -33,7 +33,6 @@ use tokio::task::JoinSet;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeFile;
-use tracing::info;
 use utoipa::ToSchema;
 
 /// Represents a file entry, e.g. a subtitle or a ZIP file or whatever else.
@@ -266,7 +265,6 @@ pub async fn raw_create_directory_entry(
         RETURNING id;
     "#;
     let path_string = path_string.to_owned();
-    let wh = state.clone();
     let romaji = names.romaji.clone();
     let response = state
         .database()
@@ -310,16 +308,16 @@ pub async fn raw_create_directory_entry(
         .await;
 
     if let Ok((entry_id, _)) = &response {
-        info!(
-            entry_id,
-            name = &romaji,
-            tmdb_id = pending.tmdb_id.map(|id| id.to_string()),
-            anilist_id = pending.anilist_id,
+        let audit_data = audit::CreateEntry {
+            anime: pending.anime,
             api,
-            account.id,
-            account.name,
-            "Directory entry created"
-        );
+            name: romaji.clone(),
+            tmdb_id: pending.tmdb_id,
+            anilist_id: pending.anilist_id,
+        };
+        state
+            .audit(audit::AuditLogEntry::full(audit_data, *entry_id, account.id))
+            .await;
         let anilist_url = match pending.anilist_id {
             Some(id) => format!("https://anilist.co/anime/{id}"),
             None => String::from("Unknown"),
@@ -333,8 +331,8 @@ pub async fn raw_create_directory_entry(
         } else {
             format!("New Entry: {romaji}")
         };
-        wh.send_alert(
-            discord::Alert::success(title)
+        state.send_alert(
+            crate::discord::Alert::success(title)
                 .url(format!("/entry/{entry_id}"))
                 .account(account)
                 .field("Anime", pending.anime)
@@ -481,55 +479,66 @@ async fn edit_directory_entry(
     // maybe refactor this?
     let mut columns = Vec::with_capacity(11);
     let mut params: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::with_capacity(11);
+    let mut audit_data = audit::EditEntry::default();
     let flags = payload.apply_flags(entry.flags);
 
     if entry.name != payload.name {
         columns.push("name");
+        audit_data.before.name = Some(entry.name);
+        audit_data.after.name = Some(payload.name.clone());
         params.push(Box::new(payload.name));
     }
     if entry.japanese_name != payload.japanese_name {
         columns.push("japanese_name");
+        audit_data.before.japanese_name = entry.japanese_name;
+        audit_data.after.japanese_name = payload.japanese_name.clone();
         params.push(Box::new(payload.japanese_name));
     }
     if entry.english_name != payload.english_name {
         columns.push("english_name");
+        audit_data.before.english_name = entry.english_name;
+        audit_data.after.english_name = payload.english_name.clone();
         params.push(Box::new(payload.english_name));
     }
     if entry.anilist_id != payload.anilist_id {
         columns.push("anilist_id");
+        audit_data.before.anilist_id = entry.anilist_id;
+        audit_data.after.anilist_id = payload.anilist_id;
         params.push(Box::new(payload.anilist_id));
     }
     if entry.tmdb_id != payload.tmdb_id {
         columns.push("tmdb_id");
+        audit_data.before.tmdb_id = entry.tmdb_id;
+        audit_data.after.tmdb_id = payload.tmdb_id;
         params.push(Box::new(payload.tmdb_id));
     }
     if entry.notes != payload.notes {
         columns.push("notes");
+        audit_data.before.notes = entry.notes;
+        audit_data.after.notes = payload.notes.clone();
         params.push(Box::new(payload.notes));
     }
     if entry.flags != flags {
         columns.push("flags");
+        audit_data.before.flags = Some(entry.flags);
+        audit_data.after.flags = Some(flags);
         params.push(Box::new(flags));
     }
 
     if !columns.is_empty() {
         params.push(Box::new(entry_id));
         let query = DirectoryEntry::update_query(&columns);
+        audit_data.changed = columns.into_iter().map(String::from).collect();
         match state
             .database()
             .execute(query, rusqlite::params_from_iter(params))
             .await
         {
             Ok(_) => {
-                let changed = columns.join(", ");
                 state.cached_directories().invalidate().await;
-                info!(entry_id, changed, account.id, account.name, "Entry was edited");
-                state.send_alert(
-                    discord::Alert::info(format!("Entry Edited: {}", entry.name))
-                        .account(account)
-                        .field("Changed", changed)
-                        .url(format!("/entry/{entry_id}")),
-                );
+                state
+                    .audit(audit::AuditLogEntry::full(audit_data, entry_id, account.id))
+                    .await;
                 flasher.add(FlashMessage::success("Successfully edited entry."));
                 Redirect::to(&url).into_response()
             }
@@ -637,21 +646,21 @@ async fn move_directory_entries(
     let Some(entry) = state.get_directory_entry_path(from_entry_id).await else {
         return Err(ApiError::not_found("Directory entry not found."));
     };
-    let (entry_id, path) = match payload.entry_id {
+    let (entry_id, path, mut audit_data) = match payload.entry_id {
         Some(entry_id) => {
             let Some(path) = state.get_directory_entry_path(entry_id).await else {
                 return Err(ApiError::not_found(format!("Directory entry {entry_id} not found.")));
             };
-            (entry_id, path)
+            (entry_id, path, audit::MoveEntry::new(entry_id))
         }
         None => {
-            raw_create_directory_entry(
+            let (entry_id, path) = raw_create_directory_entry(
                 &state,
                 account.clone(),
                 PendingDirectoryEntry {
                     anilist_id: payload.anilist_id,
                     tmdb_id: payload.tmdb_id,
-                    name: payload.name,
+                    name: payload.name.clone(),
                     anime: payload.anime,
                     titles: None,
                     flags: None,
@@ -659,16 +668,29 @@ async fn move_directory_entries(
                 },
                 false,
             )
-            .await?
+            .await?;
+            let audit_data = audit::MoveEntry {
+                anime: payload.anime,
+                name: payload.name.clone(),
+                tmdb_id: payload.tmdb_id,
+                anilist_id: payload.anilist_id,
+                entry_id,
+                created: true,
+                files: Vec::new(),
+            };
+            (entry_id, path, audit_data)
         }
     };
 
     let mut success = 0;
     let mut failed = 0;
+    audit_data.files.reserve(payload.files.len());
     for file in payload.files {
         let from = entry.join(&file);
         let to = path.join(&file);
-        match tokio::fs::rename(from, to).await {
+        let result = tokio::fs::rename(from, to).await;
+        audit_data.add_file(file, result.is_err());
+        match result {
             Ok(_) => success += 1,
             Err(_) => failed += 1,
         }
@@ -683,21 +705,9 @@ async fn move_directory_entries(
         .await;
 
     state.cached_directories().invalidate().await;
-
-    info!(
-        from_entry_id,
-        entry_id, success, failed, account.name, account.id, "Moved files"
-    );
-
-    state.send_alert(
-        discord::Alert::info("Moved files")
-            .account(account)
-            .inline_field("From", state.config().url_to(format!("/entry/{from_entry_id}")))
-            .inline_field("To", state.config().url_to(format!("/entry/{entry_id}")))
-            .empty_inline_field()
-            .inline_field("Success", success)
-            .inline_field("Failed", failed),
-    );
+    state
+        .audit(audit::AuditLogEntry::full(audit_data, from_entry_id, account.id))
+        .await;
     Ok(Json(BulkFileOperationResponse {
         entry_id,
         success,
@@ -732,14 +742,30 @@ async fn bulk_delete_files(
         if !account.flags.is_admin() {
             return Err(ApiError::forbidden());
         }
-        state
+        let name = state
             .database()
-            .execute("DELETE FROM directory_entry WHERE id = ?", [entry_id])
+            .get_row(
+                "DELETE FROM directory_entry WHERE id = ? RETURNING name",
+                [entry_id],
+                |r| r.get("name"),
+            )
             .await?;
         state.cached_directories().invalidate().await;
         tokio::fs::remove_dir_all(entry).await?;
+        state
+            .audit(audit::AuditLogEntry::full(
+                audit::DeleteEntry { name },
+                entry_id,
+                account.id,
+            ))
+            .await;
     } else {
         let trash = crate::trash::Trash::new()?;
+        let mut audit_data = audit::DeleteFiles {
+            permanent: account.flags.is_admin(),
+            files: Vec::with_capacity(payload.files.len()),
+            reason: None,
+        };
         let total = payload.files.len();
         let description = crate::utils::join_iter("\n", payload.files.iter().map(|x| format!("- {x}")).take(25));
         for file in payload.files {
@@ -749,14 +775,18 @@ async fn bulk_delete_files(
             } else {
                 trash.put(path, entry_id).await
             };
+            audit_data.add_file(file, result.is_err());
             match result {
                 Ok(_) => success += 1,
                 Err(_) => failed += 1,
             }
         }
+        state
+            .audit(audit::AuditLogEntry::full(audit_data, entry_id, account.id))
+            .await;
         state.send_alert(
-            discord::Alert::error("Deleted Files")
-                .url(format!("/entry/{entry_id}"))
+            crate::discord::Alert::error("Deleted Files")
+                .url(format!("/logs?entry_id={entry_id}"))
                 .description(description)
                 .account(account)
                 .field("Total", total)
@@ -791,27 +821,25 @@ async fn bulk_rename_files(
         return Err(ApiError::not_found("Directory entry not found."));
     };
 
+    let mut data = audit::RenameFiles {
+        files: Vec::with_capacity(files.len()),
+    };
     let mut success = 0;
     let mut failed = 0;
     for file in files {
         let from = entry.join(&file.from);
         let to = entry.join(&file.to);
-        match tokio::fs::rename(from, to).await {
+        let result = tokio::fs::rename(from, to).await;
+        data.add_file(file.from, file.to, result.is_err());
+        match result {
             Ok(_) => success += 1,
             Err(_) => failed += 1,
         }
     }
 
-    info!(entry_id, success, failed, account.name, account.id, "Renamed files");
-
-    state.send_alert(
-        discord::Alert::info("Renamed files")
-            .url(format!("/entry/{entry_id}"))
-            .account(account)
-            .inline_field("Success", success)
-            .inline_field("Failed", failed),
-    );
-
+    state
+        .audit(audit::AuditLogEntry::full(data, entry_id, account.id))
+        .await;
     Ok(Json(BulkFileOperationResponse {
         entry_id,
         success,
@@ -852,25 +880,6 @@ impl PendingFileEntry {
 struct ProcessedFiles {
     files: Vec<ProcessedFile>,
     skipped: usize,
-}
-
-impl ProcessedFiles {
-    fn to_formatted_list(&self, entry_path: &std::path::Path) -> String {
-        // Basically turns the files into e.g. - [name](url) items
-        let mut buffer = String::with_capacity(256);
-        for file in &self.files {
-            let Ok(path) = file.path.strip_prefix(entry_path) else {
-                continue;
-            };
-            let Some(name) = path.to_str() else {
-                continue;
-            };
-            buffer.push_str("- ");
-            buffer.push_str(name);
-            buffer.push('\n');
-        }
-        buffer
-    }
 }
 
 async fn verify_file(
@@ -958,15 +967,25 @@ pub async fn raw_upload_file(
 
     let mut errored = 0usize;
     let total = processed.files.len();
-    let as_list = processed.to_formatted_list(&entry);
+    let mut data = audit::Upload {
+        files: Vec::with_capacity(total),
+        api,
+    };
     let mut set = JoinSet::new();
     for file in processed.files.into_iter() {
-        set.spawn_blocking(move || file.write_to_disk());
+        set.spawn_blocking(move || {
+            let name = file.path.file_name().and_then(|x| x.to_str()).unwrap().to_owned();
+            let failed = file.write_to_disk().is_err();
+            audit::FileOperation { name, failed }
+        });
     }
 
     while let Some(task) = set.join_next().await {
         match task {
-            Ok(Ok(())) => continue,
+            Ok(op) => {
+                errored += op.failed as usize;
+                data.files.push(op);
+            }
             _ => errored += 1,
         }
     }
@@ -983,26 +1002,9 @@ pub async fn raw_upload_file(
         state.cached_directories().invalidate().await;
     }
 
-    info!(
-        entry_id,
-        total,
-        success = successful,
-        skipped = processed.skipped,
-        errors = errored,
-        account.id,
-        account.name,
-        "Files uploaded"
-    );
-
-    if successful {
-        let title = if api { "[API] Files uploaded" } else { "Files uploaded" };
-        state.send_alert(
-            discord::Alert::success(title)
-                .url(format!("/entry/{entry_id}"))
-                .account(account)
-                .description(as_list),
-        );
-    }
+    state
+        .audit(audit::AuditLogEntry::full(data, entry_id, account.id))
+        .await;
 
     Ok(UploadResult {
         errors: errored,

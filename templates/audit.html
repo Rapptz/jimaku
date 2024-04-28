@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/audit.css" type="text/css" />
+{% endblock %}
+
+{% block title %}
+Audit Logs · Jimaku
+{% endblock %}
+
+{% block body %}
+<h1>Audit Logs</h1>
+<div class="audit-log-entries">
+  <span id="loading">Loading...</span>
+</div>
+<div class="center">
+  <button class="hidden" id="load-more">Load more</button>
+</div>
+{% endblock %}
+
+{% block body_end %}
+<script src="/static/fuzzysort.min.js"></script>
+<script src="/static/audit.js"></script>
+{% endblock %}
