@@ -303,6 +303,10 @@ async function getAuditLogs(before) {
       loadMore.textContent = "No more entries";
     } else {
       loadMore.classList.add('hidden');
+      if(data.logs.length === 0) {
+        loadingElement.textContent = 'No entries!';
+        loadingElement.classList.remove('hidden');
+      }
     }
   } else {
     loadMore.textContent = "Load more";
