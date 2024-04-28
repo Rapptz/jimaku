@@ -27,6 +27,11 @@
             <a class="nav-item" href="/">Anime</a>
             <a class="nav-item" href="/dramas">Live Action</a>
             {% endblock %}
+            {% if let Some(account) = account %}
+            {% if account.flags.is_editor() %}
+            <a class="nav-item" href="/logs">Audit Logs</a>
+            {% endif %}
+            {% endif %}
             <span class="not-mobile nav-item spacer"></span>
           {% match account %}
             {% when Some with (account) %}
