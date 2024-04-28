@@ -297,9 +297,13 @@ async function getAuditLogs(before) {
 
   let data = await response.json();
   processData(data);
-  if(data.logs.length === 0) {
-    loadMore.disabled = true;
-    loadMore.textContent = "No more entries";
+  if(data.logs.length != 100) {
+    if(before) {
+      loadMore.disabled = true;
+      loadMore.textContent = "No more entries";
+    } else {
+      loadMore.classList.add('hidden');
+    }
   } else {
     loadMore.textContent = "Load more";
     loadMore.dataset.lastId = data.logs[data.logs.length - 1].id;
