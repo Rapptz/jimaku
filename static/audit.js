@@ -98,7 +98,7 @@ const auditLogTypes = Object.freeze({
       let href = `https://anilist.co/anime/${data.anilist_id}/`;
       content.push(html('li', 'Using ', html('a', href, {href})));
     }
-    let contents = elements.length === 0 ? null : html('ul', elements);
+    let contents = content.length === 0 ? null : html('ul', content);
     return auditLogEntry(log.id, title, contents);
   },
   move_entry: (data, log, info) => {
@@ -126,7 +126,7 @@ const auditLogTypes = Object.freeze({
     }
     let files = data.files.map(fileToElement);
     contents.push(html('li', html('span', simplePlural(data.files.length, 'File'), ':'), html('ul', files)));
-    return auditLogEntry(log.id, title, contents);
+    return auditLogEntry(log.id, title, html('ul', contents));
   },
   rename_files: (data, log, info) => {
     let title = [
