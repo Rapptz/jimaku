@@ -76,3 +76,18 @@
   cursor: default;
   opacity: 0.7;
 }
+
+
+li.file.failed {
+  list-style-type: '\274c\fe0f';
+  padding-inline-start: 1ch;
+}
+
+li.file.success {
+  list-style-type: '\2705\fe0f';
+  padding-inline-start: 1ch;
+}
+
+.fallback, .before, .after {
+  font-weight: bold;
+}
