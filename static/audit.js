@@ -146,7 +146,7 @@ const auditLogTypes = Object.freeze({
       ),
       html('tbody',data.files.map((f) => {
         return html('tr',
-          html('td', f.failed ? '\u2705\ufe0f' : '\u274c\ufe0f', {dataset: {th: 'Status'}}),
+          html('td', f.failed ? '\u274c\ufe0f' : '\u2705\ufe0f', {dataset: {th: 'Status'}}),
           html('td', f.from, {dataset: {th: 'Original'}}),
           html('td', f.to, {dataset: {th: 'Renamed'}})
         );
