@@ -36,7 +36,7 @@ const entryLink = (entry_id, info, fallback) => {
       }
     });
   }
-  return html('span.fallback', fallback != null ? fallback : entry_id);
+  return html('span.fallback', fallback != null ? fallback : html('a', entry_id, {href: `/entry/${entry_id}`}));
 }
 
 const simplePlural = (c, s) => c === 1 ? `${c} ${s}` : `${c} ${s}s`;
