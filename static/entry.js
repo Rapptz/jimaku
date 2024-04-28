@@ -407,6 +407,7 @@ async function deleteFiles() {
   if (files.length === 0) {
     payload.delete_parent = true;
   }
+  payload.reason = document.getElementById('delete-reason').value || null;
   let js = await callApi(`/entry/${entryId}`, {
     method: 'DELETE',
     headers: {
@@ -553,7 +554,14 @@ document.getElementById('confirm-move')?.addEventListener('click', (e) => {
 });
 document.getElementById('confirm-delete')?.addEventListener('click', (e) => {
   e.preventDefault();
-  deleteFiles();
+  let form = deleteModal.querySelector('form');
+  if(form.reportValidity()) {
+    deleteFiles();
+  }
+});
+deleteModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  deleteModal.close();
 });
 moveFilesButton?.addEventListener('click', () => moveModal?.showModal());
 moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {

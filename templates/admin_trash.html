@@ -11,10 +11,11 @@
     <button class="clear" tabindex="-1" id="clear-search-filter">✖&#xfe0e;</button>
   </div>
 </div>
-<div class="files" data-columns="4">
+<div class="files" data-columns="5">
   <div class="table-headers">
     <span class="table-header"><input id="bulk-check" autocomplete="off" type="checkbox"></span>
     <span class="table-header sorting-ascending" data-sort-by="name">Name</span>
+    <span class="table-header" data-sort-by="reason">Reason</span>
     <span class="table-header" data-sort-by="size">Size</span>
     <span class="table-header" data-sort-by="last-modified">Deleted</span>
   </div>
@@ -22,13 +23,15 @@
   <div class="entry"
        data-last-modified="{{ info.deletion_date.unix_timestamp() }}"
        data-name="{{ filename.display()|e }}"
-       data-size="{{ info.size }}">
+       data-size="{{ info.size }}"
+       data-reason="{{ info.reason|maybe_display }}">
     <span class="table-data file-bulk"><input autocomplete="off" type="checkbox"></span>
-    <span class="table-data">
+    <span class="table-data file-location">
       <a href="/entry/{{ info.entry_id }}">[{{ info.entry_id }}]</a>
       <span class="space"></span>
-      <a href="{{ trash.url_to(filename) }}" class="table-data file-name">{{ filename.display()|e }}</a>
+      <a href="{{ trash.url_to(filename) }}" class="file-name">{{ filename.display()|e }}</a>
     </span>
+    <span class="table-data file-reason">{{ info.reason|maybe_display }}</span>
     <span class="table-data file-size">{{ info.size|filesizeformat}}</span>
     <span class="table-data file-modified" title="{{ info.deletion_date|isoformat }}">{{ info.deletion_date|isoformat }}</span>
   </div>

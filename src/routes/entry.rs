@@ -720,6 +720,8 @@ struct BulkFilesPayload {
     files: Vec<String>,
     #[serde(default)]
     delete_parent: bool,
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 async fn bulk_delete_files(
@@ -735,6 +737,18 @@ async fn bulk_delete_files(
     let Some(entry) = state.get_directory_entry_path(entry_id).await else {
         return Err(ApiError::not_found("Directory entry not found."));
     };
+
+    if !account.flags.is_admin() && payload.reason.is_none() {
+        return Err(ApiError::new("Reason must be provided"));
+    }
+
+    if let Some(reason) = payload.reason.as_deref() {
+        if reason.is_empty() {
+            return Err(ApiError::new("Reason cannot be empty"));
+        } else if reason.len() > 512 {
+            return Err(ApiError::new("Reason can only be up to 512 characters long"));
+        }
+    }
 
     let mut success = 0;
     let mut failed = 0;
@@ -764,7 +778,7 @@ async fn bulk_delete_files(
         let mut audit_data = audit::DeleteFiles {
             permanent: account.flags.is_admin(),
             files: Vec::with_capacity(payload.files.len()),
-            reason: None,
+            reason: payload.reason.clone(),
         };
         let total = payload.files.len();
         let description = crate::utils::join_iter("\n", payload.files.iter().map(|x| format!("- {x}")).take(25));
@@ -773,7 +787,7 @@ async fn bulk_delete_files(
             let result = if account.flags.is_admin() {
                 tokio::fs::remove_file(path).await
             } else {
-                trash.put(path, entry_id).await
+                trash.put(path, entry_id, payload.reason.clone()).await
             };
             audit_data.add_file(file, result.is_err());
             match result {

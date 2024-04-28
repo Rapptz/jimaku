@@ -95,3 +95,9 @@ li.file.success {
 .fallback, .before, .after {
   font-weight: bold;
 }
+
+.reason {
+  padding-left: 2rem;
+  margin-top: 1rem;
+  display: inline-block;
+}

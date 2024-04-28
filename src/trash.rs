@@ -27,6 +27,8 @@ pub struct TrashInfo {
     pub deletion_date: OffsetDateTime,
     pub size: u64,
     pub entry_id: i64,
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 pub type TrashListing = HashMap<PathBuf, TrashInfo>;
@@ -67,7 +69,7 @@ impl Trash {
     /// Puts the file in the trash.
     ///
     /// This does not trash directories.
-    pub async fn put(&self, path: PathBuf, entry_id: i64) -> std::io::Result<()> {
+    pub async fn put(&self, path: PathBuf, entry_id: i64, reason: Option<String>) -> std::io::Result<()> {
         let (new_location, info_location) = match path.file_name().and_then(|s| s.to_str()) {
             Some(filename) => {
                 let filename = format!("{entry_id}_{filename}");
@@ -81,6 +83,7 @@ impl Trash {
             deletion_date: OffsetDateTime::now_utc(),
             size: path.metadata()?.len(),
             entry_id,
+            reason,
         };
 
         tokio::task::spawn_blocking(move || -> std::io::Result<()> {

@@ -75,6 +75,10 @@
   grid-template-columns: min-content minmax(0, 1fr) repeat(2, max-content);
 }
 
+.files[data-columns="5"] {
+  grid-template-columns: min-content minmax(0, 1fr) repeat(3, max-content);
+}
+
 .table-header {
   border-bottom: 2px solid var(--table-border);
   padding: 0.25rem;
@@ -250,12 +254,21 @@ a.relation:not(:last-child)::after {
     grid-template-columns: min-content repeat(3, minmax(0, 1fr));
   }
 
+  .files[data-columns="5"] {
+    grid-template-columns: min-content repeat(4, minmax(0, 1fr));
+  }
+
   .files[data-columns="4"] > .entry > .file-bulk {
     border-bottom: none;
   }
 
   .files[data-columns="4"] > .entry > .file-name {
     grid-column: 2 / span 3;
+    border-bottom: none;
+  }
+
+  .files[data-columns="5"] > .entry > .file-location {
+    grid-column: 2 / span 4;
     border-bottom: none;
   }
 
@@ -270,6 +283,25 @@ a.relation:not(:last-child)::after {
 
   .files[data-columns="4"] > .entry > .file-modified {
     grid-column: 4;
+  }
+
+  .files[data-columns="5"] > .entry > .file-reason {
+    grid-column: 2 / span 4;
+    border-bottom: none;
+    text-align: right;
+  }
+
+  .files[data-columns="5"] > .entry > .file-bulk {
+    border-bottom: none;
+  }
+
+  .files[data-columns="5"] > .entry > .file-size {
+    grid-column: 1 / span 4;
+    text-align: right;
+  }
+
+  .files[data-columns="5"] > .table-headers > .table-header:nth-last-child(-n+3) {
+    text-align: right;
   }
 }
 

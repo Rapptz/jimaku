@@ -271,6 +271,11 @@
   <form>
     <h1>Are you sure?</h1>
     <p>This will delete <span id="delete-count"></span>.</p>
+    <div class="form-container">
+      <label for="delete-reason">Reason</label>
+      <input class="form-field" id="delete-reason" {% if !flags.is_admin() %}required{% endif %}
+             maxlength="512" autocomplete="off" type="text">
+    </div>
     <footer>
       <button id="confirm-delete" class="button danger">Delete</button>
       <button class="button" formmethod="dialog">Cancel</button>
