@@ -22,8 +22,8 @@ const userLink = (account_id, info) => {
   return html('span.fallback', `User ID ${account_id}`);
 }
 
-const entryLink = (entry_id, info, fallback) => {
-  let entry = info.entries[entry_id];
+const entryLink = (entry_id, info, fallback, initialEntry) => {
+  let entry = initialEntry ?? info.entries[entry_id];
   if(entry) {
     let name = getPreferredNameForEntry(entry);
     return html('a.entry-name', name, {
@@ -41,6 +41,32 @@ const entryLink = (entry_id, info, fallback) => {
 
 const simplePlural = (c, s) => c === 1 ? `${c} ${s}` : `${c} ${s}s`;
 const fileToElement = (op) => html('li.file', op.name, {class: op.failed ? 'failed' : 'success'});
+
+async function backfillScrapeResult(directories) {
+  if(directories.length === 0) return;
+
+  let anilist_ids = directories.filter(d => d.anilist_id != null).map(d => d.anilist_id);
+  let response = await fetch('/entry/relations', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({anilist_ids})
+  });
+
+  if(!response.ok) {
+    return;
+  }
+  let js = await response.json();
+  if(js.length === 0) return;
+  let lookup = Object.fromEntries(js.map(d => [d.anilist_id, d]));
+  directories.forEach(d => {
+    let entry = lookup[d.anilist_id];
+    if(entry != null) {
+      d.entry = entry;
+    }
+  });
+}
 
 const FLAG_NAMES = Object.freeze({
   anime: 'Anime',
@@ -74,8 +100,15 @@ const auditLogTypes = Object.freeze({
   scrape_result: (data, log, info) => {
     let title = data.error ? "Error scraping from Kitsunekko" : (data.directories.length === 0 ? "Checked Kitsunekko" : "Scraped from Kitsunekko");
     let elements = data.directories.map(d => {
-      let link = d.anilist_id !== null ? html('a', d.name, {href: `https://anilist.co/anime/${d.anilist_id}/`}) : d.name;
-      return html('li', link, ' (Original: ', html('span.original', d.original_name), ')');
+      let link = d.name;
+      if(d.entry != null) {
+        link = entryLink(d.entry.id, info, null, d.entry);
+      } else if(d.anilist_id !== null) {
+        link = html('a', d.name, {href: `https://anilist.co/anime/${d.anilist_id}/`});
+      }
+      let original_href = `https://kitsunekko.net/dirlist.php?dir=subtitles%2Fjapanese%2F${encodeURIComponent(d.original_name)}%2F`;
+      let original = html('a.original', d.original_name, {href: original_href});
+      return html('li', link, ' (Original: ', original, ')');
     });
     let contents = elements.length === 0 ? null : html('ul', elements);
     return auditLogEntry(log.id, title, contents);
@@ -268,7 +301,9 @@ const auditLogTypes = Object.freeze({
   }
 });
 
-function processData(info) {
+async function processData(info) {
+  let scraped_directories = info.logs.filter(l => l.data.type === 'scrape_result').map(l => l.data.directories).flat();
+  await backfillScrapeResult(scraped_directories);
   for(const log of info.logs) {
     let data = log.data;
     let parser = auditLogTypes[data.type];
@@ -296,7 +331,7 @@ async function getAuditLogs(before) {
   }
 
   let data = await response.json();
-  processData(data);
+  await processData(data);
   if(data.logs.length != 100) {
     if(before) {
       loadMore.disabled = true;
