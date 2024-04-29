@@ -1,3 +1,5 @@
+/* This file is licensed under AGPL-3.0 */
+
 const loadingElement = document.getElementById('loading');
 const loadMore = document.getElementById('load-more');
 const dtFormat = new Intl.DateTimeFormat(undefined, {
