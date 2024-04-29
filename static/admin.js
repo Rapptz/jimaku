@@ -40,6 +40,7 @@ function getActiveUsers(requests) {
   return unique.size;
 }
 
+const stripPrefix = (s, prefix) => s.startsWith(prefix) ? s.slice(prefix.length) : s;
 const isDownloadLog = (d) => /\/entry\/\d+\/(?:bulk|download)/.test(d?.span?.['http.url'] || "");
 
 function getAverageResponseTime(requests) {
@@ -100,7 +101,7 @@ function getSearchEngine(url) {
 }
 
 function getReferringSites(requests) {
-  let counter = requests.map(d => d?.span?.['http.referrer'] || "").filter(r => !r.startsWith(window.location.origin) && r.length != 0).reduce((count, referrer) => {
+  let counter = requests.map(d => d?.span?.['http.referrer'] || "").filter(r => r.indexOf(window.location.hostname) === -1 && r.length != 0).reduce((count, referrer) => {
     if (count.hasOwnProperty(referrer)) {
       count[referrer] += 1;
     } else {
@@ -139,7 +140,8 @@ function getReferringSites(requests) {
 }
 
 function getPopularRoutes(requests) {
-  let counter = requests.map(d => d?.span?.['http.url'] || "").filter(r => r.length != 0).reduce((count, route) => {
+  let counter = requests.map(d => d?.span?.['http.url'] || "").filter(r => r.length !== 0).reduce((count, route) => {
+    route = stripPrefix(route, window.location.origin);
     if (count.hasOwnProperty(route)) {
       count[route] += 1;
     } else {
