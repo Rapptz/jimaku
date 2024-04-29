@@ -114,7 +114,7 @@ function resetSearchFilter() {
   filterElement.value = "";
 }
 
-const __scoreByName = (el, query) => {
+function __scoreByName(el, query) {
   let total = __score(el.getAttribute('data-name'), query);
   let native = el.getAttribute('data-japanese-name');
   if (native !== null) {
