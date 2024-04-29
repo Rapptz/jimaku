@@ -19,7 +19,11 @@ use tower_http::{
 use tracing::{error, info};
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
 use tracing_subscriber::{
-    filter::Targets, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Layer as _,
+    filter::{LevelFilter, Targets},
+    fmt::format::FmtSpan,
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    Layer as _,
 };
 
 fn unwrap_infallible<T>(result: Result<T, Infallible>) -> T {
@@ -29,9 +33,9 @@ fn unwrap_infallible<T>(result: Result<T, Infallible>) -> T {
     }
 }
 
-fn setup_logging() -> anyhow::Result<WorkerGuard> {
+fn setup_logging() -> anyhow::Result<(WorkerGuard, WorkerGuard)> {
     let rust_log_var = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-    let log_filter = Targets::from_str(&rust_log_var)?;
+    let log_filter = Targets::from_str(&rust_log_var)?.with_target("bad_request", LevelFilter::OFF);
     let file_appender = tracing_appender::rolling::Builder::new()
         .max_log_files(60)
         .symlink("today.log")
@@ -39,17 +43,36 @@ fn setup_logging() -> anyhow::Result<WorkerGuard> {
         .filename_suffix("log")
         .build(jimaku::utils::logs_directory())?;
 
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    let bad_request_filter = Targets::new().with_target("bad_request", tracing::Level::INFO);
+    let bad_request = tracing_appender::rolling::Builder::new()
+        .max_log_files(5)
+        .symlink("bad_requests.log")
+        .rotation(Rotation::DAILY)
+        .filename_prefix("bad_requests")
+        .filename_suffix("log")
+        .build(jimaku::utils::logs_directory())?;
+
+    let (non_blocking_main, main_guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking_bad_req, bad_req_guard) = tracing_appender::non_blocking(bad_request);
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
                 .json()
-                .with_writer(non_blocking)
+                .with_writer(non_blocking_main)
                 .with_span_events(FmtSpan::CLOSE)
                 .with_filter(log_filter),
         )
+        .with(
+            tracing_subscriber::fmt::layer()
+                .compact()
+                .with_ansi(false)
+                .with_level(false)
+                .with_target(false)
+                .with_writer(non_blocking_bad_req)
+                .with_filter(bad_request_filter),
+        )
         .init();
-    Ok(guard)
+    Ok((main_guard, bad_req_guard))
 }
 
 fn database_directory() -> anyhow::Result<PathBuf> {

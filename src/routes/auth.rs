@@ -6,6 +6,7 @@ use crate::{
     flash::{FlashMessage, Flasher, Flashes},
     headers::Referrer,
     key::SecretKey,
+    logging::BadRequestReason,
     models::{is_valid_username, Account, AccountFlags, DirectoryEntry, Session},
     ratelimit::RateLimit,
     token::{Token, TokenRejection},
@@ -268,7 +269,11 @@ async fn login_form(
     };
     match result {
         Ok(r) => r,
-        Err(e) => flasher.add(e.error.into_owned()).bail("/login"),
+        Err(e) => {
+            let mut response = flasher.add(e.error.into_owned()).bail("/login");
+            response.extensions_mut().insert(BadRequestReason::IncorrectLogin);
+            response
+        }
     }
 }
 

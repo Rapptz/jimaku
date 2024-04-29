@@ -9,7 +9,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::models::Account;
+use crate::{logging::BadRequestReason, models::Account};
 
 #[derive(Template)]
 #[template(path = "error.html")]
@@ -120,7 +120,12 @@ impl<'de> Deserialize<'de> for ApiErrorCode {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (self.status_code(), Json(self)).into_response()
+        let incorrect_login = self.code == ApiErrorCode::IncorrectLogin;
+        let mut response = (self.status_code(), Json(self)).into_response();
+        if incorrect_login {
+            response.extensions_mut().insert(BadRequestReason::IncorrectLogin);
+        }
+        response
     }
 }
 

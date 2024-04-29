@@ -2,6 +2,7 @@
 
 use std::{
     future::Future,
+    net::{IpAddr, SocketAddr},
     pin::Pin,
     task::{Context, Poll},
     time::Instant,
@@ -9,7 +10,7 @@ use std::{
 
 use axum::{extract::Request, response::Response};
 use tower::{Layer, Service};
-use tracing::{field, info_span, instrument::Instrumented, Instrument, Span};
+use tracing::{event, field, info_span, instrument::Instrumented, Instrument, Level, Span};
 
 use crate::token::get_token_from_request;
 
@@ -28,6 +29,36 @@ impl<S> Layer<S> for HttpTrace {
 #[derive(Clone)]
 pub struct HttpTraceService<S> {
     inner: S,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum BadRequestReason {
+    BadRequest,
+    RateLimited,
+    IncorrectLogin,
+}
+
+impl BadRequestReason {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BadRequestReason::BadRequest => "Bad Request",
+            BadRequestReason::RateLimited => "Rate Limited",
+            BadRequestReason::IncorrectLogin => "Incorrect Login",
+        }
+    }
+
+    fn from_response(res: &Response) -> Self {
+        match res.extensions().get::<Self>() {
+            Some(ext) => *ext,
+            None => {
+                if res.status().as_u16() == 429 {
+                    Self::RateLimited
+                } else {
+                    Self::BadRequest
+                }
+            }
+        }
+    }
 }
 
 impl<S> Service<Request> for HttpTraceService<S>
@@ -56,6 +87,7 @@ where
 
         let referrer = req.headers().get("referer").and_then(|s| s.to_str().ok()).unwrap_or("");
 
+        let path = req.uri().path().to_string();
         let span = info_span!(
             "http request",
             http.method = %req.method(),
@@ -68,6 +100,11 @@ where
             user_id = field::Empty,
         );
 
+        let ip = req
+            .extensions()
+            .get::<axum::extract::ConnectInfo<SocketAddr>>()
+            .map(|addr| addr.ip());
+
         if let Some(token) = get_token_from_request(req.extensions()) {
             span.record("user_id", token.id);
         }
@@ -79,6 +116,8 @@ where
         PostFuture {
             inner: fut.instrument(span.clone()),
             span,
+            ip,
+            path,
             start,
         }
     }
@@ -93,6 +132,8 @@ pin_project_lite::pin_project! {
         #[pin]
         inner: F,
         span: Span,
+        ip: Option<IpAddr>,
+        path: String,
         start: Instant,
     }
 }
@@ -112,7 +153,14 @@ where
         let latency = this.start.elapsed();
         this.span.record("http.latency", latency.as_micros() as u64);
         if let Ok(res) = &res {
-            this.span.record("http.status_code", res.status().as_u16());
+            let status_code = res.status().as_u16();
+            this.span.record("http.status_code", status_code);
+            if (400..=499).contains(&status_code) {
+                let reason = BadRequestReason::from_response(res).as_str();
+                if let Some(ip) = this.ip {
+                    event!(name: "Bad Request", target: "bad_request", Level::INFO, %ip, reason, status_code, path = this.path);
+                }
+            }
         }
         res.into()
     }
