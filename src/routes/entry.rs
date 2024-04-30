@@ -883,7 +883,7 @@ pub struct PendingFileEntry {
 }
 
 impl PendingFileEntry {
-    pub fn write_to_disk(self, base_path: PathBuf) -> std::io::Result<()> {
+    pub fn write_to_disk(&self, base_path: PathBuf) -> std::io::Result<()> {
         let path = base_path.join(sanitise_file_name::sanitise(&self.name));
         let mut fp = std::fs::File::create(path)?;
         fp.write_all(&self.data)?;
@@ -1270,6 +1270,7 @@ async fn create_imported_entry(
     let path = pending.path(pending.titles.as_ref().unwrap().romaji.as_str(), pending.anime, &state);
     let anilist_id = pending.anilist_id;
     let tmdb_id = pending.tmdb_id;
+    let account_id = account.id;
 
     let (id, path) = match raw_create_directory_entry(&state, account, pending, false).await {
         Ok(p) => p,
@@ -1287,18 +1288,33 @@ async fn create_imported_entry(
     };
 
     let mut set = JoinSet::new();
+    let mut data = audit::Upload {
+        files: Vec::with_capacity(payload.files.len()),
+        api: false,
+    };
     for file in payload.files {
         let p = path.clone();
-        set.spawn_blocking(move || file.write_to_disk(p));
+        set.spawn_blocking(move || {
+            let failed = file.write_to_disk(p).is_err();
+            audit::FileOperation {
+                name: file.name,
+                failed,
+            }
+        });
     }
 
     let mut errors = 0;
     while let Some(task) = set.join_next().await {
         match task {
-            Ok(Ok(())) => continue,
+            Ok(op) => {
+                errors += op.failed as usize;
+                data.files.push(op);
+            }
             _ => errors += 1,
         }
     }
+
+    state.audit(audit::AuditLogEntry::full(data, id, account_id)).await;
 
     Ok(Json(ImportResult { entry_id: id, errors }))
 }
