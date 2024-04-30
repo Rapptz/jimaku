@@ -11,13 +11,13 @@ function __score(haystack, query) {
 
 const changeModifiedToRelative = () => {
   document.querySelectorAll('.file-modified').forEach(node => {
-    let lastModified = node.parentElement.getAttribute('data-last-modified');
+    let lastModified = node.parentElement.dataset.lastModified;
     if(/^[0-9]+$/.test(lastModified)) {
       const seconds = parseInt(lastModified, 10);
       node.textContent = formatRelative(seconds);
     } else{
       const date = Date.parse(lastModified);
-      node.parentElement.setAttribute('data-last-modified', date);
+      node.parentElement.dataset.lastModified = data;
       node.textContent = formatRelative(date / 1000);
     }
   });
@@ -28,7 +28,7 @@ const changeDisplayNames = (value) => {
   let key = keys[value];
   document.querySelectorAll('.entry > .file-name').forEach(el => {
     let parent = el.parentElement;
-    el.textContent = parent.getAttribute(key) ?? parent.getAttribute('data-name');
+    el.textContent = parent.getAttribute(key) ?? parent.dataset.name;
   });
 
   let el = document.querySelector('.entry-info > .title');
@@ -38,20 +38,20 @@ const changeDisplayNames = (value) => {
   }
 
   document.querySelectorAll('.relation.file-name').forEach(el => {
-    el.textContent = el.getAttribute(key) ?? el.getAttribute('data-name');
+    el.textContent = el.getAttribute(key) ?? el.dataset.name;
   });
 }
 
 const parseEntryObjects = () => {
   document.querySelectorAll('.entry[data-extra]').forEach(el => {
-    const obj = JSON.parse(el.getAttribute('data-extra'));
+    const obj = JSON.parse(el.dataset.extra);
     for (const attr in obj) {
       if (obj[attr] === null) {
         continue;
       }
       el.setAttribute(`data-${attr.replaceAll('_', '-')}`, obj[attr]);
     }
-    el.removeAttribute('data-extra');
+    delete el.dataset.extra;
   });
 };
 
@@ -115,12 +115,12 @@ function resetSearchFilter() {
 }
 
 function __scoreByName(el, query) {
-  let total = __score(el.getAttribute('data-name'), query);
-  let native = el.getAttribute('data-japanese-name');
+  let total = __score(el.dataset.name, query);
+  let native = el.dataset.japaneseName;
   if (native !== null) {
     total = Math.max(total, __score(native, query));
   }
-  let english = el.getAttribute('data-english-name');
+  let english = el.dataset.englishName;
   if (english !== null) {
     total = Math.max(total, __score(english, query));
   }
@@ -149,7 +149,7 @@ function filterEntries(query) {
   let mapped = [];
   if (anilistId !== null) {
     mapped = entries.map(e => {
-      let id = e.getAttribute('data-anilist-id');
+      let id = e.dataset.anilistId;
       return {
         entry: e,
         score: id !== null && parseInt(id, 10) === anilistId ? 0 : MIN_SCORE,
@@ -158,7 +158,7 @@ function filterEntries(query) {
   } else if (tmdb !== null) {
     let tmdbId = `${tmdb.type}:${tmdb.id}`;
     mapped = entries.map(e => {
-      let id = e.getAttribute('data-tmdb-id');
+      let id = e.dataset.tmdbId;
       return {
         entry: e,
         score: id !== null && id == tmdbId ? 0 : MIN_SCORE,
@@ -191,6 +191,6 @@ settings.addEventListener('preferred-name', (e) => changeDisplayNames(e.detail))
 
 document.getElementById('clear-search-filter')?.addEventListener('click', resetSearchFilter);
 document.querySelectorAll('.table-header[data-sort-by]').forEach(el => {
-  el.addEventListener('click', e => sortBy(e, el.getAttribute('data-sort-by')))
+  el.addEventListener('click', e => sortBy(e, el.dataset.sortBy))
 });
 filterElement?.addEventListener('input', debounced(e => filterEntries(e.target.value)))

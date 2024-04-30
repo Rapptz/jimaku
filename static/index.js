@@ -10,16 +10,16 @@ function checkDuplicate() {
   if(anilistUrl !== null) {
     let anilistId = getAnilistId(anilistUrl.value);
     return [...document.querySelectorAll('.entry')].find(e => {
-      let id = e.getAttribute('data-anilist-id');
-      let name = e.getAttribute('data-name');
+      let id = e.dataset.anilistId;
+      let name = e.dataset.name;
       return (id !== null && anilistId !== null && parseInt(id, 10) === anilistId) || (dir !== null && name === dir.value);
     });
   } else if(tmdbUrl !== null) {
     let tmdb = getTmdbId(tmdbUrl.value);
     let tmdbId = tmdb == null ? null : `${tmdb.type}:${tmdb.id}`;
     return [...document.querySelectorAll('.entry')].find(e => {
-      let id = e.getAttribute('data-tmdb-id');
-      let name = e.getAttribute('data-name');
+      let id = e.dataset.tmdbId;
+      let name = e.dataset.name;
       return (id !== null && tmdbId !== null && id === tmdbId) || (dir !== null && name === dir.value);
     });
   } else {

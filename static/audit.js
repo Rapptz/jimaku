@@ -11,7 +11,7 @@ settings.addEventListener('preferred-name', (value) => {
   let keys = {'romaji':'data-name', 'native':'data-japanese-name', 'english':'data-english-name'};
   let key = keys[value];
   document.querySelectorAll('.entry-name').forEach(el => {
-    el.textContent = el.getAttribute(key) ?? el.getAttribute('data-name');
+    el.textContent = el.getAttribute(key) ?? el.dataset.name
   });
 });
 

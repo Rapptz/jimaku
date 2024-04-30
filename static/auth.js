@@ -50,8 +50,8 @@ document.querySelector('#change-password-modal .button[formmethod="dialog"]')?.a
 });
 const toggleEditor = document.getElementById('toggle-editor');
 toggleEditor?.addEventListener('click', async () => {
-  let editor = toggleEditor.getAttribute('data-editor') == 'false';
-  let resp = await callApi(toggleEditor.getAttribute('data-endpoint'), {
+  let editor = toggleEditor.dataset.editor == 'false';
+  let resp = await callApi(toggleEditor.dataset.endpoint, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',

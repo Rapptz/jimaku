@@ -24,12 +24,12 @@ function innerSortBy(attribute, ascending) {
 }
 
 function __scoreByName(el, query) {
-  let total = Math.max(__score(el.getAttribute('data-name'), query), __score(el.getAttribute('data-reason'), query));
-  let native = el.getAttribute('data-japanese-name');
+  let total = Math.max(__score(el.dataset.name, query), __score(el.dataset.reason, query));
+  let native = el.dataset.japaneseName;
   if (native !== null) {
     total = Math.max(total, __score(native, query));
   }
-  let english = el.getAttribute('data-english-name');
+  let english = el.dataset.englishName;
   if (english !== null) {
     total = Math.max(total, __score(english, query));
   }
