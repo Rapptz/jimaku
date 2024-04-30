@@ -27,6 +27,14 @@ function checkDuplicate() {
   }
 }
 
+function prefillSearchQuery() {
+  let query = new URL(window.location).searchParams.get('query');
+  if(query !== null) {
+    filterElement.value = query;
+    filterEntries(query);
+  }
+}
+
 const form = uploadModal.querySelector('form');
 confirmUpload.addEventListener('click', (e) => {
   e.preventDefault();
@@ -59,4 +67,5 @@ tmdbUrl?.addEventListener('input', () => {
   }
 });
 
+prefillSearchQuery();
 uploadButton?.addEventListener('click', () => uploadModal.showModal());
