@@ -50,19 +50,11 @@ class RenameOptions {
     for(let i = 0; i < this.files.length; ++i) {
       let original = this.files[i];
       let renamed = this.renamed[i];
-      let tr = document.createElement('tr');
-      let left = document.createElement('td');
-      left.setAttribute('data-th', 'Original');
-      left.textContent = original;
-      let right = document.createElement('td');
-      right.setAttribute('data-th', 'Renamed');
-      if(original != renamed) {
-        right.textContent = renamed;
-        right.classList.add('changed');
-      }
-      tr.appendChild(left);
-      tr.appendChild(right);
-      tbody.appendChild(tr);
+      let el = html('tr',
+        html('td', {dataset: {th: 'Original'}}, original),
+        html('td', {dataset: {th: 'Renamed'}}, original != renamed ? [renamed, {class: 'changed'}] : null),
+      );
+      tbody.appendChild(el);
     }
   }
 
@@ -288,18 +280,14 @@ async function populateAnimeRelations() {
   if(js.length === 0) return;
   div.innerHTML = '<span>Related</span>';
   for (const entry of js) {
-    let el = document.createElement('a');
-    el.href = `/entry/${entry.id}`
-    el.textContent = getPreferredNameForEntry(entry);
-    el.classList.add('relation');
-    el.classList.add('file-name');
-    el.setAttribute('data-name', entry.name);
-    if (entry.japanese_name !== null) {
-      el.setAttribute('data-japanese-name', entry.japanese_name);
-    }
-    if (entry.english_name !== null) {
-      el.setAttribute('data-english-name', entry.english_name);
-    }
+    let el = html('a.relation.file-name', getPreferredNameForEntry(entry), {
+      href: `/entry/${entry.id}`,
+      dataset: {
+        name: entry.name,
+        japaneseName: entry.japanese_name !== null ? entry.japanese_name : undefined,
+        englishName: entry.english_name !== null ? entry.english_name : undefined,
+      }
+    });
     div.appendChild(el);
   }
 }
@@ -331,11 +319,8 @@ async function downloadFiles() {
     }
     showAlert({level: 'error', content});
   } else {
-    const a = document.createElement('a');
     let blob = await resp.blob();
-    a.href = URL.createObjectURL(blob);
-    a.download = resp.headers.get("x-jimaku-filename");
-    a.classList.add("hidden");
+    const a = html('a.hidden', {href: URL.createObjectURL(blob), download: resp.headers.get("x-jimaku-filename")});
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

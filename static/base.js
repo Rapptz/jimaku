@@ -120,29 +120,14 @@ function formatRelative(seconds) {
   return rtf.format(Math.floor(dt / divisor), units[index]);
 }
 
-/**
- * @param  {Object} options
- * @param  {string?} options.level
- * @param  {string?} options.content
- * @return {HTMLDivElement}
- */
 function createAlert({content, level = 'info'}) {
-  const div = document.createElement('div');
-  div.classList.add('alert');
-  div.classList.add(level);
-  div.setAttribute('role', 'alert');
-  if (content) {
-    const p = document.createElement('p');
-    p.innerHTML = content;
-    div.appendChild(p);
-  }
-  const button = document.createElement('button');
-  button.setAttribute('aria-hidden', 'true');
-  button.setAttribute('type', 'button');
-  button.classList.add('close');
-  button.addEventListener('click', () => div.parentElement.removeChild(div));
-  div.appendChild(button);
-  return div
+  return html('div.alert', {role: 'alert', class: level},
+    content ? html('p', content) : null,
+    html('button.close', {
+      'aria-hidden': 'true',
+      type: 'button',
+      onclick: closeAlert,
+  }));
 }
 
 function closeAlert(e) {
