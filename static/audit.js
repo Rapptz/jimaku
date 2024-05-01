@@ -21,7 +21,7 @@ const userLink = (account_id, info) => {
   if(name) {
     return html('a', name, {href: `/user/${name}`});
   }
-  return html('span.fallback', `User ID ${account_id}`);
+  return html('span.fallback', account_id != null ? `User ID ${account_id}` : 'Unknown user');
 }
 
 const entryLink = (entry_id, info, fallback, initialEntry) => {
@@ -38,7 +38,8 @@ const entryLink = (entry_id, info, fallback, initialEntry) => {
       }
     });
   }
-  return html('span.fallback', fallback != null ? fallback : html('a', entry_id, {href: `/entry/${entry_id}`}));
+  let link = entry_id != null ? html('a', entry_id, {href: `/entry/${entry_id}`}) : 'Unknown entry';
+  return html('span.fallback', fallback != null ? fallback : link);
 }
 
 const simplePlural = (c, s) => c === 1 ? `${c} ${s}` : `${c} ${s}s`;
@@ -220,7 +221,7 @@ const auditLogTypes = Object.freeze({
     let title = [
       userLink(log.account_id, info),
       " deleted entry ",
-      data.name
+      html('strong', data.name)
     ];
     return auditLogEntry(log.id, title, null);
   },
