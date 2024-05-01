@@ -65,8 +65,8 @@ CREATE INDEX IF NOT EXISTS session_api_key_idx ON session(api_key);
 
 CREATE TABLE IF NOT EXISTS audit_log(
   id INTEGER PRIMARY KEY,
-  entry_id INTEGER,
-  account_id INTEGER,
+  entry_id INTEGER REFERENCES directory_entry(id) ON DELETE SET NULL,
+  account_id INTEGER REFERENCES account(id) ON DELETE SET NULL,
   data TEXT NOT NULL -- JSON data
 );
 
