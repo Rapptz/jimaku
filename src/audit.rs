@@ -12,7 +12,7 @@ use crate::{database::Table, models::EntryFlags, tmdb};
 
 /// Audit log data for a created directory entry
 ///
-/// For this data, `entry_id` and `account_id` are never null.
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreateEntry {
     /// Whether the entry created was an anime one
@@ -72,7 +72,7 @@ pub struct FileOperation {
 
 /// Audit log data for a file move operation
 ///
-/// For this data, `entry_id` and `account_id` are never null.
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoveEntry {
     /// Whether the entry that was moved is an anime one.
@@ -126,7 +126,7 @@ pub struct RenamedFile {
 
 /// Audit log data for a rename operation
 ///
-/// For this data, `entry_id` and `account_id` are never null.
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RenameFiles {
     pub files: Vec<RenamedFile>,
@@ -140,7 +140,7 @@ impl RenameFiles {
 
 /// Audit log data for a file upload operation
 ///
-/// For this data, `entry_id` and `account_id` are never null.
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Upload {
     pub files: Vec<FileOperation>,
@@ -155,7 +155,7 @@ impl Upload {
 
 /// Audit log data for a file delete operation
 ///
-/// For this data, `entry_id` and `account_id` are never null.
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeleteFiles {
     pub files: Vec<FileOperation>,
@@ -174,7 +174,7 @@ impl DeleteFiles {
 
 /// Audit log data for an entry delete operation
 ///
-/// For this data, `entry_id` and `account_id` are never null.
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeleteEntry {
     /// The name of the deleted entry
@@ -203,7 +203,7 @@ pub struct EntrySnapshot {
 
 /// Audit log data for an entry edit operation
 ///
-/// For this data, `entry_id` and `account_id` are never null.
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EditEntry {
     /// The state of the entry before the edit
