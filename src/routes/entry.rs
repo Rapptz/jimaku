@@ -745,7 +745,8 @@ async fn bulk_delete_files(
     if let Some(reason) = payload.reason.as_deref() {
         if reason.is_empty() {
             return Err(ApiError::new("Reason cannot be empty"));
-        } else if reason.len() > 512 {
+        }
+        if reason.len() > 512 {
             return Err(ApiError::new("Reason can only be up to 512 characters long"));
         }
     }
@@ -803,6 +804,7 @@ async fn bulk_delete_files(
                 .url(format!("/logs?entry_id={entry_id}"))
                 .description(description)
                 .account(account)
+                .field("Reason", payload.reason.as_deref().unwrap_or("None"))
                 .field("Total", total)
                 .field("Failed", failed),
         );
