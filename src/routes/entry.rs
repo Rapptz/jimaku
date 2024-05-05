@@ -766,14 +766,18 @@ async fn bulk_delete_files(
             )
             .await?;
         state.cached_directories().invalidate().await;
-        tokio::fs::remove_dir_all(entry).await?;
+        let result = tokio::fs::remove_dir_all(entry).await;
         state
             .audit(audit::AuditLogEntry::full(
-                audit::DeleteEntry { name },
+                audit::DeleteEntry {
+                    name,
+                    failed: result.is_err(),
+                },
                 entry_id,
                 account.id,
             ))
             .await;
+        result?;
     } else {
         let trash = crate::trash::Trash::new()?;
         let mut audit_data = audit::DeleteFiles {

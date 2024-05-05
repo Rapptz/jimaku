@@ -223,7 +223,8 @@ const auditLogTypes = Object.freeze({
       " deleted entry ",
       html('strong', data.name)
     ];
-    return auditLogEntry(log.id, title, null);
+    let contents = data.failed ? html('span.failed', 'The directory could not be deleted') : null;
+    return auditLogEntry(log.id, title, contents);
   },
   trash_action: (data, log, info) => {
     let title = [

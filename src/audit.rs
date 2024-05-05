@@ -179,6 +179,9 @@ impl DeleteFiles {
 pub struct DeleteEntry {
     /// The name of the deleted entry
     pub name: String,
+    /// Whether the deletion of the directory failed
+    #[serde(default)]
+    pub failed: bool,
 }
 
 /// Inner audit log data that represents a snapshot of the entry being edited
