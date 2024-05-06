@@ -23,7 +23,11 @@ use anyhow::{bail, Context};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io::Write, path::PathBuf, sync::OnceLock};
-use time::{format_description::FormatItem, macros::format_description, OffsetDateTime, PrimitiveDateTime};
+use time::{
+    format_description::FormatItem,
+    macros::{format_description, offset},
+    OffsetDateTime, PrimitiveDateTime,
+};
 use tokio::task::JoinSet;
 use tracing::{info, warn};
 
@@ -169,7 +173,7 @@ pub async fn get_entries(client: &reqwest::Client, url: &str) -> anyhow::Result<
             anyhow::Ok(File {
                 url,
                 name: sanitise_file_name::sanitise(&cap["name"]),
-                date: PrimitiveDateTime::parse(&cap["date"], DATE_FORMAT)?.assume_utc(),
+                date: PrimitiveDateTime::parse(&cap["date"], DATE_FORMAT)?.assume_offset(offset!(+02:00)),
             })
         })
         .collect()
