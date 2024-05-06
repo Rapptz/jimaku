@@ -74,13 +74,17 @@ impl AppState {
     ///
     /// Errors are silently dropped, since they can't be handled anyway.
     pub async fn audit(&self, entry: AuditLogEntry) {
-        let _ = self
+        let err = self
             .database()
             .execute(
                 "INSERT INTO audit_log(id, entry_id, account_id, data) VALUES (?, ?, ?, ?)",
                 (entry.id, entry.entry_id, entry.account_id, entry.data),
             )
             .await;
+
+        if let Err(e) = err {
+            tracing::error!(error=%e, "Could not insert audit log entry");
+        }
     }
 
     /// Sends an alert webhook with the given webhook payload.
