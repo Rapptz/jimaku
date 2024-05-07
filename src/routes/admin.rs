@@ -113,6 +113,20 @@ async fn admin_index(account: Account) -> Result<AdminIndexTemplate, StatusCode>
     })
 }
 
+async fn admin_user_by_id(
+    State(state): State<AppState>,
+    account: Account,
+    Path(user_id): Path<i64>,
+) -> Result<Redirect, StatusCode> {
+    if !account.flags.is_admin() {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    match state.get_account(user_id).await {
+        Some(acc) => Ok(Redirect::to(&format!("/user/{}", acc.name))),
+        None => Ok(Redirect::to("/")),
+    }
+}
+
 async fn invalidate_caches(
     State(state): State<AppState>,
     account: Account,
@@ -229,6 +243,7 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/logs", get(get_last_logs))
         .route("/admin/logs/:date", get(get_logs_from))
         .route("/admin", get(admin_index))
+        .route("/admin/user/:id", get(admin_user_by_id))
         .route("/admin/trash", get(show_trash).post(trash_management))
         .route("/admin/trash/download/*path", get(download_trash))
         .route("/admin/cache/invalidate", get(invalidate_caches))
