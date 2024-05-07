@@ -19,6 +19,7 @@ const updateInfo = document.getElementById('update-info');
 const dropZone = document.getElementById('file-upload-drop-zone');
 let lastDraggedTarget = null;
 let currentRenameOption = null;
+const counterRenameRegex = /\$\{(?:(?:(start|increment)=(\d+))(?:,\s*)?(?:(start|increment)=(\d+))?)?\}/ig;
 
 class RenameOptions {
   constructor() {
@@ -30,6 +31,9 @@ class RenameOptions {
     this.caseSensitive = document.getElementById('rename-case-sensitive').checked;
     this.applyTo = document.getElementById('rename-apply').value;
     this.caseTransform = document.getElementById('rename-text-formatting').value;
+    this.counterInfo = {};
+    this.currentIndex = 0;
+    this.repl = this.repl.replaceAll(counterRenameRegex, (m, p1, p2, p3, p4, offset) => this.parseCounterInfo(p1, p2, p3, p4, offset));
 
     let flags = '';
     if(!this.caseSensitive) flags += 'i';
@@ -43,6 +47,25 @@ class RenameOptions {
 
     this.files = getSelectedFiles().map(e => e.textContent);
     this.renamed = this.files.map(f => this.rename(f));
+  }
+
+  parseCounterInfo(p1, p2, p3, p4, offset) {
+    let obj = {
+      start: 1,
+      increment: 1,
+    };
+    let increment = p1 === 'increment' ? p2 : (p3 === 'increment' ? p4 : null);
+    let start = p1 === 'start' ? p2 : (p3 === 'start' ? p4 : null);
+    if(increment !== null) obj.increment = parseInt(increment, 10);
+    if(start !== null) obj.start = parseInt(start, 10);
+    this.counterInfo[offset] = obj;
+    return `{__internal_jimaku_counter:${offset}}`;
+  }
+
+  replaceCounterInfo(counter) {
+    let info = this.counterInfo[counter];
+    let result = info.start + this.currentIndex * info.increment;
+    return result.toString();
   }
 
   updateTable(tbody) {
@@ -64,7 +87,15 @@ class RenameOptions {
 
   replace(s) {
     if(this.isEmpty) return s;
-    return this.matchAll ? s.replaceAll(this.search, this.repl).trim() : s.replace(this.search, this.repl).trim();
+    let initial = this.matchAll ? s.replaceAll(this.search, this.repl).trim() : s.replace(this.search, this.repl).trim();
+    if(this.counterInfo.length === 0) {
+      return initial;
+    }
+    let final = initial.replaceAll(/{__internal_jimaku_counter:(\d+)}/g, (m, p1) => this.replaceCounterInfo(p1));
+    if(initial != s) {
+      this.currentIndex += 1;
+    }
+    return final;
   }
 
   transformCase(s) {
