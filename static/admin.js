@@ -12,13 +12,20 @@ const downloadCount = document.getElementById('download-count');
 const referringSites = document.getElementById('referring-sites');
 const popularRoutes = document.getElementById('popular-routes');
 const recentLogs = document.getElementById('recent-logs');
+const popularApiRoutes = document.getElementById('popular-api-routes');
+const popularApiUsers = document.getElementById('popular-api-users');
 
+let baseUrl = `${window.location.protocol}//${window.location.host}`;
 const styles = getComputedStyle(document.documentElement);
 let logs = [];
 
 const isMultiDay = () => logSelect.value.endsWith('-days');
 const httpRequestLogs = () => logs.filter(data => data?.span?.name === 'http request');
 const nonStaticHttpRequests = () => httpRequestLogs().filter(data => data?.span?.['http.url']?.startsWith('/static/') === false);
+const logToUrl = (data) => {
+  let url = data?.span?.['http.url'];
+  return url != null ? new URL(url, baseUrl) : null;
+}
 
 async function getLogs(value) {
   let endpoint = '/admin/logs/today';
@@ -51,6 +58,10 @@ function getAverageResponseTime(requests) {
 const isSpanSuccess = (data) => {
   let code = data?.span?.['http.status_code'];
   return code !== null && code >= 200 && code < 400;
+}
+
+const spanToUserData = (data) => {
+  return { user_id: data?.span?.user_id, success: isSpanSuccess(data), url: logToUrl(data), download: isDownloadLog(data) };
 }
 
 function getSuccessRate(requests) {
@@ -140,8 +151,8 @@ function getReferringSites(requests) {
 }
 
 function getPopularRoutes(requests) {
-  let counter = requests.map(d => d?.span?.['http.url'] || "").filter(r => r.length !== 0).reduce((count, route) => {
-    route = stripPrefix(route, window.location.origin);
+  let counter = requests.map(logToUrl).filter(url => url !== null).reduce((count, url) => {
+    route = url.pathname;
     if (count.hasOwnProperty(route)) {
       count[route] += 1;
     } else {
@@ -166,6 +177,53 @@ function getPopularRoutes(requests) {
     tr.appendChild(f);
     tr.appendChild(c);
     tbody.appendChild(tr);
+  }
+}
+
+function getPopularApiRoutes(requests) {
+  let counter = requests.map(logToUrl).filter(url => url !== null && url.pathname.startsWith('/api/')).reduce((count, url) => {
+    route = url.pathname;
+    if (count.hasOwnProperty(route)) {
+      count[route] += 1;
+    } else {
+      count[route] = 1;
+    }
+    return count;
+  }, {});
+
+  let tbody = popularApiRoutes.querySelector('tbody');
+  tbody.innerHTML = '';
+  for (const [route, count] of Object.entries(counter).sort(([, a], [, b]) => b - a).slice(0, 25)) {
+    tbody.appendChild(html('tr',
+      html('td', route, { dataset: { th: 'Route' } }),
+      html('td', count.toLocaleString(), { dataset: { th: 'Calls' } })
+    ));
+  }
+}
+
+function getTopApiUsers(requests) {
+  let counter = requests.map(spanToUserData)
+    .filter(data => data.user_id != null && data.url !== null && (data.download || data.url.pathname.startsWith('/api/')))
+    .reduce((count, data) => {
+      let key = data.user_id;
+      if (count.hasOwnProperty(key)) {
+        let subkey = data.success ? 'success' : 'failed';
+        count[key][subkey] += 1;
+      } else {
+        count[key] = { success: data.success, failed: !data.success };
+      }
+      return count;
+    }, {});
+
+  let tbody = popularApiUsers.querySelector('tbody');
+  tbody.innerHTML = '';
+  for (const [user_id, counts] of Object.entries(counter).sort(([, a], [, b]) => (b.success + b.failed) - (a.success + a.failed)).slice(0, 25)) {
+    tbody.appendChild(html('tr',
+      html('td', html('a', user_id, { href: `/admin/user/${user_id}` }), { dataset: { th: 'User ID' } }),
+      html('td', counts.success + counts.failed, { dataset: { th: 'Total' } }),
+      html('td', counts.success, { dataset: { th: 'Success' } }),
+      html('td', counts.failed || '0', { dataset: { th: 'Failed' } }),
+    ));
   }
 }
 
@@ -212,6 +270,8 @@ function updateGraphs() {
   downloadCount.textContent = requests.filter(isDownloadLog).length.toLocaleString();
   getReferringSites(requests);
   getPopularRoutes(requests);
+  getPopularApiRoutes(requests);
+  getTopApiUsers(requests);
   getRecentServerLogs();
 }
 
