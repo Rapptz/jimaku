@@ -17,6 +17,7 @@ use utoipa::{
 };
 
 use crate::error::ApiError;
+pub use auth::{copy_api_token, ApiToken};
 
 #[derive(OpenApi)]
 #[openapi(

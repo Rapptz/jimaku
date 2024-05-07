@@ -23,6 +23,8 @@ mod audit;
 mod auth;
 mod entry;
 
+pub use api::{copy_api_token, ApiToken};
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct ListingTemplate<'a, It>

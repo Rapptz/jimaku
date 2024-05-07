@@ -155,6 +155,9 @@ where
         if let Ok(res) = &res {
             let status_code = res.status().as_u16();
             this.span.record("http.status_code", status_code);
+            if let Some(token) = res.extensions().get::<crate::ApiToken>() {
+                this.span.record("user_id", token.id);
+            }
             if (400..=499).contains(&status_code) {
                 let reason = BadRequestReason::from_response(res).as_str();
                 if let Some(ip) = this.ip {

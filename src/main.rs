@@ -128,6 +128,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .layer(jimaku::logging::HttpTrace)
         .layer(middleware::from_fn(jimaku::flash::process_flash_messages))
         .layer(middleware::from_fn(jimaku::parse_cookies))
+        .layer(middleware::from_fn_with_state(state.clone(), jimaku::copy_api_token))
         .layer(Extension(secret_key))
         .layer(Extension(jimaku::cached::BodyCache::new(Duration::from_secs(120))))
         .layer(DefaultBodyLimit::max(jimaku::MAX_BODY_SIZE))
