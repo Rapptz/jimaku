@@ -155,4 +155,6 @@
   background: var(--box);
   margin: 0.5rem 0;
   border-radius: 0.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
