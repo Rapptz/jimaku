@@ -301,6 +301,13 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
 
         let mut directory = subtitle_path.join(&entry.name);
         if let Some(entry_id) = redirects.get(&entry.name) {
+            info!(
+                "[{}/{}] redirecting {:?} to entry ID {}",
+                index + 1,
+                total,
+                &entry.name,
+                entry_id
+            );
             if let Some(original) = state.get_directory_entry(*entry_id).await {
                 directory = original.path;
                 let as_fixture = Fixture {
