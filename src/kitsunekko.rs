@@ -401,7 +401,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
         .call(move |conn| -> rusqlite::Result<()> {
             let sql = r#"
                 INSERT INTO directory_entry(path, last_updated_at, flags, anilist_id, tmdb_id, english_name, japanese_name, name)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT DO UPDATE
                 SET last_updated_at = MAX(last_updated_at, EXCLUDED.last_updated_at)
             "#;
