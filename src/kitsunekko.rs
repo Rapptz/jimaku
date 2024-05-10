@@ -35,7 +35,7 @@ use crate::{
     anilist::{Media, MediaTitle},
     audit::{AuditLogEntry, ScrapeDirectory, ScrapeResult},
     models::EntryFlags,
-    AppState,
+    tmdb, AppState,
 };
 
 fn regex() -> &'static Regex {
@@ -134,12 +134,6 @@ impl Directory {
         }
         Ok(())
     }
-
-    fn contains_zip(&self) -> bool {
-        self.files
-            .iter()
-            .any(|f| f.name.ends_with(".7z") || f.name.ends_with(".rar") || f.name.ends_with(".zip"))
-    }
 }
 
 /// Returns a list of file entries from the URL.
@@ -186,12 +180,11 @@ pub struct Fixture {
     pub original_name: String,
     #[serde(with = "time::serde::timestamp")]
     pub last_updated_at: OffsetDateTime,
-    pub anilist_id: Option<u32>,
-    pub title: MediaTitle,
-    pub contains_zip: bool,
-    pub edits_likely: bool,
     #[serde(default)]
-    pub in_database: bool,
+    pub anilist_id: Option<u32>,
+    #[serde(default)]
+    pub tmdb_id: Option<tmdb::Id>,
+    pub title: MediaTitle,
     #[serde(default)]
     pub movie: bool,
     #[serde(default)]
@@ -228,7 +221,7 @@ fn case_insensitive_search(title: &MediaTitle, query: &str) -> bool {
     base
 }
 
-async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Result<Option<(Media, bool)>> {
+async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Result<Option<Media>> {
     // The order of this is weird because I wanna rely on the response sort order before doing any
     // postprocessing, but doing it this way avoids the needless clone
     let has_parens = query.contains('(');
@@ -236,7 +229,7 @@ async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Resu
     let mut result = crate::anilist::search(client, query).await?;
 
     if result.len() == 1 {
-        return Ok(Some((result.swap_remove(0), false)));
+        return Ok(Some(result.swap_remove(0)));
     }
 
     if result.is_empty() {
@@ -256,16 +249,15 @@ async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Resu
 
     // Check if there's an exact match using case insensitive search
     if let Some(idx) = result.iter().position(|m| case_insensitive_search(&m.title, query)) {
-        return Ok(Some((result.swap_remove(idx), false)));
+        return Ok(Some(result.swap_remove(idx)));
     }
 
     match result.len() {
         0 => Ok(None),
-        1 => Ok(Some((result.swap_remove(0), true))),
+        1 => Ok(Some(result.swap_remove(0))),
         _ => Ok(result
             .into_iter()
-            .min_by_key(|m| levenshtein_distance(&m.title, &query_no_parens))
-            .map(|s| (s, true))),
+            .min_by_key(|m| levenshtein_distance(&m.title, &query_no_parens))),
     }
 }
 
@@ -299,12 +291,10 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
         }
 
         let mut directory = subtitle_path.join(&entry.name);
-        if let Ok(Some((media, edits_likely))) = get_anilist_info(&state.client, &entry.name).await {
+        if let Ok(Some(media)) = get_anilist_info(&state.client, &entry.name).await {
             if let Some(fixture) = potential_dupes.get_mut(&media.id) {
                 directory = fixture.path.clone();
-                fixture.contains_zip = fixture.contains_zip || entry.contains_zip();
                 fixture.last_updated_at = fixture.last_updated_at.max(entry.date);
-                fixture.edits_likely = fixture.edits_likely || edits_likely;
                 info!(
                     "entry {:?} is a duplicate with anilist ID of {}, downloading to original path {} instead",
                     &entry.name,
@@ -313,10 +303,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 );
             } else {
                 // Check if it this AniList ID exists in the database already
-                let mut in_database = false;
                 if let Some(path) = state.get_anilist_directory_entry_path(media.id).await {
                     directory = path;
-                    in_database = true;
                 }
                 potential_dupes.insert(
                     media.id,
@@ -325,12 +313,10 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                         path: directory.clone(),
                         last_updated_at: entry.date,
                         anilist_id: Some(media.id),
+                        tmdb_id: None,
                         adult: media.adult,
                         movie: media.is_movie(),
                         title: media.title,
-                        contains_zip: entry.contains_zip(),
-                        edits_likely,
-                        in_database,
                     },
                 );
             }
@@ -340,10 +326,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 last_updated_at: entry.date,
                 original_name: entry.name.clone(),
                 anilist_id: None,
+                tmdb_id: None,
                 title: MediaTitle::new(entry.name.clone()),
-                contains_zip: entry.contains_zip(),
-                edits_likely: true,
-                in_database: false,
                 adult: false,
                 movie: false,
             });
@@ -377,7 +361,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
         .database()
         .call(move |conn| -> rusqlite::Result<()> {
             let sql = r#"
-                INSERT INTO directory_entry(path, last_updated_at, flags, anilist_id, english_name, japanese_name, name)
+                INSERT INTO directory_entry(path, last_updated_at, flags, anilist_id, tmdb_id, english_name, japanese_name, name)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT DO UPDATE
                 SET last_updated_at = MAX(last_updated_at, EXCLUDED.last_updated_at)
@@ -387,7 +371,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
                 let mut stmt = tx.prepare(sql)?;
                 for fixture in fixtures {
                     let mut flags = EntryFlags::default();
-                    flags.set_low_quality(fixture.edits_likely || fixture.anilist_id.is_none());
+                    flags.set_low_quality(true);
                     flags.set_external(true);
                     flags.set_movie(fixture.movie);
                     flags.set_adult(fixture.adult);
@@ -396,6 +380,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
                         fixture.last_updated_at,
                         flags,
                         fixture.anilist_id,
+                        fixture.tmdb_id,
                         fixture.title.english,
                         fixture.title.native,
                         fixture.title.romaji,
