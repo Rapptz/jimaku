@@ -261,6 +261,14 @@ async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Resu
     }
 }
 
+async fn get_redirects(state: &AppState) -> Option<HashMap<String, i64>> {
+    let from_storage = state
+        .database()
+        .get_from_storage::<String>("kitsunekko_redirects")
+        .await?;
+    serde_json::from_str(&from_storage).ok()
+}
+
 pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Vec<Fixture>> {
     let mut potential_dupes: HashMap<u32, Fixture> = HashMap::new();
     let mut result = Vec::new();
@@ -278,6 +286,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
     directories.sort_by_key(|s| s.date);
     let subtitle_path = state.config().subtitle_path.as_path();
     let total = directories.len();
+    let redirects = get_redirects(state).await.unwrap_or_default();
     for (index, mut entry) in directories.into_iter().enumerate() {
         entry.find_files(&state.client, &date).await?;
         if entry.files.is_empty() {
@@ -291,7 +300,30 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
         }
 
         let mut directory = subtitle_path.join(&entry.name);
-        if let Ok(Some(media)) = get_anilist_info(&state.client, &entry.name).await {
+        if let Some(entry_id) = redirects.get(&entry.name) {
+            if let Some(original) = state.get_directory_entry(*entry_id).await {
+                directory = original.path;
+                let as_fixture = Fixture {
+                    path: directory.clone(),
+                    original_name: original.name.clone(),
+                    last_updated_at: entry.date,
+                    anilist_id: original.anilist_id,
+                    tmdb_id: original.tmdb_id,
+                    title: MediaTitle {
+                        romaji: original.name,
+                        english: original.english_name,
+                        native: original.japanese_name,
+                    },
+                    movie: original.flags.is_movie(),
+                    adult: original.flags.is_adult(),
+                };
+                if let Some(anilist_id) = original.anilist_id {
+                    potential_dupes.insert(anilist_id, as_fixture);
+                } else {
+                    result.push(as_fixture);
+                }
+            }
+        } else if let Ok(Some(media)) = get_anilist_info(&state.client, &entry.name).await {
             if let Some(fixture) = potential_dupes.get_mut(&media.id) {
                 directory = fixture.path.clone();
                 fixture.last_updated_at = fixture.last_updated_at.max(entry.date);
