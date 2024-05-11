@@ -19,7 +19,7 @@ const updateInfo = document.getElementById('update-info');
 const dropZone = document.getElementById('file-upload-drop-zone');
 let lastDraggedTarget = null;
 let currentRenameOption = null;
-const counterRenameRegex = /\$\{(?:(?:(start|increment)=(\d+))(?:,\s*)?(?:(start|increment)=(\d+))?)?\}/ig;
+const counterRenameRegex = /\$\{(?:(?:(start|increment|padding)=(\d+))(?:,\s*)?(?:(start|increment|padding)=(\d+))?)?(?:,\s*)?(?:(start|increment|padding)=(\d+))?\}/ig;
 
 class RenameOptions {
   constructor() {
@@ -33,7 +33,7 @@ class RenameOptions {
     this.caseTransform = document.getElementById('rename-text-formatting').value;
     this.counterInfo = {};
     this.currentIndex = 0;
-    this.repl = this.repl.replaceAll(counterRenameRegex, (m, p1, p2, p3, p4, offset) => this.parseCounterInfo(p1, p2, p3, p4, offset));
+    this.repl = this.repl.replaceAll(counterRenameRegex, (m, p1, p2, p3, p4, p5, p6, offset) => this.parseCounterInfo(p1, p2, p3, p4, p5, p6, offset));
 
     let flags = '';
     if(!this.caseSensitive) flags += 'i';
@@ -49,15 +49,14 @@ class RenameOptions {
     this.renamed = this.files.map(f => this.rename(f));
   }
 
-  parseCounterInfo(p1, p2, p3, p4, offset) {
-    let obj = {
-      start: 1,
-      increment: 1,
-    };
-    let increment = p1 === 'increment' ? p2 : (p3 === 'increment' ? p4 : null);
-    let start = p1 === 'start' ? p2 : (p3 === 'start' ? p4 : null);
-    if(increment !== null) obj.increment = parseInt(increment, 10);
-    if(start !== null) obj.start = parseInt(start, 10);
+  parseCounterInfo(p1, p2, p3, p4, p5, p6, offset) {
+    let obj = {};
+    if(p1 != null) obj[p1] = p2 ?? null;
+    if(p3 != null) obj[p3] = p4 ?? null;
+    if(p5 != null) obj[p5] = p6 ?? null;
+    obj.increment = obj.increment != null ? parseInt(obj.increment, 10) : 1;
+    obj.start = obj.start != null ? parseInt(obj.start, 10) : 1;
+    obj.padding = obj.padding != null ? parseInt(obj.padding, 10) : 0;
     this.counterInfo[offset] = obj;
     return `{__internal_jimaku_counter:${offset}}`;
   }
@@ -65,6 +64,9 @@ class RenameOptions {
   replaceCounterInfo(counter) {
     let info = this.counterInfo[counter];
     let result = info.start + this.currentIndex * info.increment;
+    if(info.padding !== 0) {
+      return result.toString().padStart(info.padding, '0');
+    }
     return result.toString();
   }
 
