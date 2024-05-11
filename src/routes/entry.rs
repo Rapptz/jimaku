@@ -688,11 +688,12 @@ async fn move_directory_entries(
     for file in payload.files {
         let from = entry.join(&file);
         let to = path.join(&file);
-        let result = tokio::fs::rename(from, to).await;
-        audit_data.add_file(file, result.is_err());
-        match result {
-            Ok(_) => success += 1,
-            Err(_) => failed += 1,
+        let error = to.exists() || tokio::fs::rename(from, to).await.is_err();
+        audit_data.add_file(file, error);
+        if error {
+            failed += 1;
+        } else {
+            success += 1;
         }
     }
 
@@ -848,11 +849,12 @@ async fn bulk_rename_files(
     for file in files {
         let from = entry.join(&file.from);
         let to = entry.join(&file.to);
-        let result = tokio::fs::rename(from, to).await;
-        data.add_file(file.from, file.to, result.is_err());
-        match result {
-            Ok(_) => success += 1,
-            Err(_) => failed += 1,
+        let errored = to.exists() || tokio::fs::rename(from, to).await.is_err();
+        data.add_file(file.from, file.to, errored);
+        if errored {
+            failed += 1;
+        } else {
+            success += 1;
         }
     }
 
@@ -874,7 +876,10 @@ struct ProcessedFile {
 
 impl ProcessedFile {
     fn write_to_disk(self) -> std::io::Result<()> {
-        let mut fp = std::fs::File::create(self.path)?;
+        let mut fp = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(self.path)?;
         fp.write_all(&self.bytes)?;
         Ok(())
     }
@@ -890,7 +895,7 @@ pub struct PendingFileEntry {
 impl PendingFileEntry {
     pub fn write_to_disk(&self, base_path: PathBuf) -> std::io::Result<()> {
         let path = base_path.join(sanitise_file_name::sanitise(&self.name));
-        let mut fp = std::fs::File::create(path)?;
+        let mut fp = std::fs::OpenOptions::new().write(true).create_new(true).open(path)?;
         fp.write_all(&self.data)?;
         Ok(())
     }
