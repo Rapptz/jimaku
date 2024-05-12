@@ -19,6 +19,7 @@ const updateInfo = document.getElementById('update-info');
 const dropZone = document.getElementById('file-upload-drop-zone');
 let lastDraggedTarget = null;
 let currentRenameOption = null;
+let checkboxAnchor = null;
 const counterRenameRegex = /\$\{(?:(?:(start|increment|padding)=(\d+))(?:,\s*)?(?:(start|increment|padding)=(\d+))?)?(?:,\s*)?(?:(start|increment|padding)=(\d+))?\}/ig;
 
 class RenameOptions {
@@ -397,6 +398,33 @@ bulkCheck?.addEventListener('click', () => {
   }
 });
 
+function handleCheckboxClick(e) {
+  if(e.ctrlKey) {
+    return;
+  }
+  if(!e.shiftKey) {
+    checkboxAnchor = e.target;
+    return;
+  }
+  let activeCheckboxes = [...document.querySelectorAll(checkedSelector)];
+  let startIndex = activeCheckboxes.indexOf(checkboxAnchor);
+  let endIndex = activeCheckboxes.indexOf(e.target);
+  if(startIndex == endIndex || startIndex == -1 || endIndex == -1) {
+    return;
+  }
+
+  if(startIndex > endIndex) {
+    let temp = endIndex;
+    endIndex = startIndex;
+    startIndex = temp;
+  }
+
+  for(let i = startIndex; i <= endIndex; ++i) {
+    let cb = activeCheckboxes[i];
+    cb.checked = true;
+  }
+}
+
 function setCheckboxState() {
   let checkboxes = [...document.querySelectorAll(checkedSelector)];
   let checked = checkboxes.reduce((prev, el) => prev + el.checked, 0);
@@ -593,7 +621,10 @@ try {
 catch(_) {}
 
 document.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
-  ch.addEventListener('click', setCheckboxState);
+  ch.addEventListener('click', (e) => {
+    handleCheckboxClick(e);
+    setCheckboxState();
+  });
 });
 
 uploadInput?.addEventListener('change', () => {
