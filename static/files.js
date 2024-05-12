@@ -112,6 +112,7 @@ function resetSearchFilter() {
   }
 
   filterElement.value = "";
+  document.dispatchEvent(new CustomEvent('entries-filtered'));
 }
 
 function __scoreByName(el, query) {
@@ -177,6 +178,8 @@ function filterEntries(query) {
     el.entry.classList.toggle('hidden', el.score <= MIN_SCORE);
     parentNode.appendChild(el.entry);
   });
+
+  document.dispatchEvent(new CustomEvent('entries-filtered'));
 }
 
 parseEntryObjects();

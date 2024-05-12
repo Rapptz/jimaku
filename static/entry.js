@@ -16,6 +16,9 @@ const uploadInput = document.getElementById('upload-file-input');
 
 const updateInfo = document.getElementById('update-info');
 
+const totalFileCount = document.getElementById('total-file-count');
+const selectedFileCount = document.getElementById('selected-file-count');
+
 const dropZone = document.getElementById('file-upload-drop-zone');
 let lastDraggedTarget = null;
 let currentRenameOption = null;
@@ -386,11 +389,13 @@ const bulkCheck = document.getElementById('bulk-check');
 bulkCheck?.addEventListener('click', () => {
   let indeterminate = bulkCheck.getAttribute('tribool') === 'yes';
   let checked = indeterminate ? false : bulkCheck.checked;
-  document.querySelectorAll(checkedSelector).forEach(ch => {
+  let selected = [...document.querySelectorAll(checkedSelector)];
+  for(const ch of selected) {
     ch.checked = checked;
-  });
+  }
 
   disableButtons(!checked);
+  updateFileCounts(checked ? selected.length : 0);
   if (indeterminate) {
     bulkCheck.checked = false;
     bulkCheck.indeterminate = false;
@@ -425,11 +430,24 @@ function handleCheckboxClick(e) {
   }
 }
 
+function updateFileCounts(checked) {
+  if(selectedFileCount) {
+    selectedFileCount.classList.toggle('hidden', checked === 0);
+    selectedFileCount.textContent = `${checked} file${checked !== 1 ? 's' : ''} selected`;
+  }
+
+  if(totalFileCount) {
+    let total = [...document.querySelectorAll('.entry:not(.hidden)')].length;
+    totalFileCount.textContent = `${total} file${total !== 1 ? 's' : ''}`;
+  }
+}
+
 function setCheckboxState() {
   let checkboxes = [...document.querySelectorAll(checkedSelector)];
   let checked = checkboxes.reduce((prev, el) => prev + el.checked, 0);
   let nothingChecked = checked === 0;
   disableButtons(nothingChecked);
+  updateFileCounts(checked);
 
   if(nothingChecked) {
     bulkCheck.checked = false;
@@ -614,11 +632,7 @@ moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click',
   e.preventDefault();
   moveModal.close();
 });
-document.getElementById('clear-search-filter')?.addEventListener('click', setCheckboxState);
-try {
-  filterElement.addEventListener('input', setCheckboxState);
-}
-catch(_) {}
+document.addEventListener('entries-filtered', setCheckboxState);
 
 document.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
   ch.addEventListener('click', (e) => {

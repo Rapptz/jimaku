@@ -241,6 +241,13 @@ a.relation:not(:last-child)::after {
   max-width: 100%;
 }
 
+#selected-file-count::before {
+  content: ' | ';
+}
+
+.file-count {
+  margin-left: auto;
+}
 
 .form-contents > table {
   padding: 0.5rem;
@@ -320,6 +327,10 @@ a.relation:not(:last-child)::after {
 
   #relations > span {
     flex-basis: auto;
+  }
+
+  .file-count {
+    margin-left: initial;
   }
 }
 
