@@ -118,6 +118,8 @@
     <button id="delete-files" class="button danger">Delete</button>
     <button id="rename-files" disabled class="button">Rename</button>
     <button id="move-files" disabled class="button">Move</button>
+    {% else %}
+    <button id="report-files" class="button danger">Report</button>
     {% endif %}
     <button id="download-files" disabled class="button primary">Download</button>
   </div>
@@ -287,6 +289,21 @@
   </form>
 </dialog>
 {% endif %}
+
+<dialog id="confirm-report-modal">
+  <form>
+    <h1>Report Entry</h1>
+    <p>You are reporting <span id="report-count"></span>.</p>
+    <div class="form-container">
+      <label for="report-reason">Reason</label>
+      <input class="form-field" id="report-reason" required maxlength="512" autocomplete="off" type="text">
+    </div>
+    <footer>
+      <button id="confirm-report" class="button danger">Report</button>
+      <button class="button" formmethod="dialog">Cancel</button>
+    </footer>
+  </form>
+</dialog>
 {% endblock %}
 
 {% block body_end %}

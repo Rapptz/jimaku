@@ -3,9 +3,11 @@ const editModal = document.getElementById('edit-entry-modal');
 const moveModal = document.getElementById('move-entries-modal');
 const renameModal = document.getElementById('rename-entries-modal');
 const deleteModal = document.getElementById('confirm-delete-modal');
+const reportModal = document.getElementById('confirm-report-modal');
 
 const editButton = document.getElementById('edit-entry');
 const deleteFilesButton = document.getElementById('delete-files');
+const reportFilesButton = document.getElementById('report-files');
 const downloadFilesButton = document.getElementById('download-files');
 const moveFilesButton = document.getElementById('move-files');
 const renameFilesButton = document.getElementById('rename-files');
@@ -498,6 +500,31 @@ async function deleteFiles() {
   }
 }
 
+async function reportFiles() {
+  let files = getSelectedFiles().map(e => e.textContent);
+  let payload = {files};
+  payload.reason = document.getElementById('report-reason').value;
+  let js = await callApi(`/entry/${entryId}/report`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if(js === null) {
+    return;
+  }
+
+  if(files.length === 0) {
+    showAlert({level: 'success', content: 'Successfully reported entry, editors and administrators have been notified.'});
+  } else {
+    let total = files.length;
+    showAlert({level: 'success', content: `Successfully reported ${total} file${total == 1 ? "s" : ""}, editors and administrators have been notified.`});
+  }
+  reportModal.close();
+}
+
 async function moveFiles() {
   let files = getSelectedFiles().map(e => e.textContent);
   if (files.length === 0) {
@@ -612,6 +639,12 @@ deleteFilesButton?.addEventListener('click', () => {
   span.textContent = files.length === 1 ? '1 file' : files.length === 0 ? `the entire entry` : `${files.length} files`;
   deleteModal.showModal();
 });
+reportFilesButton?.addEventListener('click', () => {
+  let files = getSelectedFiles();
+  let span = document.getElementById('report-count');
+  span.textContent = files.length === 1 ? '1 file' : files.length === 0 ? `the entire entry` : `${files.length} files`;
+  reportModal.showModal();
+});
 document.getElementById('confirm-move')?.addEventListener('click', (e) => {
   e.preventDefault();
   moveFiles();
@@ -623,9 +656,21 @@ document.getElementById('confirm-delete')?.addEventListener('click', (e) => {
     deleteFiles();
   }
 });
+document.getElementById('confirm-report')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  let form = reportModal.querySelector('form');
+  if(form.reportValidity()) {
+    reportFiles();
+    form.reset();
+  }
+});
 deleteModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {
   e.preventDefault();
   deleteModal.close();
+});
+reportModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  reportModal.close();
 });
 moveFilesButton?.addEventListener('click', () => moveModal?.showModal());
 moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {

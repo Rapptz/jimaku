@@ -822,6 +822,65 @@ async fn bulk_delete_files(
 }
 
 #[derive(Deserialize)]
+struct ReportPayload {
+    files: Vec<String>,
+    reason: String,
+}
+
+async fn report_entry(
+    State(state): State<AppState>,
+    Path(entry_id): Path<i64>,
+    account: Account,
+    Json(payload): Json<ReportPayload>,
+) -> Result<(), ApiError> {
+    let Some(entry) = state.get_directory_entry(entry_id).await else {
+        return Err(ApiError::not_found("Directory entry not found."));
+    };
+
+    if payload.reason.is_empty() {
+        return Err(ApiError::new("Reason cannot be empty"));
+    }
+    if payload.reason.len() > 512 {
+        return Err(ApiError::new("Reason can only be up to 512 characters long"));
+    }
+
+    let account_id = account.id;
+    let mut alert = crate::discord::Alert::error(format!("Entry Reported: {}", entry.name))
+        .url(format!("/entry/{entry_id}"))
+        .field("Reason", &payload.reason)
+        .account(account);
+    if payload.files.is_empty() {
+        state
+            .audit(audit::AuditLogEntry::full(
+                audit::ReportEntry {
+                    name: entry.name,
+                    reason: payload.reason,
+                },
+                entry_id,
+                account_id,
+            ))
+            .await;
+        state.send_alert(alert);
+    } else {
+        let description = crate::utils::join_iter("\n", payload.files.iter().map(|x| format!("- {x}")).take(25));
+        alert = alert.description(description);
+        state
+            .audit(audit::AuditLogEntry::full(
+                audit::ReportFiles {
+                    files: payload.files,
+                    reason: payload.reason,
+                },
+                entry_id,
+                account_id,
+            ))
+            .await;
+        state.send_alert(alert);
+    }
+
+    Ok(())
+}
+
+#[derive(Deserialize)]
 struct RenameFileRequest {
     from: String,
     to: String,
@@ -1344,14 +1403,18 @@ pub fn routes() -> Router<AppState> {
         .route("/entry/:id/move", post(move_directory_entries))
         .route("/entry/:id/rename", post(bulk_rename_files))
         .route("/entry/:id", delete(bulk_delete_files))
+        .route(
+            "/entry/:id/report",
+            post(report_entry).layer(RateLimit::default().build()),
+        )
         .route("/entry/search", get(search_directory_entries))
         .route(
             "/entry/:id/upload",
-            post(upload_file).layer(RateLimit::default().quota(5, 5.0).build()),
+            post(upload_file).layer(RateLimit::default().build()),
         )
         .route(
             "/entry/:id/bulk",
-            post(bulk_download).layer(RateLimit::default().quota(5, 5.0).build()),
+            post(bulk_download).layer(RateLimit::default().build()),
         )
         .route("/entry/relations", post(relations))
         .route("/entry/tmdb", get(tmdb_lookup))

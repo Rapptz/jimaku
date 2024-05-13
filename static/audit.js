@@ -226,6 +226,29 @@ const auditLogTypes = Object.freeze({
     let contents = data.failed ? html('span.failed', 'The directory could not be deleted') : null;
     return auditLogEntry(log.id, title, contents);
   },
+  report_files: (data, log, info) => {
+    let title = [
+      userLink(log.account_id, info),
+      " reported ",
+      simplePlural(data.files.length, 'file'),
+      " in ",
+      entryLink(log.entry_id, info),
+    ];
+    let contents = [
+      html('span.reason', html('strong', 'Reason: '), data.reason),
+      html('ul', data.files.map(fp => html('li.file', fp))),
+    ];
+    return auditLogEntry(log.id, title, contents);
+  },
+  report_entry: (data, log, info) => {
+    let title = [
+      userLink(log.account_id, info),
+      " reported entry ",
+      entryLink(log.entry_id, info, data.name)
+    ];
+    let contents = html('span.reason', html('strong', 'Reason: '), data.reason);
+    return auditLogEntry(log.id, title, contents);
+  },
   trash_action: (data, log, info) => {
     let title = [
       userLink(log.account_id, info),

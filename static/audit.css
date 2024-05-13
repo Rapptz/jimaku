@@ -101,3 +101,7 @@ li.file.success {
   margin-top: 1rem;
   display: inline-block;
 }
+
+.reason:only-child {
+  margin-bottom: 1rem;
+}

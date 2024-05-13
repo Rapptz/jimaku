@@ -174,7 +174,7 @@ impl DeleteFiles {
 
 /// Audit log data for an entry delete operation
 ///
-/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
+/// For this data, `entry_id` is null and `account_id` is null the data is deleted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeleteEntry {
     /// The name of the deleted entry
@@ -182,6 +182,25 @@ pub struct DeleteEntry {
     /// Whether the deletion of the directory failed
     #[serde(default)]
     pub failed: bool,
+}
+
+/// Audit log data for a file delete operation
+///
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReportFiles {
+    pub files: Vec<String>,
+    pub reason: String,
+}
+
+/// Audit log data for an entry delete operation
+///
+/// For this data, `entry_id` and `account_id` are only null if the data is deleted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReportEntry {
+    /// The name of the deleted entry
+    pub name: String,
+    pub reason: String,
 }
 
 /// Inner audit log data that represents a snapshot of the entry being edited
@@ -246,6 +265,20 @@ pub enum AuditLogData {
     DeleteEntry(DeleteEntry),
     TrashAction(TrashAction),
     EditEntry(EditEntry),
+    ReportFiles(ReportFiles),
+    ReportEntry(ReportEntry),
+}
+
+impl From<ReportEntry> for AuditLogData {
+    fn from(v: ReportEntry) -> Self {
+        Self::ReportEntry(v)
+    }
+}
+
+impl From<ReportFiles> for AuditLogData {
+    fn from(v: ReportFiles) -> Self {
+        Self::ReportFiles(v)
+    }
 }
 
 impl From<TrashAction> for AuditLogData {
