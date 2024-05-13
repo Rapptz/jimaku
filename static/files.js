@@ -5,9 +5,11 @@ const escapeRegex = (e) => e.replace(escapedRegex, '\\$&');
 const MIN_SCORE = -1500;
 
 function __score(haystack, query) {
-  let result = fuzzysort.single(query, haystack);
+  let result = fuzzysort.single(query, __removeDiacritics(haystack));
   return result?.score == null ? MIN_SCORE : result.score;
 }
+
+const __removeDiacritics = (str) => str.normalize('NFKD').replace(/[\u0300-\u036f]/g, "");
 
 const changeModifiedToRelative = () => {
   document.querySelectorAll('.file-modified').forEach(node => {
