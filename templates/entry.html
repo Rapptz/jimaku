@@ -118,7 +118,7 @@
     <button id="delete-files" class="button danger">Delete</button>
     <button id="rename-files" disabled class="button">Rename</button>
     <button id="move-files" disabled class="button">Move</button>
-    {% else %}
+    {% else if account.is_some() %}
     <button id="report-files" class="button danger">Report</button>
     {% endif %}
     <button id="download-files" disabled class="button primary">Download</button>
