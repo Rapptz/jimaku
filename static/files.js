@@ -9,7 +9,9 @@ function __score(haystack, query) {
   return result?.score == null ? MIN_SCORE : result.score;
 }
 
-const __removeDiacritics = (str) => str.normalize('NFKD').replace(/[\u0300-\u036f]/g, "");
+function __removeDiacritics(s) {
+  return s ? s.normalize('NFKD').replace(/[\u0300-\u036f]/g, "") : s;
+}
 
 const changeModifiedToRelative = () => {
   document.querySelectorAll('.file-modified').forEach(node => {
