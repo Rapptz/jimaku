@@ -1,3 +1,4 @@
+/* This file is licensed under AGPL-3.0 */
 import { init, parse } from "./anitomy.js";
 
 const entriesElement = document.getElementById('anilist-entries');
