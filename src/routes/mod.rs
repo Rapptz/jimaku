@@ -8,7 +8,7 @@ use crate::{
 };
 use askama::Template;
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     response::IntoResponse,
     routing::get,
     Extension, Router,
@@ -136,6 +136,17 @@ async fn bypass_download_zip_cors(
     Ok(response.bytes().await?)
 }
 
+#[derive(Template)]
+#[template(path = "anilist.html")]
+struct AniListTemplate {
+    account: Option<Account>,
+    user_name: String,
+}
+
+async fn show_anilist_page(account: Option<Account>, Path(user_name): Path<String>) -> impl IntoResponse {
+    AniListTemplate { account, user_name }
+}
+
 pub fn all() -> Router<AppState> {
     Router::new()
         .route("/", get(index))
@@ -143,6 +154,7 @@ pub fn all() -> Router<AppState> {
         .route("/help", get(help_page))
         .route("/contact", get(contact_page))
         .route("/download-zip", get(bypass_download_zip_cors))
+        .route("/anilist/:name", get(show_anilist_page))
         .merge(auth::routes())
         .merge(entry::routes())
         .merge(admin::routes())

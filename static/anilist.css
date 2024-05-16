@@ -1,0 +1,94 @@
+#anilist-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.anilist-entry {
+  border: 2px solid var(--box-border);
+  border-radius: 5px;
+}
+
+.anilist-entry > summary {
+  list-style: none;
+  display: flex;
+  background-color: var(--box-shade);
+  align-items: center;
+  padding: 0.5rem 1rem;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.anilist-entry > summary::after {
+  content: '\25B6';
+  transition: 0.2s;
+}
+
+.anilist-entry[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.anilist-entry[open] > summary {
+  border-radius: 5px 5px 0 0;
+  border-bottom: 2px solid var(--box-border);
+}
+
+details > .contents {
+  padding: 0.5rem 1rem;
+}
+
+.entry.filtered-episode > a.file-name {
+  color: var(--link-text-dimmed);
+}
+
+.cover {
+  background-position: 50%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border-radius: 3px;
+  height: 40px;
+  width: 40px;
+}
+
+.cover:hover {
+  opacity: 0.7;
+}
+
+.entry-name {
+  margin-left: 1rem;
+  margin-right: auto;
+}
+
+.progress {
+  margin: 0 0.5rem;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  align-content: center;
+}
+
+#load-more {
+  appearance: none;
+  border: 2px solid var(--box-border);
+  background-color: var(--box-shade);
+  color: var(--foreground);
+  border-radius: 5px;
+  height: 4rem;
+  width: 100%;
+  cursor: pointer;
+}
+
+#load-more:hover:not(:disabled) {
+  background-color: var(--box-border);
+  opacity: 0.9;
+}
+
+#load-more:disabled {
+  cursor: default;
+  opacity: 0.7;
+}

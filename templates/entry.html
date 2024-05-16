@@ -111,7 +111,7 @@
 <div class="commands">
   <div class="file-count">
     <span id="total-file-count">{{ files.len() }} file{% if files.len() != 1 %}s{% endif %}</span>
-    <span class="hidden" id="selected-file-count"></span>
+    <span class="hidden" class="selected-file-count" id="selected-file-count"></span>
   </div>
   <div class="command-buttons">
     {% if flags.is_editor() %}

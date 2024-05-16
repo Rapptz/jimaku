@@ -241,7 +241,7 @@ a.relation:not(:last-child)::after {
   max-width: 100%;
 }
 
-#selected-file-count::before {
+.selected-file-count::before {
   content: ' | ';
 }
 

@@ -140,13 +140,13 @@ class BulkFilesOperations {
       downloadFiles = null,
       totalFileCount = null,
       selectedFileCount = null,
-    },
+    } = {},
   ) {
     this.parent = table;
     this.entryId = entryId;
     this.currentRenameOption = null;
     this.checkboxAnchor = null;
-    this.bulkCheck = table.querySelector('.bulk-check');
+    this.bulkCheck = table?.querySelector('.bulk-check');
     this.deleteFilesButton = deleteFiles;
     this.renameFilesButton = renameFiles;
     this.moveFilesButton = moveFiles;
@@ -203,7 +203,7 @@ class BulkFilesOperations {
     this.renameFilesButton?.addEventListener('click', () => this.openRenameModal());
 
     document.addEventListener('entries-filtered', () => this.setCheckboxState());
-    this.parent.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
+    this.parent?.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
       ch.addEventListener('click', (e) => {
         this.handleCheckboxClick(e);
         this.setCheckboxState();
@@ -274,7 +274,11 @@ class BulkFilesOperations {
     });
   }
 
-  updateFileCounts(checked) {
+  updateFileCounts(checked = null) {
+    if(checked === null) {
+      let checkboxes = [...this.parent.querySelectorAll(this.constructor.checkedSelector)];
+      checked = checkboxes.reduce((prev, el) => prev + el.checked, 0);
+    }
     if(this.selectedFileCount) {
       this.selectedFileCount.classList.toggle('hidden', checked === 0);
       this.selectedFileCount.textContent = `${checked} file${checked !== 1 ? 's' : ''} selected`;
@@ -453,7 +457,7 @@ class BulkFilesOperations {
     }
 
     if(Object.keys(payload).length === 1) {
-      showModalAlert(moveModal, {level: 'error', content: 'Either a name, AniList URL, or TMDB URL is required'});
+      showModalAlert(this.moveModal, {level: 'error', content: 'Either a name, AniList URL, or TMDB URL is required'});
       return;
     }
 
@@ -470,7 +474,7 @@ class BulkFilesOperations {
     }
 
     let total = js.success + js.failed;
-    showModalAlert(moveModal, {level: 'success', content: `Successfully moved ${js.success}/${total} files, redirecting to folder in 5 seconds...`});
+    showModalAlert(this.moveModal, {level: 'success', content: `Successfully moved ${js.success}/${total} files, redirecting to folder in 5 seconds...`});
     await sleep(5000);
     window.location.href = `/entry/${js.entry_id}`;
   }
@@ -519,7 +523,7 @@ class BulkFilesOperations {
     }
 
     let total = js.success + js.failed;
-    showModalAlert(renameModal, {level: 'success', content: `Successfully renamed ${js.success}/${total} files, refreshing in 3 seconds...`});
+    showModalAlert(this.renameModal, {level: 'success', content: `Successfully renamed ${js.success}/${total} files, refreshing in 3 seconds...`});
     await sleep(3000);
     window.location.reload();
   }

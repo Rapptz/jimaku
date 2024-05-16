@@ -21,6 +21,7 @@ Help · Jimaku
         <li><a href="#searching">Searching</a></li>
         <li><a href="#account-management">Account Management</a></li>
         <li><a href="#downloading-files">Downloading Files</a></li>
+        <li><a href="#anilist-integration">AniList Integration</a></li>
         <li><a href="#reporting-files">Reporting Files</a></li>
         <li><a href="#changing-settings">Settings</a></li>
       </ul>
@@ -94,6 +95,20 @@ Help · Jimaku
   <h2 id="downloading-files">Downloading Files</h2>
   <p>
     You can download files by clicking on the link in the file entry. You can also bulk download files by selecting multiple files using the checkbox and then clicking the Download button. This will give you a ZIP file with all the subtitles you selected.
+  </p>
+  <h2 id="anilist-integration">AniList Integration</h2>
+  <p>
+    The site has support for reading a user's <a href="https://anilist.co/">AniList</a> account and having
+    a filtered view of the site's subtitles based off of the user's watching, rewatching, and planning lists.
+    This also filters watched episodes from the file list, to the best of the site's ability.
+  </p>
+  {%- let example_url = "/anilist/example"|canonical_url -%}
+  <p>
+    This feature is accessed by going to <code>{{ "/anilist/:username"|canonical_url }}</code> and replacing
+    <code>:username</code> with your username, for example if your username is <strong>example</strong> then visiting <a href='{{ example_url }}'>{{ example_url }}</a> will show you the integration.
+  </p>
+  <p>
+    It is important to note that your AniList anime list must be public for this feature to work for your account.
   </p>
   <h2 id="reporting-files">Reporting Files</h2>
   <p>

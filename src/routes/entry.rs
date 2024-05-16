@@ -1171,6 +1171,9 @@ async fn relations(
     State(state): State<AppState>,
     Json(requested): Json<RelationsRequest>,
 ) -> Result<Json<Vec<DirectoryEntry>>, ApiError> {
+    if requested.anilist_ids.len() > 250 {
+        return Err(ApiError::new("Can only request up to 250 AniList IDs"));
+    }
     let mut query = "SELECT * FROM directory_entry WHERE anilist_id IN (".to_string();
     for _ in &requested.anilist_ids {
         query.push('?');
@@ -1186,6 +1189,43 @@ async fn relations(
         .await?;
 
     Ok(Json(entries))
+}
+
+#[derive(Serialize)]
+struct EntryWithFiles {
+    entry: DirectoryEntry,
+    files: Vec<FileEntry>,
+}
+
+async fn get_full_data_from_anilist(
+    State(state): State<AppState>,
+    Json(requested): Json<RelationsRequest>,
+) -> Result<Json<Vec<EntryWithFiles>>, ApiError> {
+    if requested.anilist_ids.len() > 250 {
+        return Err(ApiError::new("Can only request up to 250 AniList IDs"));
+    }
+    let mut query = "SELECT * FROM directory_entry WHERE anilist_id IN (".to_string();
+    for _ in &requested.anilist_ids {
+        query.push('?');
+        query.push(',');
+    }
+    if query.ends_with(',') {
+        query.pop();
+    }
+    query.push(')');
+    let entries: Vec<DirectoryEntry> = state
+        .database()
+        .all(query, rusqlite::params_from_iter(requested.anilist_ids))
+        .await?;
+
+    let mut result = Vec::with_capacity(entries.len());
+    for entry in entries.into_iter() {
+        result.push(EntryWithFiles {
+            files: get_file_entries(entry.id, &entry.path).unwrap_or_default(),
+            entry,
+        });
+    }
+    Ok(Json(result))
 }
 
 #[derive(Deserialize)]
@@ -1417,6 +1457,10 @@ pub fn routes() -> Router<AppState> {
             post(bulk_download).layer(RateLimit::default().build()),
         )
         .route("/entry/relations", post(relations))
+        .route(
+            "/entry/relations/full",
+            post(get_full_data_from_anilist).layer(RateLimit::default().build()),
+        )
         .route("/entry/tmdb", get(tmdb_lookup))
         .route("/entry/import", post(import_entry))
         .route("/entry/import/create", post(create_imported_entry))

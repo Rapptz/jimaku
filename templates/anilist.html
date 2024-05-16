@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/anilist.css" type="text/css" />
+<link rel="stylesheet" href="/static/entry.css" type="text/css" />
+{% endblock %}
+
+{% block title %}
+{{ user_name }}'s AniList · Jimaku
+{% endblock %}
+
+{% block body %}
+<h1>{{ user_name }}'s Anime List</h1>
+<hr>
+<div data-username="{{ user_name }}" id="anilist-entries">
+  <span id="loading">Loading...</span>
+</div>
+<div class="center">
+  <button class="hidden" id="load-more">Load more</button>
+</div>
+{% endblock %}
+
+{% block body_end %}
+<script>var entryId = null</script>
+<script src="/static/entry.js"></script>
+<script type="module" src="/static/anilist.js"></script>
+{% endblock %}
