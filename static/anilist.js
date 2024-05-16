@@ -133,7 +133,7 @@ function anilistEntryToElement(data, entry, files) {
       let date = Date.parse(file.last_modified);
       let hidden = data.progress !== 0 ? !isValidFile(file.name, data.progress) : false;
       isHiding = isHiding || hidden;
-      return html('div.entry', {dataset: {name: file.name, size: file.size, lastModified: file.last_modified}},
+      return html('div.entry', {dataset: {name: file.name, size: file.size, lastModified: date}},
         hidden ? {class: 'hidden filtered-episode'} : null,
         html('span.table-data.file-bulk', html('input', {autocomplete: 'off', type: 'checkbox'})),
         html('a.table-data.file-name', file.name, {href: file.url }),
@@ -152,6 +152,7 @@ function anilistEntryToElement(data, entry, files) {
     selectedFileCount,
     downloadFiles,
   });
+  table.sorter = new TableSorter(table);
   let showHiddenFiles = html('button.button', 'Show Watched Episodes');
   showHiddenFiles.addEventListener('click', () => {
     let show = showHiddenFiles.textContent.startsWith('Show');

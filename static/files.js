@@ -59,43 +59,55 @@ const parseEntryObjects = () => {
   });
 };
 
-function innerSortBy(attribute, ascending) {
-  let entries = [...document.querySelectorAll('.entry')];
-  if (entries.length === 0) {
-    return;
-  }
-  let parent = entries[0].parentElement;
-  entries.sort((a, b) => {
-    if (attribute === 'data-name') {
-      let firstName = a.textContent;
-      let secondName = b.textContent;
-      return ascending ? firstName.localeCompare(secondName) : secondName.localeCompare(firstName);
-    } else {
-      // The last two remaining sort options are either e.g. file.size or entry.last_modified
-      // Both of these are numbers so they're simple to compare
-      let first = parseInt(a.getAttribute(attribute), 10);
-      let second = parseInt(b.getAttribute(attribute), 10);
-      return ascending ? first - second : second - first;
+class TableSorter {
+  constructor(parent) {
+    this.parent = parent;
+    this.parent?.querySelectorAll('.table-header[data-sort-by]').forEach(el => {
+      el.addEventListener('click', e => this.sortBy(e, el.dataset.sortBy))
+    });
+    if(this.parent) {
+      this.innerSortBy('data-name', true);
     }
-  });
+  }
 
-  entries.forEach(obj => parent.appendChild(obj));
-}
+  innerSortBy(attribute, ascending) {
+    let entries = [...this.parent.querySelectorAll('.entry')];
+    if (entries.length === 0) {
+      return;
+    }
+    let parent = entries[0].parentElement;
+    entries.sort((a, b) => {
+      if (attribute === 'data-name') {
+        let firstName = a.textContent;
+        let secondName = b.textContent;
+        return ascending ? firstName.localeCompare(secondName) : secondName.localeCompare(firstName);
+      } else {
+        // The last two remaining sort options are either e.g. file.size or entry.last_modified
+        // Both of these are numbers so they're simple to compare
+        let first = parseInt(a.getAttribute(attribute), 10);
+        let second = parseInt(b.getAttribute(attribute), 10);
+        return ascending ? first - second : second - first;
+      }
+    });
 
-function sortBy(event, attribute) {
-  // Check if the element has an descending class tag
-  // If it does, then when we're clicking on it we actually want to sort ascending
-  let descending = !event.target.classList.contains('sorting-descending');
+    entries.forEach(obj => parent.appendChild(obj));
+  }
 
-  // Make sure to toggle everything else off...
-  document.querySelectorAll('.table-headers > .table-header').forEach(node => node.classList.remove('sorting-ascending', 'sorting-descending'));
+  sortBy(event, attribute) {
+    // Check if the element has an descending class tag
+    // If it does, then when we're clicking on it we actually want to sort ascending
+    let descending = !event.target.classList.contains('sorting-descending');
 
-  // Sort the elements by what we requested
-  innerSortBy(`data-${attribute}`, !descending);
+    // Make sure to toggle everything else off...
+    this.parent.querySelectorAll('.table-headers > .table-header').forEach(node => node.classList.remove('sorting-ascending', 'sorting-descending'));
 
-  // Add the element class list depending on the operation we did
-  let className = descending ? 'sorting-descending' : 'sorting-ascending';
-  event.target.classList.add(className);
+    // Sort the elements by what we requested
+    this.innerSortBy(`data-${attribute}`, !descending);
+
+    // Add the element class list depending on the operation we did
+    let className = descending ? 'sorting-descending' : 'sorting-ascending';
+    event.target.classList.add(className);
+  }
 }
 
 let previousEntryOrder = null;
@@ -192,12 +204,8 @@ changeModifiedToRelative();
   let pref = localStorage.getItem('preferred_name') ?? 'romaji';
   if (pref != 'romaji') changeDisplayNames(pref);
 }
-innerSortBy('data-name', true);
 settings.addEventListener('preferred-name', (e) => changeDisplayNames(e.detail));
 
-
+let sorter = new TableSorter(document.querySelector('.files'));
 document.getElementById('clear-search-filter')?.addEventListener('click', resetSearchFilter);
-document.querySelectorAll('.table-header[data-sort-by]').forEach(el => {
-  el.addEventListener('click', e => sortBy(e, el.dataset.sortBy))
-});
 filterElement?.addEventListener('input', debounced(e => filterEntries(e.target.value)))
