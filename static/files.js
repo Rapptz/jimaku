@@ -83,18 +83,18 @@ function innerSortBy(attribute, ascending) {
 }
 
 function sortBy(event, attribute) {
-  // Check if the element has an ascending class tag
-  // If it does, then when we're clicking on it we actually want to sort descending
-  let ascending = !event.target.classList.contains('sorting-ascending');
+  // Check if the element has an descending class tag
+  // If it does, then when we're clicking on it we actually want to sort ascending
+  let descending = !event.target.classList.contains('sorting-descending');
 
   // Make sure to toggle everything else off...
   document.querySelectorAll('.table-headers > .table-header').forEach(node => node.classList.remove('sorting-ascending', 'sorting-descending'));
 
   // Sort the elements by what we requested
-  innerSortBy(`data-${attribute}`, ascending);
+  innerSortBy(`data-${attribute}`, !descending);
 
   // Add the element class list depending on the operation we did
-  let className = ascending ? 'sorting-ascending' : 'sorting-descending';
+  let className = descending ? 'sorting-descending' : 'sorting-ascending';
   event.target.classList.add(className);
 }
 
