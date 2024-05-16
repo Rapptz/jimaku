@@ -1,34 +1,18 @@
 /* This file is licensed under AGPL-3.0 */
 const editModal = document.getElementById('edit-entry-modal');
-const moveModal = document.getElementById('move-entries-modal');
-const renameModal = document.getElementById('rename-entries-modal');
-const deleteModal = document.getElementById('confirm-delete-modal');
-const reportModal = document.getElementById('confirm-report-modal');
-
 const editButton = document.getElementById('edit-entry');
-const deleteFilesButton = document.getElementById('delete-files');
-const reportFilesButton = document.getElementById('report-files');
-const downloadFilesButton = document.getElementById('download-files');
-const moveFilesButton = document.getElementById('move-files');
-const renameFilesButton = document.getElementById('rename-files');
-const confirmRenameButton = document.getElementById('confirm-rename');
 
 const uploadForm = document.getElementById('upload-form');
 const uploadInput = document.getElementById('upload-file-input');
 
 const updateInfo = document.getElementById('update-info');
 
-const totalFileCount = document.getElementById('total-file-count');
-const selectedFileCount = document.getElementById('selected-file-count');
-
 const dropZone = document.getElementById('file-upload-drop-zone');
 let lastDraggedTarget = null;
-let currentRenameOption = null;
-let checkboxAnchor = null;
 const counterRenameRegex = /\$\{(?:(?:(start|increment|padding)=(\d+))(?:,\s*)?(?:(start|increment|padding)=(\d+))?)?(?:,\s*)?(?:(start|increment|padding)=(\d+))?\}/ig;
 
 class RenameOptions {
-  constructor() {
+  constructor(parent) {
     this.search = document.getElementById('rename-search').value;
     this.repl = document.getElementById('rename-replace').value;
     this.isEmpty = this.search.length === 0;
@@ -51,7 +35,7 @@ class RenameOptions {
       this.search = new RegExp(escapeRegex(this.search), flags);
     }
 
-    this.files = getSelectedFiles().map(e => e.textContent);
+    this.files = parent.getSelectedFiles().map(e => e.textContent);
     this.renamed = this.files.map(f => this.rename(f));
   }
 
@@ -138,7 +122,409 @@ class RenameOptions {
   }
 }
 
-const checkedSelector = '.entry:not(.hidden) > .file-bulk > input[type="checkbox"]';
+class BulkFilesOperations {
+  static checkedSelector = '.entry:not(.hidden) > .file-bulk > input[type="checkbox"]';
+
+  constructor(
+    table,
+    entryId,
+    {
+      deleteFiles = null,
+      deleteModal = null,
+      renameFiles = null,
+      renameModal = null,
+      moveFiles = null,
+      moveModal = null,
+      reportFiles = null,
+      reportModal = null,
+      downloadFiles = null,
+      totalFileCount = null,
+      selectedFileCount = null,
+    },
+  ) {
+    this.parent = table;
+    this.entryId = entryId;
+    this.currentRenameOption = null;
+    this.checkboxAnchor = null;
+    this.bulkCheck = table.querySelector('.bulk-check');
+    this.deleteFilesButton = deleteFiles;
+    this.renameFilesButton = renameFiles;
+    this.moveFilesButton = moveFiles;
+    this.reportFilesButton = reportFiles;
+    this.downloadFilesButton = downloadFiles;
+    this.totalFileCount = totalFileCount;
+    this.selectedFileCount = selectedFileCount;
+    this.reportModal = reportModal;
+    this.deleteModal = deleteModal;
+    this.renameModal = renameModal;
+    this.moveModal = moveModal;
+    // These require hardcoded IDs since forms tend have IDs
+    this.confirmDeleteButton = document.getElementById('confirm-delete');
+    this.confirmReportButton = document.getElementById('confirm-report');
+    this.confirmRenameButton = document.getElementById('confirm-rename')
+    this.confirmMoveButton = document.getElementById('confirm-move');
+
+    this.bulkCheck?.addEventListener('click', () => this.processBulkCheck());
+    this.renameModal?.querySelector('form')?.addEventListener('input', debounced(() => this.updateRenameOptions(), 150));
+
+    this.confirmMoveButton?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.moveFiles();
+    });
+    this.confirmDeleteButton?.addEventListener('click', (e) => {
+      e.preventDefault();
+      let form = this.deleteModal?.querySelector('form');
+      if(form?.reportValidity()) {
+        this.deleteFiles();
+        form.reset();
+      }
+    });
+    this.confirmReportButton?.addEventListener('click', (e) => {
+      e.preventDefault();
+      let form = this.reportModal?.querySelector('form');
+      if(form?.reportValidity()) {
+        this.reportFiles();
+        form.reset();
+      }
+    });
+    this.confirmRenameButton?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.renameFiles();
+    });
+    this.reportModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => this.closeModal(e, this.reportModal));
+    this.deleteModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => this.closeModal(e, this.deleteModal));
+    this.renameModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => this.closeModal(e, this.renameModal));
+    this.moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => this.closeModal(e, this.moveModal));
+
+    this.deleteFilesButton?.addEventListener('click', () => this.showConfirmFileModal(this.deleteModal));
+    this.reportFilesButton?.addEventListener('click', () => this.showConfirmFileModal(this.renameModal));
+    this.moveFilesButton?.addEventListener('click', () => this.moveModal?.showModal());
+    this.downloadFilesButton?.addEventListener('click', () => this.downloadFiles());
+    this.renameFilesButton?.addEventListener('click', () => this.openRenameModal());
+
+    document.addEventListener('entries-filtered', () => this.setCheckboxState());
+    this.parent.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
+      ch.addEventListener('click', (e) => {
+        this.handleCheckboxClick(e);
+        this.setCheckboxState();
+      });
+    });
+  }
+
+  closeModal(event, modal) {
+    event.preventDefault();
+    modal.close();
+  }
+
+  showConfirmFileModal(modal) {
+    if(!modal) return;
+    let files = this.getSelectedFiles();
+    let span = modal.querySelector('span');
+    span.textContent = files.length === 1 ? '1 file' : files.length === 0 ? `the entire entry` : `${files.length} files`;
+    modal.showModal();
+  }
+
+  processBulkCheck() {
+    let indeterminate = this.bulkCheck.getAttribute('tribool') === 'yes';
+    let checked = indeterminate ? false : this.bulkCheck.checked;
+    let selected = [...this.parent.querySelectorAll(this.constructor.checkedSelector)];
+    for(const ch of selected) {
+      ch.checked = checked;
+    }
+
+    this.disableButtons(!checked);
+    this.updateFileCounts(checked ? selected.length : 0);
+    if (indeterminate) {
+      this.bulkCheck.checked = false;
+      this.bulkCheck.indeterminate = false;
+      this.bulkCheck.removeAttribute('tribool');
+    }
+  }
+
+  handleCheckboxClick(e) {
+    if(e.ctrlKey) {
+      return;
+    }
+    if(!e.shiftKey) {
+      this.checkboxAnchor = e.target;
+      return;
+    }
+    let activeCheckboxes = [...this.parent.querySelectorAll(this.constructor.checkedSelector)];
+    let startIndex = activeCheckboxes.indexOf(this.checkboxAnchor);
+    let endIndex = activeCheckboxes.indexOf(e.target);
+    if(startIndex == endIndex || startIndex == -1 || endIndex == -1) {
+      return;
+    }
+
+    if(startIndex > endIndex) {
+      let temp = endIndex;
+      endIndex = startIndex;
+      startIndex = temp;
+    }
+
+    for(let i = startIndex; i <= endIndex; ++i) {
+      let cb = activeCheckboxes[i];
+      cb.checked = true;
+    }
+  }
+
+  getSelectedFiles() {
+    return [...this.parent.querySelectorAll(this.constructor.checkedSelector + ':checked')].map(e => {
+      return e.parentElement.parentElement.querySelector('.file-name');
+    });
+  }
+
+  updateFileCounts(checked) {
+    if(this.selectedFileCount) {
+      this.selectedFileCount.classList.toggle('hidden', checked === 0);
+      this.selectedFileCount.textContent = `${checked} file${checked !== 1 ? 's' : ''} selected`;
+    }
+
+    if(this.totalFileCount) {
+      let total = [...this.parent.querySelectorAll('.entry:not(.hidden)')].length;
+      this.totalFileCount.textContent = `${total} file${total !== 1 ? 's' : ''}`;
+    }
+  }
+
+  removeCheckedFiles() {
+    this.parent.querySelectorAll(this.constructor.checkedSelector + ':checked').forEach(e => {
+      let parent = e.parentElement.parentElement;
+      return parent.parentElement.removeChild(parent);
+    });
+    this.setCheckboxState();
+  }
+
+  disableButtons(disabled) {
+    if(this.moveFilesButton) this.moveFilesButton.disabled = disabled;
+    if(this.renameFilesButton) this.renameFilesButton.disabled = disabled;
+    if(this.downloadFilesButton) this.downloadFilesButton.disabled = disabled;
+  }
+
+  setCheckboxState() {
+    let checkboxes = [...this.parent.querySelectorAll(this.constructor.checkedSelector)];
+    let checked = checkboxes.reduce((prev, el) => prev + el.checked, 0);
+    let nothingChecked = checked === 0;
+    this.disableButtons(nothingChecked);
+    this.updateFileCounts(checked);
+
+    if(nothingChecked) {
+      this.bulkCheck.checked = false;
+      this.bulkCheck.indeterminate = false;
+      this.bulkCheck.removeAttribute('tribool');
+    }
+    else if(checked === checkboxes.length) {
+      this.bulkCheck.indeterminate = false;
+      this.bulkCheck.removeAttribute('tribool');
+      this.bulkCheck.checked = true;
+    } else {
+      this.bulkCheck.indeterminate = true;
+      this.bulkCheck.setAttribute('tribool', 'yes');
+      this.bulkCheck.checked = false;
+    }
+  }
+
+  async downloadFiles() {
+    let files = this.getSelectedFiles();
+    if (files.length === 0) {
+      return;
+    }
+    if (files.length === 1) {
+      files[0].click();
+      return;
+    }
+    files = files.map(e => e.textContent);
+    let payload = {files};
+    let resp = await fetch(`/entry/${this.entryId}/bulk`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if(!resp.ok) {
+      let content = `Server responded with status code ${resp.status}`;
+      if(resp.headers.get('content-type') === 'application/json') {
+        let js = await resp.json();
+        content = js.error;
+      }
+      showAlert({level: 'error', content});
+    } else {
+      let blob = await resp.blob();
+      const a = html('a.hidden', {href: URL.createObjectURL(blob), download: resp.headers.get("x-jimaku-filename")});
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    this.bulkCheck.click();
+  }
+
+  async deleteFiles() {
+    let files = this.getSelectedFiles().map(e => e.textContent);
+    let payload = {files};
+    if (files.length === 0) {
+      payload.delete_parent = true;
+    }
+    payload.reason = document.getElementById('delete-reason').value || null;
+    let js = await callApi(`/entry/${this.entryId}`, {
+      method: 'DELETE',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if(js === null) {
+      return;
+    }
+
+    if(payload.delete_parent) {
+      showAlert({level: 'success', content: 'Successfully deleted entry, redirecting you back home...'});
+    } else {
+      let total = js.success + js.failed;
+      showAlert({level: 'success', content: `Successfully deleted ${js.success}/${total} file${total == 1 ? "s" : ""}`});
+    }
+    this.deleteModal.close();
+    this.removeCheckedFiles();
+    if(payload.delete_parent) {
+      await sleep(3000);
+      window.location.href = '/';
+    }
+  }
+
+  async reportFiles() {
+    let files = this.getSelectedFiles().map(e => e.textContent);
+    let payload = {files};
+    payload.reason = document.getElementById('report-reason').value;
+    let js = await callApi(`/entry/${this.entryId}/report`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if(js === null) {
+      return;
+    }
+
+    if(files.length === 0) {
+      showAlert({level: 'success', content: 'Successfully reported entry, editors and administrators have been notified.'});
+    } else {
+      let total = files.length;
+      showAlert({level: 'success', content: `Successfully reported ${total} file${total == 1 ? "s" : ""}, editors and administrators have been notified.`});
+    }
+    this.reportModal.close();
+  }
+
+  async moveFiles() {
+    let files = this.getSelectedFiles().map(e => e.textContent);
+    if (files.length === 0) {
+      return;
+    }
+
+    let params = new URLSearchParams();
+    let payload = {files};
+    let destinationId = parseInt(document.getElementById('move-to-entry-id')?.value, 10);
+    if (!Number.isNaN(destinationId)) {
+      payload.entry_id = destinationId;
+    } else {
+      let anilistId = getAnilistId(document.getElementById('anilist-url')?.value);
+      if (anilistId !== null) {
+        payload.anilist_id = anilistId;
+        params.append('anilist_id', anilistId);
+      }
+      let tmdbId = getTmdbId(document.getElementById('tmdb-url')?.value);
+      if (tmdbId !== null) {
+        payload.tmdb = `${tmdbId.type}:${tmdbId.id}`;
+        payload.anime = false;
+        params.append('tmdb_id', payload.tmdb);
+      }
+      let name = document.getElementById('directory-name').value;
+      if(name) {
+        payload.name = name;
+        params.append('name', name);
+      }
+      let resp = await fetch('/entry/search?' + params);
+      if(resp.ok) {
+        let js = await resp.json();
+        payload.entry_id = js.entry_id;
+      }
+    }
+
+    if(Object.keys(payload).length === 1) {
+      showModalAlert(moveModal, {level: 'error', content: 'Either a name, AniList URL, or TMDB URL is required'});
+      return;
+    }
+
+    let js = await callApi(`/entry/${this.entryId}/move`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    }, modalAlertHook);
+
+    if(js === null) {
+      return;
+    }
+
+    let total = js.success + js.failed;
+    showModalAlert(moveModal, {level: 'success', content: `Successfully moved ${js.success}/${total} files, redirecting to folder in 5 seconds...`});
+    await sleep(5000);
+    window.location.href = `/entry/${js.entry_id}`;
+  }
+
+  updateRenameOptions() {
+    let search = document.getElementById('rename-search');
+    try {
+      this.currentRenameOption = new RenameOptions(this);
+    } catch(e) {
+      if (e instanceof SyntaxError) {
+        search.setCustomValidity('Invalid regex provided');
+      }
+      return;
+    }
+    search.setCustomValidity('');
+    this.currentRenameOption.updateTable(this.renameModal.querySelector('table#renamed-files > tbody'));
+  }
+
+  openRenameModal() {
+    let form = this.renameModal.querySelector('form');
+    form.reset();
+    this.currentRenameOption = new RenameOptions(this);
+    this.currentRenameOption.updateTable(this.renameModal.querySelector('table#renamed-files > tbody'));
+    this.renameModal.showModal();
+  }
+
+  async renameFiles() {
+    if(this.currentRenameOption === null) {
+      return;
+    }
+    let payload = this.currentRenameOption.toJSON();
+    if(payload.length === 0) {
+      return;
+    }
+
+    let js = await callApi(`/entry/${entryId}/rename`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    }, modalAlertHook);
+
+    if(js === null) {
+      return;
+    }
+
+    let total = js.success + js.failed;
+    showModalAlert(renameModal, {level: 'success', content: `Successfully renamed ${js.success}/${total} files, refreshing in 3 seconds...`});
+    await sleep(3000);
+    window.location.reload();
+  }
+}
+
 const query = `
 query ($id: Int) {
   Media (id: $id, type: ANIME) {
@@ -182,26 +568,6 @@ function filterValidFileList(files) {
   const dt = new DataTransfer();
   filtered.forEach(f => dt.items.add(f));
   return dt.files;
-}
-
-function getSelectedFiles() {
-  return [...document.querySelectorAll(checkedSelector + ':checked')].map(e => {
-    return e.parentElement.parentElement.querySelector('.file-name');
-  });
-}
-
-function removeCheckedFiles() {
-  document.querySelectorAll(checkedSelector + ':checked').forEach(e => {
-    let parent = e.parentElement.parentElement;
-    return parent.parentElement.removeChild(parent);
-  });
-  setCheckboxState();
-}
-
-const disableButtons = (disabled) => {
-  if(moveFilesButton) moveFilesButton.disabled = disabled;
-  if(renameFilesButton) renameFilesButton.disabled = disabled;
-  downloadFilesButton.disabled = disabled;
 }
 
 function showModalAlert(modal, {level, content}) {
@@ -331,42 +697,6 @@ async function populateAnimeRelations() {
   }
 }
 
-async function downloadFiles() {
-  let files = getSelectedFiles();
-  if (files.length === 0) {
-    return;
-  }
-  if (files.length === 1) {
-    files[0].click();
-    return;
-  }
-  files = files.map(e => e.textContent);
-  let payload = {files};
-  let resp = await fetch(`/entry/${entryId}/bulk`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if(!resp.ok) {
-    let content = `Server responded with status code ${resp.status}`;
-    if(resp.headers.get('content-type') === 'application/json') {
-      let js = await resp.json();
-      content = js.error;
-    }
-    showAlert({level: 'error', content});
-  } else {
-    let blob = await resp.blob();
-    const a = html('a.hidden', {href: URL.createObjectURL(blob), download: resp.headers.get("x-jimaku-filename")});
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-  bulkCheck.click();
-}
-
 editButton?.addEventListener('click', () => editModal?.showModal());
 updateInfo?.addEventListener('click', async (e) => {
   e.preventDefault();
@@ -387,314 +717,23 @@ updateInfo?.addEventListener('click', async (e) => {
   }
 });
 
-const bulkCheck = document.getElementById('bulk-check');
-bulkCheck?.addEventListener('click', () => {
-  let indeterminate = bulkCheck.getAttribute('tribool') === 'yes';
-  let checked = indeterminate ? false : bulkCheck.checked;
-  let selected = [...document.querySelectorAll(checkedSelector)];
-  for(const ch of selected) {
-    ch.checked = checked;
-  }
-
-  disableButtons(!checked);
-  updateFileCounts(checked ? selected.length : 0);
-  if (indeterminate) {
-    bulkCheck.checked = false;
-    bulkCheck.indeterminate = false;
-    bulkCheck.removeAttribute('tribool');
-  }
-});
-
-function handleCheckboxClick(e) {
-  if(e.ctrlKey) {
-    return;
-  }
-  if(!e.shiftKey) {
-    checkboxAnchor = e.target;
-    return;
-  }
-  let activeCheckboxes = [...document.querySelectorAll(checkedSelector)];
-  let startIndex = activeCheckboxes.indexOf(checkboxAnchor);
-  let endIndex = activeCheckboxes.indexOf(e.target);
-  if(startIndex == endIndex || startIndex == -1 || endIndex == -1) {
-    return;
-  }
-
-  if(startIndex > endIndex) {
-    let temp = endIndex;
-    endIndex = startIndex;
-    startIndex = temp;
-  }
-
-  for(let i = startIndex; i <= endIndex; ++i) {
-    let cb = activeCheckboxes[i];
-    cb.checked = true;
-  }
-}
-
-function updateFileCounts(checked) {
-  if(selectedFileCount) {
-    selectedFileCount.classList.toggle('hidden', checked === 0);
-    selectedFileCount.textContent = `${checked} file${checked !== 1 ? 's' : ''} selected`;
-  }
-
-  if(totalFileCount) {
-    let total = [...document.querySelectorAll('.entry:not(.hidden)')].length;
-    totalFileCount.textContent = `${total} file${total !== 1 ? 's' : ''}`;
-  }
-}
-
-function setCheckboxState() {
-  let checkboxes = [...document.querySelectorAll(checkedSelector)];
-  let checked = checkboxes.reduce((prev, el) => prev + el.checked, 0);
-  let nothingChecked = checked === 0;
-  disableButtons(nothingChecked);
-  updateFileCounts(checked);
-
-  if(nothingChecked) {
-    bulkCheck.checked = false;
-    bulkCheck.indeterminate = false;
-    bulkCheck.removeAttribute('tribool');
-  }
-  else if(checked === checkboxes.length) {
-    bulkCheck.indeterminate = false;
-    bulkCheck.removeAttribute('tribool');
-    bulkCheck.checked = true;
-  } else {
-    bulkCheck.indeterminate = true;
-    bulkCheck.setAttribute('tribool', 'yes');
-    bulkCheck.checked = false;
-  }
-}
-
-async function deleteFiles() {
-  let files = getSelectedFiles().map(e => e.textContent);
-  let payload = {files};
-  if (files.length === 0) {
-    payload.delete_parent = true;
-  }
-  payload.reason = document.getElementById('delete-reason').value || null;
-  let js = await callApi(`/entry/${entryId}`, {
-    method: 'DELETE',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if(js === null) {
-    return;
-  }
-
-  if(payload.delete_parent) {
-    showAlert({level: 'success', content: 'Successfully deleted entry, redirecting you back home...'});
-  } else {
-    let total = js.success + js.failed;
-    showAlert({level: 'success', content: `Successfully deleted ${js.success}/${total} file${total == 1 ? "s" : ""}`});
-  }
-  deleteModal.close();
-  removeCheckedFiles();
-  if(payload.delete_parent) {
-    await sleep(3000);
-    window.location.href = '/';
-  }
-}
-
-async function reportFiles() {
-  let files = getSelectedFiles().map(e => e.textContent);
-  let payload = {files};
-  payload.reason = document.getElementById('report-reason').value;
-  let js = await callApi(`/entry/${entryId}/report`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if(js === null) {
-    return;
-  }
-
-  if(files.length === 0) {
-    showAlert({level: 'success', content: 'Successfully reported entry, editors and administrators have been notified.'});
-  } else {
-    let total = files.length;
-    showAlert({level: 'success', content: `Successfully reported ${total} file${total == 1 ? "s" : ""}, editors and administrators have been notified.`});
-  }
-  reportModal.close();
-}
-
-async function moveFiles() {
-  let files = getSelectedFiles().map(e => e.textContent);
-  if (files.length === 0) {
-    return;
-  }
-
-  let params = new URLSearchParams();
-  let payload = {files};
-  let destinationId = parseInt(document.getElementById('move-to-entry-id')?.value, 10);
-  if (!Number.isNaN(destinationId)) {
-    payload.entry_id = destinationId;
-  } else {
-    let anilistId = getAnilistId(document.getElementById('anilist-url')?.value);
-    if (anilistId !== null) {
-      payload.anilist_id = anilistId;
-      params.append('anilist_id', anilistId);
-    }
-    let tmdbId = getTmdbId(document.getElementById('tmdb-url')?.value);
-    if (tmdbId !== null) {
-      payload.tmdb = `${tmdbId.type}:${tmdbId.id}`;
-      payload.anime = false;
-      params.append('tmdb_id', payload.tmdb);
-    }
-    let name = document.getElementById('directory-name').value;
-    if(name) {
-      payload.name = name;
-      params.append('name', name);
-    }
-    let resp = await fetch('/entry/search?' + params);
-    if(resp.ok) {
-      let js = await resp.json();
-      payload.entry_id = js.entry_id;
-    }
-  }
-
-  if(Object.keys(payload).length === 1) {
-    showModalAlert(moveModal, {level: 'error', content: 'Either a name, AniList URL, or TMDB URL is required'});
-    return;
-  }
-
-  let js = await callApi(`/entry/${entryId}/move`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  }, modalAlertHook);
-
-  if(js === null) {
-    return;
-  }
-
-  let total = js.success + js.failed;
-  showModalAlert(moveModal, {level: 'success', content: `Successfully moved ${js.success}/${total} files, redirecting to folder in 5 seconds...`});
-  await sleep(5000);
-  window.location.href = `/entry/${js.entry_id}`;
-}
-
-function updateRenameOptions() {
-  let search = document.getElementById('rename-search');
-  try {
-    currentRenameOption = new RenameOptions();
-  } catch(e) {
-    if (e instanceof SyntaxError) {
-      search.setCustomValidity('Invalid regex provided');
-    }
-    return;
-  }
-  search.setCustomValidity('');
-  currentRenameOption.updateTable(renameModal.querySelector('table#renamed-files > tbody'));
-}
-
-function openRenameModal() {
-  let form = renameModal.querySelector('form');
-  form.reset();
-  currentRenameOption = new RenameOptions();
-  currentRenameOption.updateTable(renameModal.querySelector('table#renamed-files > tbody'));
-  renameModal.showModal();
-}
-
-async function renameFiles() {
-  if(currentRenameOption === null) {
-    return;
-  }
-  let payload = currentRenameOption.toJSON();
-  if(payload.length === 0) {
-    return;
-  }
-
-  let js = await callApi(`/entry/${entryId}/rename`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  }, modalAlertHook);
-
-  if(js === null) {
-    return;
-  }
-
-  let total = js.success + js.failed;
-  showModalAlert(renameModal, {level: 'success', content: `Successfully renamed ${js.success}/${total} files, refreshing in 3 seconds...`});
-  await sleep(3000);
-  window.location.reload();
-}
-
 populateAnimeRelations();
-deleteFilesButton?.addEventListener('click', () => {
-  let files = getSelectedFiles();
-  let span = deleteModal.querySelector('span');
-  span.textContent = files.length === 1 ? '1 file' : files.length === 0 ? `the entire entry` : `${files.length} files`;
-  deleteModal.showModal();
-});
-reportFilesButton?.addEventListener('click', () => {
-  let files = getSelectedFiles();
-  let span = document.getElementById('report-count');
-  span.textContent = files.length === 1 ? '1 file' : files.length === 0 ? `the entire entry` : `${files.length} files`;
-  reportModal.showModal();
-});
-document.getElementById('confirm-move')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  moveFiles();
-});
-document.getElementById('confirm-delete')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  let form = deleteModal.querySelector('form');
-  if(form.reportValidity()) {
-    deleteFiles();
-  }
-});
-document.getElementById('confirm-report')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  let form = reportModal.querySelector('form');
-  if(form.reportValidity()) {
-    reportFiles();
-    form.reset();
-  }
-});
-deleteModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  deleteModal.close();
-});
-reportModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  reportModal.close();
-});
-moveFilesButton?.addEventListener('click', () => moveModal?.showModal());
-moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  moveModal.close();
-});
-document.addEventListener('entries-filtered', setCheckboxState);
-
-document.querySelectorAll('.file-bulk > input[type="checkbox"]').forEach(ch => {
-  ch.addEventListener('click', (e) => {
-    handleCheckboxClick(e);
-    setCheckboxState();
-  });
-});
-
 uploadInput?.addEventListener('change', () => {
   uploadForm.submit();
 });
-downloadFilesButton?.addEventListener('click', downloadFiles);
-renameFilesButton?.addEventListener('click', openRenameModal);
-renameModal?.querySelector('form')?.addEventListener('input', debounced(updateRenameOptions, 150))
-confirmRenameButton?.addEventListener('click', (e) => {
-  e.preventDefault();
-  renameFiles();
+
+var __bulk = new BulkFilesOperations(document.querySelector('.files'), entryId, {
+  deleteFiles: document.getElementById('delete-files'),
+  deleteModal: document.getElementById('confirm-delete-modal'),
+  renameFiles: document.getElementById('rename-files'),
+  renameModal: document.getElementById('rename-entries-modal'),
+  moveFiles: document.getElementById('move-files'),
+  moveModal: document.getElementById('move-entries-modal'),
+  reportFiles: document.getElementById('report-files'),
+  reportModal: document.getElementById('confirm-report-modal'),
+  downloadFiles: document.getElementById('download-files'),
+  totalFileCount: document.getElementById('total-file-count'),
+  selectedFileCount: document.getElementById('selected-file-count'),
 });
 
 if (uploadInput !== null) {
