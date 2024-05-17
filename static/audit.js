@@ -2,6 +2,7 @@
 
 const loadingElement = document.getElementById('loading');
 const loadMore = document.getElementById('load-more');
+const auditLogEntries = document.getElementById('audit-log-entries');
 const dtFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
   timeStyle: 'medium',
@@ -336,16 +337,16 @@ async function processData(info) {
     let parser = auditLogTypes[data.type];
     if(parser) {
       let node = parser(data, log, info);
-      loadingElement.parentElement.insertBefore(node, loadingElement);
+      auditLogEntries.appendChild(node);
     }
   }
 
   loadMore.classList.remove("hidden");
+  auditLogEntries.classList.remove('hidden');
   loadingElement.classList.add("hidden");
 }
 
 async function getAuditLogs(before) {
-  loadingElement.textContent = 'Loading...';
   loadMore.textContent = "Loading...";
   loadMore.disabled = true;
 
@@ -353,7 +354,8 @@ async function getAuditLogs(before) {
   if(before) params.append('before', before);
   let response = await fetch('/audit-logs?' + params);
   if(response.status !== 200) {
-    loadingElement.textContent = `Server responded with ${response.status}`;
+    showAlert({level: 'error', content: `Server responded with ${response.status}`});
+    loadingElement.classList.add('hidden');
     return;
   }
 
@@ -366,8 +368,7 @@ async function getAuditLogs(before) {
     } else {
       loadMore.classList.add('hidden');
       if(data.logs.length === 0) {
-        loadingElement.textContent = 'No entries!';
-        loadingElement.classList.remove('hidden');
+        auditLogEntries.appendChild(html('p', 'No entries!'));
       }
     }
   } else {

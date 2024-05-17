@@ -10,8 +10,10 @@ Audit Logs · Jimaku
 
 {% block body %}
 <h1>Audit Logs</h1>
-<div class="audit-log-entries">
-  <span id="loading">Loading...</span>
+<svg id="loading" class="spinner" viewBox="0 0 50 50">
+  <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+</svg>
+<div id="audit-log-entries" class="hidden">
 </div>
 <div class="center">
   <button class="hidden" id="load-more">Load more</button>

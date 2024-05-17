@@ -274,6 +274,7 @@ async function fillData(entries) {
     }
   }
 
+  entriesElement.classList.remove('hidden');
   loadingElement.classList.add('hidden');
 }
 
@@ -283,7 +284,6 @@ async function loadData() {
   try {
     entries = await getAniListEntries(entriesElement.dataset.username);
   } catch(e) {
-    loadingElement.textContent = e;
     return;
   }
   await fillData(entries);
