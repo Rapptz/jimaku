@@ -231,12 +231,17 @@ async function fillData(entries) {
   let watching = entries.filter(d => d.status !== "PLANNING");
   entriesElement.appendChild(html('h2', 'Watching'));
   if(watching.length !== 0) {
+    let children = [];
     for(const e of watching) {
       if(lookup.hasOwnProperty(e.mediaId)) {
         let data = lookup[e.mediaId];
-        entriesElement.appendChild(anilistEntryToElement(e, data.entry, data.files));
+        let el = anilistEntryToElement(e, data.entry, data.files);
+        el.sortByValue = Date.parse(data.entry.last_modified);
+        children.push(el);
       }
     }
+    children.sort((a, b) => b.sortByValue - a.sortByValue);
+    children.forEach(el => entriesElement.appendChild(el));
   } else {
     entriesElement.appendChild(html('p', 'Nothing found...'));
   }
