@@ -19,7 +19,11 @@ async fn extract_api_token_from_headers(headers: &HeaderMap, state: &AppState) -
         .and_then(|x| x.to_str().ok())
         .map(String::from)?;
     let info = state.is_session_valid(&auth).await?;
-    Some(ApiToken { id: info.id })
+    if info.api_key {
+        Some(ApiToken { id: info.id })
+    } else {
+        None
+    }
 }
 
 #[async_trait::async_trait]
