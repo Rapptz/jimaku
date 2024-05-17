@@ -3,6 +3,8 @@
 {% block css %}
 <link rel="stylesheet" href="/static/anilist.css" type="text/css" />
 <link rel="stylesheet" href="/static/entry.css" type="text/css" />
+<meta property="og:url" content="{{ crate::CONFIG.get().unwrap().canonical_url() }}/anilist/{{ user_name }}">
+<meta property="og:title" content="{{ user_name }}'s AniList">
 {% endblock %}
 
 {% block title %}
