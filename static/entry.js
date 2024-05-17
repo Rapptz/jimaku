@@ -197,7 +197,7 @@ class BulkFilesOperations {
     this.moveModal?.querySelector('button[formmethod=dialog]')?.addEventListener('click', (e) => this.closeModal(e, this.moveModal));
 
     this.deleteFilesButton?.addEventListener('click', () => this.showConfirmFileModal(this.deleteModal));
-    this.reportFilesButton?.addEventListener('click', () => this.showConfirmFileModal(this.renameModal));
+    this.reportFilesButton?.addEventListener('click', () => this.showConfirmFileModal(this.reportModal));
     this.moveFilesButton?.addEventListener('click', () => this.moveModal?.showModal());
     this.downloadFilesButton?.addEventListener('click', () => this.downloadFiles());
     this.renameFilesButton?.addEventListener('click', () => this.openRenameModal());
