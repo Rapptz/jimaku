@@ -15,6 +15,11 @@ use hmac::Mac;
 
 use crate::{key::SecretKey, models::Account, AppState};
 
+/// Maximum expiry date of the session cookie.
+///
+/// Session cookies aren't used since they're usually bad user experience.
+pub const MAX_TOKEN_AGE: time::Duration = time::Duration::days(365);
+
 /// An authentication token.
 ///
 /// In order to prevent tampering, the token is split into two sections:
@@ -125,6 +130,7 @@ impl Token {
             .path("/")
             .same_site(cookie::SameSite::Lax)
             .http_only(true)
+            .max_age(MAX_TOKEN_AGE)
             .build()
     }
 }

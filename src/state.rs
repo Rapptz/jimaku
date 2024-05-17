@@ -8,6 +8,7 @@ use crate::{
     cached::TimedCachedValue,
     database::Table,
     models::{Account, DirectoryEntry, Session},
+    token::MAX_TOKEN_AGE,
     Config, Database,
 };
 
@@ -15,6 +16,7 @@ use crate::{
 pub struct SessionInfo {
     pub id: i64,
     pub api_key: bool,
+    pub created_at: time::OffsetDateTime,
 }
 
 impl From<Session> for SessionInfo {
@@ -22,7 +24,15 @@ impl From<Session> for SessionInfo {
         Self {
             id: value.account_id,
             api_key: value.api_key,
+            created_at: value.created_at,
         }
+    }
+}
+
+impl SessionInfo {
+    /// Returns `true` if the session is expired
+    pub fn is_expired(&self) -> bool {
+        !self.api_key && time::OffsetDateTime::now_utc() > (self.created_at + MAX_TOKEN_AGE)
     }
 }
 
@@ -130,7 +140,14 @@ impl AppState {
     /// Returns if the session is valid (i.e. in the database or cache).
     pub async fn is_session_valid(&self, session: &str) -> Option<SessionInfo> {
         match self.inner.valid_sessions.get_value_or_guard_async(session).await {
-            Ok(session) => Some(session),
+            Ok(info) => {
+                if info.is_expired() {
+                    self.invalidate_session(session).await;
+                    None
+                } else {
+                    Some(info)
+                }
+            }
             Err(guard) => match self
                 .database()
                 .get_by_id::<Session>(session.to_owned())
@@ -138,10 +155,15 @@ impl AppState {
                 .ok()
                 .flatten()
             {
-                Some(session) => {
-                    let info = session.into();
-                    let _ = guard.insert(info);
-                    Some(info)
+                Some(info) => {
+                    let info = SessionInfo::from(info);
+                    if info.is_expired() {
+                        self.invalidate_session(session).await;
+                        None
+                    } else {
+                        let _ = guard.insert(info);
+                        Some(info)
+                    }
                 }
                 None => None,
             },
@@ -154,6 +176,10 @@ impl AppState {
     pub async fn get_session_account(&self, session: &str, id: i64, api_key: bool) -> Option<Account> {
         match self.inner.valid_sessions.get_value_or_guard_async(session).await {
             Ok(info) => {
+                if info.is_expired() {
+                    self.invalidate_session(session).await;
+                    return None;
+                }
                 let account = self.get_account(info.id).await;
                 if account.is_none() {
                     self.inner.valid_sessions.remove(session);
@@ -163,7 +189,7 @@ impl AppState {
             Err(guard) => {
                 let query = r#"
                     SELECT account.id AS id, account.name AS name, account.password AS password,
-                           account.flags AS flags, session.api_key AS api_key
+                           account.flags AS flags, session.api_key AS api_key, session.created_at AS created_at
                     FROM account INNER JOIN session ON session.account_id = account.id
                     WHERE session.id = ? AND session.account_id = ? AND session.api_key = ?
                 "#;
@@ -177,6 +203,7 @@ impl AppState {
                             let info = SessionInfo {
                                 id: account.id,
                                 api_key: row.get("api_key")?,
+                                created_at: row.get("created_at")?,
                             };
                             Ok((account, info))
                         },
@@ -185,9 +212,14 @@ impl AppState {
                     .ok()
                 {
                     Some((account, info)) => {
-                        let _ = guard.insert(info);
-                        self.inner.cached_users.insert(account.id, account.clone());
-                        Some(account)
+                        if info.is_expired() {
+                            self.invalidate_session(session).await;
+                            None
+                        } else {
+                            let _ = guard.insert(info);
+                            self.inner.cached_users.insert(account.id, account.clone());
+                            Some(account)
+                        }
                     }
                     None => None,
                 }
