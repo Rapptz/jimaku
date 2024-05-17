@@ -231,6 +231,18 @@ preferredName.addEventListener('change', () => {
   settings.dispatchEvent(new CustomEvent('preferred-name', {detail: preferredName.value}));
 });
 
+const initialSortBy = document.getElementById('initial-sort-by');
+initialSortBy.value = localStorage.getItem('initial-sort-by') ?? 'name';
+initialSortBy.addEventListener('change', () => {
+  localStorage.setItem('initial-sort-by', initialSortBy.value);
+});
+
+const initialSortOrder = document.getElementById('initial-sort-order');
+initialSortOrder.value = localStorage.getItem('initial-sort-order') ?? 'ascending';
+initialSortOrder.addEventListener('change', () => {
+  localStorage.setItem('initial-sort-order', initialSortOrder.value);
+});
+
 function getPreferredNameForEntry(entry) {
   let value = localStorage.getItem('preferred_name') ?? 'romaji';
   if(value == 'romaji') return entry.name;

@@ -66,7 +66,14 @@ class TableSorter {
       el.addEventListener('click', e => this.sortBy(e, el.dataset.sortBy))
     });
     if(this.parent) {
-      this.innerSortBy('data-name', true);
+      let isAscending = initialSortOrder.value === 'ascending';
+      this.innerSortBy(`data-${initialSortBy.value}`, isAscending);
+      const headers = Array.from(this.parent.querySelectorAll('.table-headers > .table-header'));
+      headers.forEach(node => node.classList.remove('sorting-ascending', 'sorting-descending'));
+      let element = headers.find(e => e.dataset.sortBy === initialSortBy.value);
+      if(element != null) {
+        element.classList.add(isAscending ? 'sorting-ascending' : 'sorting-descending');
+      }
     }
   }
 
