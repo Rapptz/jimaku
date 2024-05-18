@@ -726,6 +726,10 @@ uploadInput?.addEventListener('change', () => {
   uploadForm.submit();
 });
 
+if(typeof entryId === 'undefined') {
+  entryId = null;
+}
+
 var __bulk = new BulkFilesOperations(document.querySelector('.files'), entryId, {
   deleteFiles: document.getElementById('delete-files'),
   deleteModal: document.getElementById('confirm-delete-modal'),
