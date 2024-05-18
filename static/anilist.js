@@ -6,34 +6,28 @@ const loadingElement = document.getElementById('loading');
 const loadMoreButton = document.getElementById('load-more');
 let afterIndex = 0;
 const anilistQuery = `
-query ($username: String, $page: Int) {
-  Page(page: $page, perPage: 50) {
-    pageInfo {
-      total
-      currentPage
-      lastPage
-      hasNextPage
-      perPage
-    }
-    mediaList(
-      userName: $username
-      type: ANIME
-      status_in: [CURRENT, REPEATING, PLANNING]
-    ) {
-      mediaId
-      status
-      progress
-      media {
-        title {
-          native
-          romaji
-          english
+query ($username: String) {
+  MediaListCollection(
+    forceSingleCompletedList: true
+    userName: $username
+    status_in: [CURRENT, REPEATING, PLANNING]
+    type: ANIME
+  ) {
+    lists {
+      name
+      isCustomList
+      entries {
+        mediaId
+        status
+        progress
+        media {
+          coverImage {
+            extraLarge
+            medium
+          }
+          episodes
+          status(version: 2)
         }
-        coverImage {
-          medium
-        }
-        episodes
-        status(version: 2)
       }
     }
   }
@@ -50,41 +44,33 @@ settings.addEventListener('preferred-name', (value) => {
 
 async function getAniListEntries(username) {
   let variables = {
-    page: 1,
     username,
   };
 
   let result = [];
-  while(true) {
-    let resp = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: anilistQuery,
-        variables,
-      })
-    });
-    let json = await resp.json();
-    if(resp.status !== 200) {
-      let error = json.errors[0].message;
-      if(error === "Private User" && resp.status === 404) {
-        throw new Error(`This user's AniList page is private, and cannot be accessed.`);
-      }
-      else {
-        throw new Error(`This user's AniList page could not be found or some other error happened, sorry.`);
-      }
+  let resp = await fetch('https://graphql.anilist.co', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: anilistQuery,
+      variables,
+    })
+  });
+  let json = await resp.json();
+  if(resp.status !== 200) {
+    let error = json.errors[0].message;
+    if(error === "Private User" && resp.status === 404) {
+      throw new Error(`This user's AniList page is private, and cannot be accessed.`);
     }
-    let hasNextPage = json?.data?.Page?.pageInfo?.hasNextPage ?? false;
-    let mediaList = json?.data?.Page?.mediaList ?? [];
-    result.push(...mediaList.filter(d => d?.media?.status !== "NOT_YET_RELEASED"));
-    if(!hasNextPage) {
-      break;
+    else {
+      throw new Error(`This user's AniList page could not be found or some other error happened, sorry.`);
     }
-    variables.page += 1;
   }
 
+  let lists = json?.data?.MediaListCollection?.lists?.filter(d => !d.isCustomList) ?? [];
+  result.push(...lists.map(d => d.entries.filter(m => m.media.status !== 'NOT_YET_RELEASED')).flat());
   return result;
 }
 
