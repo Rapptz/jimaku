@@ -37,7 +37,7 @@ function __scoreByName(el, query) {
 }
 
 async function processTrashRequest(action) {
-  let files = getSelectedFiles().map(e => e.textContent);
+  let files = __bulk.getSelectedFiles().map(e => e.textContent);
   if (files.length === 0) {
     return;
   }
