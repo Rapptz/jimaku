@@ -148,7 +148,8 @@ function anilistEntryToElement(data, entry, files) {
   });
   return html('details.anilist-entry',
     html('summary',
-      html('a.cover', {style: `background-image: url("${data.media.coverImage.medium}")`, href: `https://anilist.co/anime/${data.mediaId}/`}),
+      html('a.cover', {href: `https://anilist.co/anime/${data.mediaId}/`},
+        html('img', {loading: 'lazy', src: data.media.coverImage.medium, alt: `Cover image for ${entry.name}`})),
       entryLink(entry),
       html('span.progress', `${data.progress}/${data.media.episodes ?? '?'}`)),
     html('div.contents', table,
