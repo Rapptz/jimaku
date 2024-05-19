@@ -6,7 +6,10 @@ use crate::{filters, models::Account, ratelimit::RateLimit, AppState};
 use askama::Template;
 use axum::{
     extract::State,
-    http::{header::AUTHORIZATION, Method},
+    http::{
+        header::{AUTHORIZATION, USER_AGENT},
+        Method,
+    },
     routing::{get, post},
     Json, Router,
 };
@@ -114,6 +117,6 @@ pub fn routes() -> Router<AppState> {
                 .allow_methods([Method::GET, Method::POST])
                 .allow_credentials(true)
                 .allow_origin(AllowOrigin::mirror_request())
-                .allow_headers([AUTHORIZATION]),
+                .allow_headers([AUTHORIZATION, USER_AGENT]),
         )
 }
