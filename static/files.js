@@ -5,11 +5,11 @@ const escapeRegex = (e) => e.replace(escapedRegex, '\\$&');
 const MIN_SCORE = -1500;
 
 function __score(haystack, query) {
-  let result = fuzzysort.single(query, __removeDiacritics(haystack));
+  let result = fuzzysort.single(__normalizeString(query), __normalizeString(haystack));
   return result?.score == null ? MIN_SCORE : result.score;
 }
 
-function __removeDiacritics(s) {
+function __normalizeString(s) {
   return s ? s.normalize('NFKD').replace(/[\u0300-\u036f]/g, "") : s;
 }
 
