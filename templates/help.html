@@ -35,7 +35,6 @@ Help · Jimaku
         <li><a href="#archives">Archives</a></li>
         <li><a href="#ai-files">AI Generated Files</a></li>
         <li><a href="#converted-files">Converted and OCR Files</a></li>
-        <li><a href="#file-location">File Location</a></li>
         <li><a href="#deleting-files">Deleting Files</a></li>
       </ul>
     </li>
@@ -97,7 +96,7 @@ Help · Jimaku
   </p>
   <h2 id="downloading-files">Downloading Files</h2>
   <p>
-    You can download files by clicking on the link in the file entry. You can also bulk download files by selecting multiple files using the checkbox and then clicking the Download button. This will give you a ZIP file with all the subtitles you selected.
+    You can download files by clicking on the link in the file entry. You can also bulk download files by selecting multiple files using the checkbox and then clicking the Download button. This will give you a ZIP file with all the subtitles you selected. Shift clicking the checkbox to select multiple files is also supported.
   </p>
   <h2 id="anilist-integration">AniList Integration</h2>
   <p>
@@ -141,6 +140,21 @@ Help · Jimaku
   <h2 id="naming-scheme">Naming Scheme</h2>
   <p>
     Subtitle filenames should generally have the same name as the filename of the video it came from, except with an <code>.srt</code> or <code>.ass</code> extension instead of the video extension. This allows users to quickly identify what video the subtitles originated from, and hopefully allows them to consistently modify the timing relative to their own files.
+  </p>
+  <p>
+    For rips directly from streaming sources or Blu-ray, <strong>include the name of the source</strong> and consider standardizing the filename to match the other files on the site for the convenience of the user. If the release uses a different numbering scheme than the standard one as sometimes the case with Netflix, also consider including the title of the episode. Examples of common formats:
+    <ul>
+      <li><code>Kaguya-sama Love Is War.S02E01.Netflix.CC.ja.srt</code></li>
+      <li><code>Pokemon Horizon.S01E01.Amazon.ja[sdh].srt</code></li>
+      <li><code>史上最強の大魔王、村人Aに転生する.S01E01.村人A.WEBRip.Netflix.ja[cc].srt</code></li>
+      <li><code>モンティ・パイソン・アンド・ホーリー・グレイル.BDrip.ja.srt</code></li>
+    </ul>
+  </p>
+  <p>
+    At the bare minimum, retimed files should be prefixed with <code>[Group]</code> so users can distinguish what release they are meant to be used for. Files can also be suffixed with <code>(retimed from Source)</code> to help users discern if the subtitles are accurate (Kamigami sometimes is not), if there are closed captions, and what the ASS styling might look like if applicable. (Example: <code>[Vodes] Jujutsu Kaisen 0 (2021) [v2] [BD 1080p HEVC Dual-Audio] (retimed from Netflix).srt)</code>
+  </p>
+  <p>
+    Dual language files should be suffixed with either <code>[TAG1, TAG2]</code> or <code>.tag1-tag2</code>  to reflect the languages contained in the file. Recommended tags are JPN, CHI, CHS, CHT, ENG, ja, en, and cn.
   </p>
   <h2 id="creating-folders">Creating Folders</h2>
   <p>
