@@ -113,6 +113,7 @@ pub struct ExpandedEntryFlags {
     anime: bool,
     /// The entry is unverified and has not been checked by editors.
     #[schema(example = false)]
+    #[serde(alias = "low_quality")]
     unverified: bool,
     /// The entry comes from an external source.
     #[schema(example = false)]

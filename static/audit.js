@@ -74,7 +74,7 @@ async function backfillScrapeResult(directories) {
 
 const FLAG_NAMES = Object.freeze({
   anime: 'Anime',
-  low_quality: 'Low Quality',
+  unverified: 'Unverified',
   external: 'Legacy',
   movie: 'Movie',
   adult: 'Adult',
