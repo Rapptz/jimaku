@@ -10,7 +10,7 @@ If you have not generated an API key yet, you can do so on your [account page](/
 
 ### Core Concepts
 
-Jimaku is basically a directory listing where every [Entry](#model/entry) represents a directory. These directories are backed by either a TMDB ID or an AniList ID. Users with editor privileges can bypass this requirement for extraordinary cases. Right now the API does not support this, though it might at some point in the future.
+Jimaku is basically a directory listing where every [Entry](#model/entry) represents a directory. These directories are backed by either a TMDB ID or an AniList ID. Users with editor privileges can bypass this requirement for extraordinary cases.
 
 Each directory entry has a set of files that can be downloaded.
 

@@ -110,19 +110,24 @@ impl Default for EntryFlags {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, ToSchema)]
 pub struct ExpandedEntryFlags {
     /// The entry is for an anime.
+    #[serde(default)]
     anime: bool,
     /// The entry is unverified and has not been checked by editors.
     #[schema(example = false)]
     #[serde(alias = "low_quality")]
+    #[serde(default)]
     unverified: bool,
     /// The entry comes from an external source.
     #[schema(example = false)]
+    #[serde(default)]
     external: bool,
     /// The entry is a movie.
     #[schema(example = false)]
+    #[serde(default)]
     movie: bool,
     /// The entry is meant for adult audiences.
     #[schema(example = false)]
+    #[serde(default)]
     adult: bool,
 }
 

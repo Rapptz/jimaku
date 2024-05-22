@@ -1,14 +1,12 @@
-use axum::{
-    extract::{Multipart, State},
-    Json,
-};
+use axum::extract::{Multipart, State};
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
+    anilist::MediaTitle,
     error::{ApiError, ApiErrorCode},
-    models::DirectoryEntry,
+    models::{DirectoryEntry, EntryFlags},
     routes::entry::{
         get_file_entries, raw_create_directory_entry, raw_upload_file, FileEntry, PendingDirectoryEntry, UploadResult,
     },
@@ -17,7 +15,7 @@ use crate::{
 
 use super::{
     auth::ApiToken,
-    utils::{ApiPath as Path, ApiQuery as Query, RateLimitResponse},
+    utils::{ApiJson as Json, ApiPath as Path, ApiQuery as Query, RateLimitResponse},
 };
 
 /// Details
@@ -202,7 +200,6 @@ pub async fn search_entries(
     Ok(Json(entries.into_iter().map(|(_, entry)| entry).collect()))
 }
 
-// TODO: Allow editors to create entries via name etc.
 #[derive(Deserialize, IntoParams)]
 pub struct CreateQuery {
     /// Create an entry backed by the given AniList ID.
@@ -216,6 +213,39 @@ pub struct CreateQuery {
     #[param(pattern = r#"(tv|movie):(\d+)"#, value_type = Option<String>, example = "tv:12345")]
     #[serde(default)]
     tmdb_id: Option<tmdb::Id>,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct CreatePayload {
+    /// Create an entry backed by the given AniList ID.
+    #[serde(default)]
+    anilist_id: Option<u32>,
+    /// Create an entry backed by the given TMDB ID.
+    ///
+    /// Check the documentation for the string TMDB ID encoding.
+    #[serde(default)]
+    #[schema(pattern = r#"(tv|movie):(\d+)"#, value_type = Option<String>, example = "tv:12345")]
+    tmdb_id: Option<tmdb::Id>,
+    /// Create an entry with the given Romaji name.
+    ///
+    /// This is only available for API keys bound to editor users.
+    #[serde(default)]
+    name: Option<String>,
+    /// Create an entry with the given Japanese name.
+    ///
+    /// This is only available for API keys bound to editor users.
+    #[serde(default)]
+    japanese_name: Option<String>,
+    /// Create an entry with the given English name.
+    ///
+    /// This is only available for API keys bound to editor users.
+    #[serde(default)]
+    english_name: Option<String>,
+    /// Create an entry with the given flags.
+    ///
+    /// This is only available for API keys bound to editor users.
+    #[serde(default, with = "crate::models::expand_flags::option")]
+    flags: Option<EntryFlags>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -233,9 +263,13 @@ pub struct CreateEntryResult {
 /// is returned instead.
 ///
 /// An entry becomes an anime entry if an AniList ID is given.
+///
+/// Note that only API keys bound to editor users can use
+/// fields other than `tmdb_id` and `anilist_id`.
 #[utoipa::path(
     post,
     path = "/api/entries",
+    request_body = inline(CreatePayload),
     responses(
         (status = 200, description = "Successful response", body = inline(CreateEntryResult)),
         (status = 400, description = "An error occurred", body = ApiError),
@@ -253,14 +287,45 @@ pub async fn create_entry(
     State(state): State<AppState>,
     Query(query): Query<CreateQuery>,
     auth: ApiToken,
+    Json(payload): Json<CreatePayload>,
 ) -> Result<Json<CreateEntryResult>, ApiError> {
     let Some(account) = state.get_account(auth.id).await else {
         return Err(ApiError::unauthorized());
     };
+    let anilist_id = payload.anilist_id.or(query.anilist_id);
+    let tmdb_id = payload.tmdb_id.or(query.tmdb_id);
+    if !account.flags.is_editor()
+        && (payload.name.is_some()
+            || payload.japanese_name.is_some()
+            || payload.english_name.is_some()
+            || payload.flags.is_some())
+    {
+        return Err(ApiError::forbidden());
+    }
+
+    let flags = if payload.flags.is_none() && payload.name.is_some() {
+        let mut flags = EntryFlags::new();
+        flags.set_anime(anilist_id.is_some());
+        Some(flags)
+    } else {
+        payload.flags
+    };
+    let titles = if let Some(name) = &payload.name {
+        Some(MediaTitle {
+            romaji: name.clone(),
+            english: payload.english_name,
+            native: payload.japanese_name,
+        })
+    } else {
+        None
+    };
+
     let pending = PendingDirectoryEntry {
-        anime: query.anilist_id.is_some(),
-        anilist_id: query.anilist_id,
-        tmdb_id: query.tmdb_id,
+        anime: anilist_id.is_some(),
+        anilist_id,
+        tmdb_id,
+        titles,
+        flags,
         ..Default::default()
     };
 
@@ -269,8 +334,8 @@ pub async fn create_entry(
         Err(e) if e.code == ApiErrorCode::EntryAlreadyExists => state
             .database()
             .get_row(
-                "SELECT id FROM directory_entry WHERE anilist_id = ? OR tmdb_id = ?",
-                (query.anilist_id, query.tmdb_id),
+                "SELECT id FROM directory_entry WHERE anilist_id = ? OR tmdb_id = ? OR name = ?",
+                (anilist_id, tmdb_id, payload.name),
                 |row| row.get("id"),
             )
             .await
