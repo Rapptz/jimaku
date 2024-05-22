@@ -49,8 +49,8 @@
     {% if entry.flags.is_adult() -%}
     <span class="badge danger" title="Entry is meant for adults">Adult</span>
     {% endif -%}
-    {% if entry.flags.is_low_quality() -%}
-    <span class="badge warning" title="Entry has quality issues">Low Quality</span>
+    {% if entry.flags.is_unverified() -%}
+    <span class="badge warning" title="Entry might have quality issues">Unverified</span>
     {% endif -%}
     {% if entry.flags.is_movie() -%}
     <span class="badge success" title="Entry is a movie">Movie</span>
@@ -155,9 +155,9 @@
              autocomplete="off" type="text">
       <div class="form-field checkboxes">
         <div class="checkbox-container">
-          <input value="true" {%- if entry.flags.is_low_quality() -%}checked{% endif %}
-                 name="low_quality" id="entry-low-quality" type="checkbox">
-          <label for="entry-low-quality">Low Quality</label>
+          <input value="true" {%- if entry.flags.is_unverified() -%}checked{% endif %}
+                 name="unverified" id="entry-unverified" type="checkbox">
+          <label for="entry-unverified">Unverified</label>
         </div>
         <div class="checkbox-container">
           <input value="true" {%- if entry.flags.is_movie() -%}checked{% endif %}

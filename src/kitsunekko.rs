@@ -410,7 +410,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
                 let mut stmt = tx.prepare(sql)?;
                 for fixture in fixtures {
                     let mut flags = EntryFlags::default();
-                    flags.set_low_quality(true);
+                    flags.set_unverified(true);
                     flags.set_external(true);
                     flags.set_movie(fixture.movie);
                     flags.set_adult(fixture.adult);

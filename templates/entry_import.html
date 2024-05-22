@@ -34,9 +34,9 @@
            autocomplete="off" type="text">
     <div class="form-field checkboxes">
       <div class="checkbox-container">
-        <input value="true" {%- if pending.flags.is_low_quality() -%}checked{% endif %}
-               name="low_quality" id="entry-low-quality" type="checkbox">
-        <label for="entry-low-quality">Low Quality</label>
+        <input value="true" {%- if pending.flags.is_unverified() -%}checked{% endif %}
+               name="unverified" id="entry-unverified" type="checkbox">
+        <label for="entry-unverified">Unverified</label>
       </div>
       <div class="checkbox-container">
         <input value="true" {%- if pending.flags.is_movie() -%}checked{% endif %}

@@ -36,7 +36,7 @@ impl<'s> ToSchema<'s> for EntryFlags {
 
 impl EntryFlags {
     const ANIME: u32 = 1 << 0;
-    const LOW_QUALITY: u32 = 1 << 1;
+    const UNVERIFIED: u32 = 1 << 1;
     const EXTERNAL: u32 = 1 << 2;
     const MOVIE: u32 = 1 << 3;
     const ADULT: u32 = 1 << 4;
@@ -67,12 +67,12 @@ impl EntryFlags {
         self.toggle_flag(Self::ANIME, toggle)
     }
 
-    pub fn is_low_quality(&self) -> bool {
-        self.has_flag(Self::LOW_QUALITY)
+    pub fn is_unverified(&self) -> bool {
+        self.has_flag(Self::UNVERIFIED)
     }
 
-    pub fn set_low_quality(&mut self, toggle: bool) {
-        self.toggle_flag(Self::LOW_QUALITY, toggle)
+    pub fn set_unverified(&mut self, toggle: bool) {
+        self.toggle_flag(Self::UNVERIFIED, toggle)
     }
 
     pub fn is_external(&self) -> bool {
@@ -111,9 +111,9 @@ impl Default for EntryFlags {
 pub struct ExpandedEntryFlags {
     /// The entry is for an anime.
     anime: bool,
-    /// The entry is low quality (has not been checked by editors).
+    /// The entry is unverified and has not been checked by editors.
     #[schema(example = false)]
-    low_quality: bool,
+    unverified: bool,
     /// The entry comes from an external source.
     #[schema(example = false)]
     external: bool,
@@ -129,7 +129,7 @@ impl From<EntryFlags> for ExpandedEntryFlags {
     fn from(value: EntryFlags) -> Self {
         Self {
             anime: value.is_anime(),
-            low_quality: value.is_low_quality(),
+            unverified: value.is_unverified(),
             external: value.is_external(),
             movie: value.is_movie(),
             adult: value.is_adult(),
@@ -141,7 +141,7 @@ impl From<ExpandedEntryFlags> for EntryFlags {
     fn from(value: ExpandedEntryFlags) -> Self {
         let mut flags = Self::new();
         flags.set_anime(value.anime);
-        flags.set_low_quality(value.low_quality);
+        flags.set_unverified(value.unverified);
         flags.set_external(value.external);
         flags.set_movie(value.movie);
         flags.set_adult(value.adult);
@@ -154,7 +154,7 @@ impl std::fmt::Debug for EntryFlags {
         f.debug_struct("DirectoryFlags")
             .field("value", &self.0)
             .field("anime", &self.is_anime())
-            .field("low_quality", &self.is_low_quality())
+            .field("unverified", &self.is_unverified())
             .field("external", &self.is_external())
             .field("movie", &self.is_movie())
             .field("adult", &self.is_adult())

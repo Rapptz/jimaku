@@ -372,7 +372,7 @@ struct EditDirectoryEntry {
     #[serde(rename = "tmdb_url", deserialize_with = "tmdb_url")]
     tmdb_id: Option<tmdb::Id>,
     #[serde(default)]
-    low_quality: bool,
+    unverified: bool,
     #[serde(default)]
     adult: bool,
     #[serde(default)]
@@ -383,7 +383,7 @@ struct EditDirectoryEntry {
 
 impl EditDirectoryEntry {
     fn apply_flags(&self, mut flags: EntryFlags) -> EntryFlags {
-        flags.set_low_quality(self.low_quality);
+        flags.set_unverified(self.unverified);
         flags.set_adult(self.adult);
         flags.set_movie(self.movie);
         flags.set_anime(self.anime);
