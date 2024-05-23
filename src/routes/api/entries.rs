@@ -50,6 +50,38 @@ pub async fn get_entry_by_id(
     }
 }
 
+#[derive(Deserialize, IntoParams)]
+pub struct FilesQuery {
+    /// Return files that match the given episode number.
+    ///
+    /// This is a best-effort guess, based off of the filename.
+    /// This query parameter is also ignored for entries that
+    /// are movies.
+    #[serde(default)]
+    episode: Option<u16>,
+}
+
+fn is_valid_episode(filename: &str, episode: u16) -> bool {
+    let result = anitomy::parse(filename);
+    let mut episodes = result.iter().filter(|p| p.kind() == anitomy::ElementKind::Episode);
+    let Some(start) = episodes.next().map(|e| e.value()).and_then(|s| s.parse::<u16>().ok()) else {
+        return false;
+    };
+    let end = episodes.next().map(|e| e.value()).and_then(|s| s.parse::<u16>().ok());
+    match end {
+        Some(end) => (start..=end).contains(&episode),
+        None => episode == start,
+    }
+}
+
+impl FilesQuery {
+    fn filter(&self, files: &mut Vec<FileEntry>) {
+        if let Some(episode) = self.episode {
+            files.retain(|f| is_valid_episode(&f.name, episode));
+        }
+    }
+}
+
 /// Files
 ///
 /// Get the files associated with an entry.
@@ -64,7 +96,8 @@ pub async fn get_entry_by_id(
         (status = 429, response = RateLimitResponse),
     ),
     params(
-        ("id" = i64, Path, description = "The entry's ID")
+        ("id" = i64, Path, description = "The entry's ID"),
+        FilesQuery
     ),
     security(
         ("api_key" = [])
@@ -74,11 +107,15 @@ pub async fn get_entry_by_id(
 pub async fn get_entry_files(
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    Query(query): Query<FilesQuery>,
     _auth: ApiToken,
 ) -> Result<Json<Vec<FileEntry>>, ApiError> {
-    match state.get_directory_entry_path(id).await {
-        Some(path) => {
-            let mut files = get_file_entries(id, &path)?;
+    match state.get_directory_entry(id).await {
+        Some(entry) => {
+            let mut files = get_file_entries(id, &entry.path)?;
+            if !entry.flags.is_movie() {
+                query.filter(&mut files);
+            }
             let url = state.config().canonical_url();
             for file in files.iter_mut() {
                 file.url = url.clone() + file.url.as_str();
