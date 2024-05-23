@@ -98,7 +98,8 @@ function isValidFile(filename, progress) {
     if(Array.isArray(parsed.episode)) {
       let start = parseInt(parsed.episode[0]);
       let end = parseInt(parsed.episode[1]);
-      return progress >= start && progress <= end;
+      let nextEpisode = progress + 1;
+      return nextEpisode >= start && nextEpisode <= end;
     }
     let value = parseInt(parsed.episode);
     return value > progress;
