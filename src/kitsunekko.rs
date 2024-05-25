@@ -167,7 +167,9 @@ pub async fn get_entries(client: &reqwest::Client, url: &str) -> anyhow::Result<
             anyhow::Ok(File {
                 url,
                 name: sanitise_file_name::sanitise(&cap["name"]),
-                date: PrimitiveDateTime::parse(&cap["date"], DATE_FORMAT)?.assume_offset(offset!(+02:00)),
+                date: PrimitiveDateTime::parse(&cap["date"], DATE_FORMAT)?
+                    .assume_offset(offset!(+02:00))
+                    .to_offset(offset!(UTC)),
             })
         })
         .collect()
