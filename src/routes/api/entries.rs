@@ -252,7 +252,7 @@ pub struct CreateQuery {
     tmdb_id: Option<tmdb::Id>,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, Default)]
 pub struct CreatePayload {
     /// Create an entry backed by the given AniList ID.
     #[serde(default)]
@@ -324,11 +324,12 @@ pub async fn create_entry(
     State(state): State<AppState>,
     Query(query): Query<CreateQuery>,
     auth: ApiToken,
-    Json(payload): Json<CreatePayload>,
+    payload: Option<Json<CreatePayload>>,
 ) -> Result<Json<CreateEntryResult>, ApiError> {
     let Some(account) = state.get_account(auth.id).await else {
         return Err(ApiError::unauthorized());
     };
+    let Json(payload) = payload.unwrap_or_else(|| Json(Default::default()));
     let anilist_id = payload.anilist_id.or(query.anilist_id);
     let tmdb_id = payload.tmdb_id.or(query.tmdb_id);
     if !account.flags.is_editor()
