@@ -474,8 +474,8 @@ class BulkFilesOperations {
     }
 
     let total = js.success + js.failed;
-    showModalAlert(this.moveModal, {level: 'success', content: `Successfully moved ${js.success}/${total} files, redirecting to folder in 5 seconds...`});
-    await sleep(5000);
+    showModalAlert(this.moveModal, {level: 'success', content: `Successfully moved ${js.success}/${total} files, redirecting to folder in 3 seconds...`});
+    await sleep(3000);
     window.location.href = `/entry/${js.entry_id}`;
   }
 
@@ -523,8 +523,8 @@ class BulkFilesOperations {
     }
 
     let total = js.success + js.failed;
-    showModalAlert(this.renameModal, {level: 'success', content: `Successfully renamed ${js.success}/${total} files, refreshing in 3 seconds...`});
-    await sleep(3000);
+    showModalAlert(this.renameModal, {level: 'success', content: `Successfully renamed ${js.success}/${total} files, refreshing in a second...`});
+    await sleep(1000);
     window.location.reload();
   }
 }
