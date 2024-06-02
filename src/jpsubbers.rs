@@ -24,7 +24,7 @@ There are a few caveats:
 3) There is no last_modified information so each scrape loop will force a full crawl either way.
 */
 
-use std::{io::Write, path::PathBuf, sync::OnceLock};
+use std::{collections::HashMap, io::Write, path::PathBuf, sync::OnceLock};
 
 use anyhow::{bail, Context};
 use regex::Regex;
@@ -181,6 +181,14 @@ fn prepare_query(haystack: &str) -> String {
     re.replace_all(haystack, "").into_owned()
 }
 
+async fn get_redirects(state: &AppState) -> Option<HashMap<String, i64>> {
+    let from_storage = state
+        .database()
+        .get_from_storage::<String>("jpsubbers_redirects")
+        .await?;
+    serde_json::from_str(&from_storage).ok()
+}
+
 pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
     let mut result = Vec::new();
     let directories = get_entries(&state.client, "https://jpsubbers.com/Japanese-Subtitles/")
@@ -192,6 +200,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
     let api_key = &state.config().tmdb_api_key;
     let subtitle_path = state.config().subtitle_path.as_path();
     let total = directories.len();
+    let redirects = get_redirects(state).await.unwrap_or_default();
     for (index, mut entry) in directories.into_iter().enumerate() {
         entry.find_files(&state.client).await?;
         if entry.files.is_empty() {
@@ -206,7 +215,49 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
 
         let mut directory = subtitle_path.join(format!("jpsubbers_{}", &entry.name));
         let query = prepare_query(&entry.name);
-        let fixture = if let Ok(Some(info)) = tmdb::find_match(&state.client, api_key, &query).await {
+        let fixture = if let Some(entry_id) = redirects.get(&entry.name) {
+            info!(
+                "[{}/{}] redirecting {:?} to entry ID {}",
+                index + 1,
+                total,
+                &entry.name,
+                entry_id
+            );
+            if let Some(original) = state.get_directory_entry(*entry_id).await {
+                directory = original.path;
+                Fixture {
+                    path: directory.clone(),
+                    original_name: original.name.clone(),
+                    last_updated_at: OffsetDateTime::now_utc(),
+                    anilist_id: original.anilist_id,
+                    tmdb_id: original.tmdb_id,
+                    title: MediaTitle {
+                        romaji: original.name,
+                        english: original.english_name,
+                        native: original.japanese_name,
+                    },
+                    movie: original.flags.is_movie(),
+                    adult: original.flags.is_adult(),
+                    unverified: true,
+                    anime: false,
+                    external: true,
+                }
+            } else {
+                Fixture {
+                    path: directory.clone(),
+                    last_updated_at: OffsetDateTime::now_utc(),
+                    original_name: entry.name.clone(),
+                    anilist_id: None,
+                    tmdb_id: None,
+                    title: MediaTitle::new(entry.name.clone()),
+                    adult: false,
+                    movie: false,
+                    anime: false,
+                    unverified: true,
+                    external: false,
+                }
+            }
+        } else if let Ok(Some(info)) = tmdb::find_match(&state.client, api_key, &query).await {
             // Check if it this AniList ID exists in the database already
             if let Some(path) = state.get_tmdb_directory_entry_path(info.id).await {
                 directory = path;
