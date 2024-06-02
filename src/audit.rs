@@ -34,8 +34,48 @@ pub struct ScrapeDirectory {
     pub original_name: String,
     /// The romaji name of the entry that was mapped
     pub name: String,
-    /// The anilist ID of the entry
+    /// The anilist ID of the entryo
+    #[serde(default)]
     pub anilist_id: Option<u32>,
+    /// The TMDB ID of the entry
+    #[serde(default)]
+    pub tmdb_id: Option<tmdb::Id>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+#[serde(try_from = "u8", into = "u8")]
+pub enum ScrapeSource {
+    #[default]
+    Kitsunekko = 0,
+    Jpsubbers = 1,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InvalidScrapeSource;
+
+impl std::fmt::Display for InvalidScrapeSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("invalid scrape source")
+    }
+}
+
+impl TryFrom<u8> for ScrapeSource {
+    type Error = InvalidScrapeSource;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Kitsunekko),
+            1 => Ok(Self::Jpsubbers),
+            _ => Err(InvalidScrapeSource),
+        }
+    }
+}
+
+impl Into<u8> for ScrapeSource {
+    fn into(self) -> u8 {
+        self as u8
+    }
 }
 
 /// Audit log data for a successful scrape attempt
@@ -48,6 +88,8 @@ pub struct ScrapeResult {
     /// The date that has been scraped up to.
     #[serde(with = "time::serde::rfc3339::option")]
     pub date: Option<OffsetDateTime>,
+    #[serde(default)]
+    pub source: ScrapeSource,
 }
 
 impl ScrapeResult {
@@ -57,6 +99,7 @@ impl ScrapeResult {
             directories: Vec::new(),
             error: true,
             date: None,
+            source: ScrapeSource::Kitsunekko,
         }
     }
 }

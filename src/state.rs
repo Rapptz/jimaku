@@ -380,4 +380,23 @@ impl AppState {
             .await
             .ok()
     }
+
+    /// Gets the directory entry's path by its TMDB ID.
+    pub async fn get_tmdb_directory_entry_path(&self, id: crate::tmdb::Id) -> Option<PathBuf> {
+        if let Some(guard) = self.cached_directories().get().await {
+            let found = guard.iter().find(|x| x.tmdb_id == Some(id));
+            // Cache hit, return a copy
+            if let Some(hit) = found {
+                return Some(hit.path.clone());
+            }
+        }
+
+        self.database()
+            .get_row("SELECT path FROM directory_entry WHERE tmdb_id = ?", [id], |row| {
+                let str: String = row.get("path")?;
+                Ok(PathBuf::from(str))
+            })
+            .await
+            .ok()
+    }
 }

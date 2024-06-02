@@ -14,6 +14,7 @@ pub mod fixture;
 pub mod flash;
 pub mod headers;
 pub mod japanese;
+pub mod jpsubbers;
 pub mod key;
 pub mod kitsunekko;
 pub mod logging;

@@ -50,22 +50,46 @@ async function backfillScrapeResult(directories) {
   if(directories.length === 0) return;
 
   let anilist_ids = directories.filter(d => d.anilist_id != null).map(d => d.anilist_id);
-  let response = await fetch('/entry/relations', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({anilist_ids})
-  });
+  let lookup = {};
+  if (anilist_ids.length !== 0) {
+    let response = await fetch('/entry/relations', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({anilist_ids})
+    });
 
-  if(!response.ok) {
-    return;
+    if(response.ok) {
+      let js = await response.json();
+      if(js.length !== 0) {
+        js.forEach(e => {
+          lookup[e.anilist_id] = e;
+        });
+      }
+    }
   }
-  let js = await response.json();
-  if(js.length === 0) return;
-  let lookup = Object.fromEntries(js.map(d => [d.anilist_id, d]));
+  let tmdb_ids = directories.filter(d => d.tmdb_id != null).map(d => d.tmdb_id);
+  if (tmdb_ids.length !== 0) {
+    let response = await fetch('/entry/relations/tmdb', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({tmdb_ids})
+    });
+
+    if(response.ok) {
+      let js = await response.json();
+      if(js.length !== 0) {
+        js.forEach(e => {
+          lookup[e.tmdb_id] = e;
+        });
+      }
+    }
+  }
   directories.forEach(d => {
-    let entry = lookup[d.anilist_id];
+    let entry = lookup[d.anilist_id] ?? lookup[d.tmdb_id];
     if(entry != null) {
       d.entry = entry;
     }
@@ -80,11 +104,26 @@ const FLAG_NAMES = Object.freeze({
   adult: 'Adult',
 });
 
+const SCRAPE_SOURCES = Object.freeze({
+  0: 'Kitsunekko',
+  1: 'JPSubbers',
+});
+
 let tmdbIdToUrl = (tmdbId) => {
   if(tmdbId == null) return null;
   let split = tmdbId.split(':');
   return `https://themoviedb.org/${split[0]}/${split[1]}`;
 }
+
+let getOriginalHref = (source, originalName) => {
+  if(source === 0) {
+    return `https://kitsunekko.net/dirlist.php?dir=subtitles%2Fjapanese%2F${encodeURIComponent(originalName)}%2F`;
+  } else if(source === 1) {
+    return `https://jpsubbers.com/Japanese-Subtitles/index.php?p=/${encodeURIComponent(originalName)}`;
+  } else {
+    return 'unknown';
+  }
+};
 
 function auditLogEntry(id, title, contents) {
   const isEmpty = (e) => e == null || (Array.isArray(e) && e.length === 0)
@@ -102,15 +141,18 @@ function auditLogEntry(id, title, contents) {
 
 const auditLogTypes = Object.freeze({
   scrape_result: (data, log, info) => {
-    let title = data.error ? "Error scraping from Kitsunekko" : (data.directories.length === 0 ? "Checked Kitsunekko" : "Scraped from Kitsunekko");
+    let source = SCRAPE_SOURCES[data.source];
+    let title = data.error ? `Error scraping from ${source}` : (data.directories.length === 0 ? `Checked ${source}` : `Scraped from ${source}`);
     let elements = data.directories.map(d => {
       let link = d.name;
       if(d.entry != null) {
         link = entryLink(d.entry.id, info, null, d.entry);
       } else if(d.anilist_id !== null) {
         link = html('a', d.name, {href: `https://anilist.co/anime/${d.anilist_id}/`});
+      } else if (d.tmdb_id != null) {
+        link = html('a', d.name, {href: tmdbIdToUrl(d.tmdb_id)});
       }
-      let original_href = `https://kitsunekko.net/dirlist.php?dir=subtitles%2Fjapanese%2F${encodeURIComponent(d.original_name)}%2F`;
+      let original_href = getOriginalHref(data.source, d.original_name);
       let original = html('a.original', d.original_name, {href: original_href});
       return html('li', link, ' (Original: ', original, ')');
     });

@@ -21,6 +21,10 @@ pub struct Fixture {
     pub movie: bool,
     #[serde(default)]
     pub adult: bool,
+    #[serde(default)]
+    pub external: bool,
+    #[serde(default)]
+    pub unverified: bool,
 }
 
 pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow::Result<()> {
@@ -38,8 +42,8 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
                 let mut stmt = tx.prepare(sql)?;
                 for fixture in fixtures {
                     let mut flags = EntryFlags::default();
-                    flags.set_unverified(true);
-                    flags.set_external(true);
+                    flags.set_unverified(fixture.unverified);
+                    flags.set_external(fixture.external);
                     flags.set_movie(fixture.movie);
                     flags.set_adult(fixture.adult);
                     stmt.execute((

@@ -117,6 +117,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     let secret_key = config.secret_key;
 
     tokio::spawn(jimaku::kitsunekko::auto_scrape_loop(state.clone()));
+    tokio::spawn(jimaku::jpsubbers::auto_scrape_loop(state.clone()));
 
     // Middleware order for request processing is top to bottom
     // and for response processing it's bottom to top

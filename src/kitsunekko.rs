@@ -32,7 +32,7 @@ use tracing::{info, warn};
 
 use crate::{
     anilist::{Media, MediaTitle},
-    audit::{AuditLogEntry, ScrapeDirectory, ScrapeResult},
+    audit::{AuditLogEntry, ScrapeDirectory, ScrapeResult, ScrapeSource},
     fixture::{commit_fixtures, Fixture},
     AppState,
 };
@@ -50,7 +50,7 @@ fn remove_parentheses(haystack: &str) -> String {
     re.replace_all(haystack, "").into_owned()
 }
 
-const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0";
+pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0";
 const DATE_FORMAT: &[FormatItem<'static>] =
     format_description!("[month repr:short] [day] [year] [hour repr:12]:[minute]:[second] [period case:upper]");
 const BASE_URL: &str = "https://kitsunekko.net";
@@ -306,6 +306,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                     },
                     movie: original.flags.is_movie(),
                     adult: original.flags.is_adult(),
+                    unverified: true,
+                    external: true,
                 };
                 if let Some(anilist_id) = original.anilist_id {
                     potential_dupes.insert(anilist_id, as_fixture);
@@ -338,6 +340,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                         tmdb_id: None,
                         adult: media.adult,
                         movie: media.is_movie(),
+                        unverified: true,
+                        external: true,
                         title: media.title,
                     },
                 );
@@ -352,6 +356,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 title: MediaTitle::new(entry.name.clone()),
                 adult: false,
                 movie: false,
+                unverified: true,
+                external: true,
             });
         }
 
@@ -412,10 +418,12 @@ pub async fn auto_scrape_loop(state: AppState) {
                             original_name: f.original_name.clone(),
                             name: f.title.romaji.clone(),
                             anilist_id: f.anilist_id,
+                            tmdb_id: None,
                         })
                         .collect(),
                     error: false,
                     date: new_date,
+                    source: ScrapeSource::Kitsunekko,
                 };
                 if let Err(e) = commit_fixtures(&state, fixtures).await {
                     tracing::error!(error = %e, "Error occurred while committing fixtures");
