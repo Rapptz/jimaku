@@ -56,7 +56,7 @@
     <span class="badge success" title="Entry is a movie">Movie</span>
     {% endif -%}
     {% if entry.flags.is_external() -%}
-    <span class="badge info" title="Entry originated from Kitsunekko">Legacy</span>
+    <span class="badge info" title="Entry originated from an outside source">External</span>
     {% endif -%}
     {% if flags.is_editor() -%}
     <a class="history" href="/logs?entry_id={{ entry.id }}">

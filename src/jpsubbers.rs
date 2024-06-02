@@ -254,7 +254,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                     movie: false,
                     anime: false,
                     unverified: true,
-                    external: false,
+                    external: true,
                 }
             }
         } else if let Ok(Some(info)) = tmdb::find_match(&state.client, api_key, &query).await {
@@ -271,7 +271,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                 adult: info.is_adult(),
                 movie: info.id.is_movie(),
                 unverified: true,
-                external: false,
+                external: true,
                 anime: false,
                 title: info.titles(),
             }
@@ -287,7 +287,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                 movie: false,
                 anime: false,
                 unverified: true,
-                external: false,
+                external: true,
             }
         };
 
