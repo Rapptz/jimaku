@@ -17,6 +17,8 @@ pub struct Fixture {
     #[serde(default)]
     pub tmdb_id: Option<tmdb::Id>,
     pub title: MediaTitle,
+    #[serde(default = "crate::utils::default_true")]
+    pub anime: bool,
     #[serde(default)]
     pub movie: bool,
     #[serde(default)]
@@ -42,6 +44,7 @@ pub async fn commit_fixtures(state: &AppState, fixtures: Vec<Fixture>) -> anyhow
                 let mut stmt = tx.prepare(sql)?;
                 for fixture in fixtures {
                     let mut flags = EntryFlags::default();
+                    flags.set_anime(fixture.anime);
                     flags.set_unverified(fixture.unverified);
                     flags.set_external(fixture.external);
                     flags.set_movie(fixture.movie);

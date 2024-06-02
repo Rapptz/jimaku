@@ -307,6 +307,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                     movie: original.flags.is_movie(),
                     adult: original.flags.is_adult(),
                     unverified: true,
+                    anime: true,
                     external: true,
                 };
                 if let Some(anilist_id) = original.anilist_id {
@@ -341,6 +342,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                         adult: media.adult,
                         movie: media.is_movie(),
                         unverified: true,
+                        anime: true,
                         external: true,
                         title: media.title,
                     },
@@ -357,6 +359,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 adult: false,
                 movie: false,
                 unverified: true,
+                anime: true,
                 external: true,
             });
         }

@@ -221,6 +221,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                 movie: info.id.is_movie(),
                 unverified: true,
                 external: false,
+                anime: false,
                 title: info.titles(),
             }
         } else {
@@ -233,6 +234,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                 title: MediaTitle::new(entry.name.clone()),
                 adult: false,
                 movie: false,
+                anime: false,
                 unverified: true,
                 external: false,
             }
