@@ -10,6 +10,7 @@ pub mod discord;
 pub mod download;
 pub mod error;
 pub mod filters;
+pub mod fixture;
 pub mod flash;
 pub mod headers;
 pub mod japanese;

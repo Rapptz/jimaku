@@ -262,9 +262,9 @@ async fn run(command: jimaku::Command) -> anyhow::Result<()> {
         }
         jimaku::Command::Fixtures { path } => {
             let buffer = std::fs::read_to_string(path)?;
-            let fixtures: Vec<jimaku::kitsunekko::Fixture> = serde_json::from_str(&buffer)?;
+            let fixtures: Vec<jimaku::fixture::Fixture> = serde_json::from_str(&buffer)?;
             let total = fixtures.len();
-            jimaku::kitsunekko::commit_fixtures(&state, fixtures).await?;
+            jimaku::fixture::commit_fixtures(&state, fixtures).await?;
             info!("committed {} fixtures to the database", total);
             Ok(())
         }
