@@ -744,6 +744,16 @@ var __bulk = new BulkFilesOperations(document.querySelector('.files'), entryId, 
   selectedFileCount: document.getElementById('selected-file-count'),
 });
 
+if(entryId !== null && __bulk && uploadInput !== null) {
+  document.addEventListener('keyup', (e) => {
+    if(e.key === 'Delete') {
+      __bulk?.deleteFilesButton?.click();
+    } else if(e.key === 'F2') {
+      __bulk?.renameFilesButton?.click();
+    }
+  });
+}
+
 if (uploadInput !== null) {
   window.addEventListener('dragenter', (e) => {
     lastDraggedTarget = e.target;
