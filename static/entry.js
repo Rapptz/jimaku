@@ -474,9 +474,15 @@ class BulkFilesOperations {
     }
 
     let total = js.success + js.failed;
-    showModalAlert(this.moveModal, {level: 'success', content: `Successfully moved ${js.success}/${total} files, redirecting to folder in 3 seconds...`});
-    await sleep(3000);
-    window.location.href = `/entry/${js.entry_id}`;
+    let content = [
+      `Successfully moved ${js.success}/${total} file${total == 1 ? "s" : ""}.`,
+      `You can view the entry `,
+      html('a', 'here', {href: `/entry/${js.entry_id}`}),
+      '.'
+    ];
+    showAlert({level: 'success', content});
+    this.moveModal.close();
+    this.removeCheckedFiles();
   }
 
   updateRenameOptions() {
