@@ -386,7 +386,7 @@ class BulkFilesOperations {
       showAlert({level: 'success', content: 'Successfully deleted entry, redirecting you back home...'});
     } else {
       let total = js.success + js.failed;
-      showAlert({level: 'success', content: `Successfully deleted ${js.success}/${total} file${total == 1 ? "s" : ""}`});
+      showAlert({level: 'success', content: `Successfully deleted ${js.success}/${total} file${total === 1 ? "" : "s"}`});
     }
     this.deleteModal.close();
     this.removeCheckedFiles();
@@ -416,7 +416,7 @@ class BulkFilesOperations {
       showAlert({level: 'success', content: 'Successfully reported entry, editors and administrators have been notified.'});
     } else {
       let total = files.length;
-      showAlert({level: 'success', content: `Successfully reported ${total} file${total == 1 ? "s" : ""}, editors and administrators have been notified.`});
+      showAlert({level: 'success', content: `Successfully reported ${total} file${total === 1 ? "" : "s"}, editors and administrators have been notified.`});
     }
     this.reportModal.close();
   }
@@ -475,7 +475,7 @@ class BulkFilesOperations {
 
     let total = js.success + js.failed;
     let content = [
-      `Successfully moved ${js.success}/${total} file${total == 1 ? "s" : ""}.`,
+      `Successfully moved ${js.success}/${total} file${total === 1 ? "" : "s"}.`,
       `You can view the entry `,
       html('a', 'here', {href: `/entry/${js.entry_id}`}),
       '.'
