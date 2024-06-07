@@ -34,6 +34,7 @@ use crate::{
     anilist::{Media, MediaTitle},
     audit::{AuditLogEntry, ScrapeDirectory, ScrapeResult, ScrapeSource},
     fixture::{commit_fixtures, Fixture},
+    models::EntryFlags,
     AppState,
 };
 
@@ -283,6 +284,9 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
         }
 
         let mut directory = subtitle_path.join(&entry.name);
+        let mut flags = EntryFlags::default();
+        flags.set_external(true);
+        flags.set_unverified(true);
         if let Some(entry_id) = redirects.get(&entry.name) {
             info!(
                 "[{}/{}] redirecting {:?} to entry ID {}",
@@ -304,11 +308,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                         english: original.english_name,
                         native: original.japanese_name,
                     },
-                    movie: original.flags.is_movie(),
-                    adult: original.flags.is_adult(),
-                    unverified: true,
-                    anime: true,
-                    external: true,
+                    flags: original.flags,
                 };
                 if let Some(anilist_id) = original.anilist_id {
                     potential_dupes.insert(anilist_id, as_fixture);
@@ -331,6 +331,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 if let Some(path) = state.get_anilist_directory_entry_path(media.id).await {
                     directory = path;
                 }
+                flags.set_adult(media.adult);
+                flags.set_movie(media.is_movie());
                 potential_dupes.insert(
                     media.id,
                     Fixture {
@@ -339,12 +341,8 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                         last_updated_at: entry.date,
                         anilist_id: Some(media.id),
                         tmdb_id: None,
-                        adult: media.adult,
-                        movie: media.is_movie(),
-                        unverified: true,
-                        anime: true,
-                        external: true,
                         title: media.title,
+                        flags,
                     },
                 );
             }
@@ -356,11 +354,7 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
                 anilist_id: None,
                 tmdb_id: None,
                 title: MediaTitle::new(entry.name.clone()),
-                adult: false,
-                movie: false,
-                unverified: true,
-                anime: true,
-                external: true,
+                flags,
             });
         }
 

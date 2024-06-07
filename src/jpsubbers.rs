@@ -37,6 +37,7 @@ use crate::{
     audit::{AuditLogEntry, ScrapeDirectory, ScrapeResult, ScrapeSource},
     fixture::{commit_fixtures, Fixture},
     kitsunekko::USER_AGENT,
+    models::EntryFlags,
     tmdb, AppState,
 };
 
@@ -215,6 +216,10 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
 
         let mut directory = subtitle_path.join(format!("jpsubbers_{}", &entry.name));
         let query = prepare_query(&entry.name);
+        let mut flags = EntryFlags::default();
+        flags.set_anime(false);
+        flags.set_unverified(true);
+        flags.set_external(true);
         let fixture = if let Some(entry_id) = redirects.get(&entry.name) {
             info!(
                 "[{}/{}] redirecting {:?} to entry ID {}",
@@ -236,11 +241,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                         english: original.english_name,
                         native: original.japanese_name,
                     },
-                    movie: original.flags.is_movie(),
-                    adult: original.flags.is_adult(),
-                    unverified: true,
-                    anime: false,
-                    external: true,
+                    flags: original.flags,
                 }
             } else {
                 Fixture {
@@ -250,11 +251,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                     anilist_id: None,
                     tmdb_id: None,
                     title: MediaTitle::new(entry.name.clone()),
-                    adult: false,
-                    movie: false,
-                    anime: false,
-                    unverified: true,
-                    external: true,
+                    flags,
                 }
             }
         } else if let Ok(Some(info)) = tmdb::find_match(&state.client, api_key, &query).await {
@@ -262,18 +259,16 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
             if let Some(path) = state.get_tmdb_directory_entry_path(info.id).await {
                 directory = path;
             }
+            flags.set_adult(info.is_adult());
+            flags.set_movie(info.id.is_movie());
             Fixture {
                 original_name: entry.name.clone(),
                 path: directory.clone(),
                 last_updated_at: OffsetDateTime::now_utc(),
                 anilist_id: None,
                 tmdb_id: Some(info.id),
-                adult: info.is_adult(),
-                movie: info.id.is_movie(),
-                unverified: true,
-                external: true,
-                anime: false,
                 title: info.titles(),
+                flags,
             }
         } else {
             Fixture {
@@ -283,11 +278,7 @@ pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
                 anilist_id: None,
                 tmdb_id: None,
                 title: MediaTitle::new(entry.name.clone()),
-                adult: false,
-                movie: false,
-                anime: false,
-                unverified: true,
-                external: true,
+                flags,
             }
         };
 
