@@ -169,7 +169,11 @@ class BulkFilesOperations {
 
     this.confirmMoveButton?.addEventListener('click', (e) => {
       e.preventDefault();
-      this.moveFiles();
+      let form = this.moveModal?.querySelector('form');
+      if(form?.reportValidity()) {
+        this.moveFiles();
+        form.reset();
+      }
     });
     this.confirmDeleteButton?.addEventListener('click', (e) => {
       e.preventDefault();
