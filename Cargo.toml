@@ -44,7 +44,7 @@ sublime_fuzzy = "0.7.0"
 time = { version = "0.3.34", features = ["macros", "parsing", "formatting", "serde"] }
 tokio = { version = "1.36.0", features = ["full"] }
 tokio-rustls = "0.25"
-tower = "0.4.13"
+tower = { version = "0.4.13", features = ["limit"] }
 tower-http = { version = "0.5.2", features = ["fs", "timeout", "normalize-path", "limit", "cors", "compression-full"] }
 tracing = "0.1.40"
 tracing-appender = { git = "https://github.com/Rapptz/tracing-appender" }

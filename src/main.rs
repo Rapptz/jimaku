@@ -11,7 +11,7 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use rustls_acme::AcmeConfig;
 use rustls_acme::{caches::DirCache, is_tls_alpn_challenge};
 use tokio_rustls::LazyConfigAcceptor;
-use tower::{Layer, Service, ServiceExt as _};
+use tower::{limit::GlobalConcurrencyLimitLayer, Layer, Service, ServiceExt as _};
 use tower_http::{
     compression::CompressionLayer,
     normalize_path::NormalizePathLayer,
@@ -135,6 +135,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .layer(DefaultBodyLimit::max(jimaku::MAX_BODY_SIZE))
         .layer(tower_http::limit::RequestBodyLimitLayer::new(jimaku::MAX_BODY_SIZE))
         .layer(CompressionLayer::new())
+        .layer(GlobalConcurrencyLimitLayer::new(512))
         .with_state(state);
 
     let app = NormalizePathLayer::trim_trailing_slash().layer(router);
