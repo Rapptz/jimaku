@@ -28,7 +28,8 @@ function checkDuplicate() {
 }
 
 function prefillSearchQuery() {
-  let query = new URL(window.location).searchParams.get('query');
+  let params = new URL(window.location).searchParams;
+  let query = params.get('query') ?? params.get('search');
   if(query !== null) {
     filterElement.value = query;
     filterEntries(query);

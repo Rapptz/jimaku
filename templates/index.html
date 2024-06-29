@@ -23,10 +23,10 @@
 {%- let placeholder = "Search files by name or TMDB URL..." -%}
 {%- endif -%}
 <div class="commands">
-  <div class="text-input-container">
-    <input autocomplete="off" type="search" id="search-files" placeholder="{{ placeholder }}" spellcheck="false">
-    <button class="clear" tabindex="-1" id="clear-search-filter">✖&#xfe0e;</button>
-  </div>
+  <form class="text-input-container" onsubmit="return false;">
+    <input autocomplete="off" name="search" type="search" id="search-files" placeholder="{{ placeholder }}" spellcheck="false">
+    <button type="button" class="clear" tabindex="-1" id="clear-search-filter">✖&#xfe0e;</button>
+  </form>
   {% match account %}
     {% when Some with (account) %}
     {% if editor %}
