@@ -49,6 +49,20 @@ fn regex() -> &'static Regex {
         .get_or_init(|| Regex::new(r#"<a\s*href=\x{22}(?P<url>[^\x{22}]+)\x{22}\s*>(?P<name>[^<]+)</a>"#).unwrap())
 }
 
+fn episode_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r#"＃(\d{1,4})\.[a-z]{3}$"#).unwrap())
+}
+
+// Cleans up filenames so e.g. ＃家族募集します＃01.srt
+// becomes ＃家族募集します ＃01.srt
+// Note the space separating the episode number from the title
+fn cleanup_filename(s: &mut String) {
+    if let Some(index) = episode_regex().find(s.as_str()).map(|m| m.start()) {
+        s.insert(index, ' ');
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Directory {
     pub url: String,
@@ -108,6 +122,9 @@ impl Directory {
     pub async fn find_files(&mut self, client: &reqwest::Client) -> anyhow::Result<()> {
         self.files = get_entries(client, &self.url).await?;
         self.files.retain(|f| f.is_supported());
+        for file in &mut self.files {
+            cleanup_filename(&mut file.name);
+        }
         Ok(())
     }
 
