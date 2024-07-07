@@ -58,13 +58,13 @@
       {%- if anime -%}
       <label for="anilist-url">AniList URL</label>
       <input class="form-field" {%- if !editor -%} required {%- endif -%}
-             pattern="https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?"
+             pattern="{{ crate::filters::ANILIST_PATTERN }}"
              placeholder="https://anilist.co/anime/12345/" name="anilist_url" id="anilist-url"
              autocomplete="off" type="text">
       {%- else -%}
       <label for="tmdb-url">TMDB URL</label>
       <input class="form-field" {%- if !editor -%} required {%- endif -%}
-             pattern="https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?"
+             pattern="{{ crate::filters::TMDB_PATTERN }}"
              placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="tmdb-url"
              autocomplete="off" type="text">
       {%- endif -%}

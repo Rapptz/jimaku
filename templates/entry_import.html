@@ -29,7 +29,7 @@
            name="anilist_id" id="entry-anilist-id" autocomplete="off" type="text">
     <label for="entry-tmdb-url">TMDB URL</label>
     <input class="form-field" value="{{ pending.tmdb_id|maybe_tmdb_url }}"
-           pattern="https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?"
+           pattern="{{ crate::filters::TMDB_PATTERN }}"
            placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="entry-tmdb-url"
            autocomplete="off" type="text">
     <div class="form-field checkboxes">
