@@ -151,7 +151,7 @@ function anilistEntryToElement(data, entry, files) {
     table.bulkEvents.updateFileCounts();
   });
   let nextAiringEpisode = data.media.nextAiringEpisode?.episode;
-  let formattedNextEpisode = nextAiringEpisode != null && data.media.episodes == null ? ` (${nextAiringEpisode})` : "";
+  let formattedNextEpisode = nextAiringEpisode != null && data.media.episodes == null ? ` (${nextAiringEpisode - 1})` : "";
   return html('details.anilist-entry',
     html('summary',
       html('a.cover', {href: `https://anilist.co/anime/${data.mediaId}/`},
