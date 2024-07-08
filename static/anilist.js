@@ -21,6 +21,9 @@ query ($username: String) {
         status
         progress
         media {
+          nextAiringEpisode {
+            episode
+          }
           coverImage {
             extraLarge
             medium
@@ -147,12 +150,14 @@ function anilistEntryToElement(data, entry, files) {
     showHiddenFiles.textContent = show ? 'Hide Watched Episodes' : 'Show Watched Episodes';
     table.bulkEvents.updateFileCounts();
   });
+  let nextAiringEpisode = data.media.nextAiringEpisode?.episode;
+  let formattedNextEpisode = nextAiringEpisode != null && data.media.episodes == null ? ` (${nextAiringEpisode})` : "";
   return html('details.anilist-entry',
     html('summary',
       html('a.cover', {href: `https://anilist.co/anime/${data.mediaId}/`},
         html('img', {loading: 'lazy', src: data.media.coverImage.medium, alt: `Cover image for ${entry.name}`})),
       entryLink(entry),
-      html('span.progress', `${data.progress}/${data.media.episodes ?? '?'}`)),
+      html('span.progress', `${data.progress}/${data.media.episodes ?? '?'}${formattedNextEpisode}`)),
     html('div.contents', table,
       html('div.commands',
         html('div.file-count', totalFileCount, selectedFileCount),
