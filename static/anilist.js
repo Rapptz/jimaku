@@ -171,7 +171,7 @@ function anilistEntryToElement(data, entry, files) {
   let isSiteBehind = false;
   if(data.progress !== 0 && nextAiringEpisode != null) {
     isCaughtUp = data.progress === (nextAiringEpisode - 1);
-    isSiteBehind = lastEntryEpisode < Math.min(data.progress, nextAiringEpisode - 1);
+    isSiteBehind = lastEntryEpisode < Math.max(data.progress, nextAiringEpisode - 1);
   }
 
   return html('details.anilist-entry', isCaughtUp ? {class: 'caught-up'} : null,
