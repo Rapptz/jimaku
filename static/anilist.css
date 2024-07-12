@@ -10,6 +10,10 @@
   border-radius: 5px;
 }
 
+.anilist-entry.caught-up {
+  opacity: 0.6;
+}
+
 .anilist-entry > summary::marker,
 .anilist-entry > summary::-webkit-details-marker {
   display: none;
@@ -74,6 +78,11 @@ details > .contents {
 
 .progress {
   margin: 0 0.5rem;
+}
+
+.behind {
+  font-size: 24px;
+  align-self: start;
 }
 
 .center {
