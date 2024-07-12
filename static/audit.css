@@ -34,6 +34,11 @@ h1 {
   border-radius: 5px;
 }
 
+.audit-log-entry > summary::marker,
+.audit-log-entry > summary::-webkit-details-marker {
+  display: none;
+}
+
 .audit-log-entry[open]:not(.empty) > summary {
   border-radius: 5px 5px 0 0;
   border-bottom: 2px solid var(--box-border);

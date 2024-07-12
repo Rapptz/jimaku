@@ -10,6 +10,12 @@
   border-radius: 5px;
 }
 
+.anilist-entry > summary::marker,
+.anilist-entry > summary::-webkit-details-marker {
+  display: none;
+}
+
+
 .anilist-entry > summary {
   list-style: none;
   display: flex;
