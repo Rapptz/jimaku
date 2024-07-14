@@ -119,17 +119,17 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     tokio::spawn(jimaku::kitsunekko::auto_scrape_loop(state.clone()));
     tokio::spawn(jimaku::jpsubbers::auto_scrape_loop(state.clone()));
 
-    // Middleware order for request processing is top to bottom
-    // and for response processing it's bottom to top
+    // Middleware order for request processing is bottom to top
+    // and for response processing it's top to bottom
     let router = jimaku::routes::all()
         .nest_service("/favicon.ico", ServeFile::new("static/icons/favicon.ico"))
         .nest_service("/site.webmanifest", ServeFile::new("static/icons/site.webmanifest"))
         .nest_service("/robots.txt", ServeFile::new("static/robots.txt"))
         .nest_service("/static", ServeDir::new("static"))
+        .layer(middleware::from_fn_with_state(state.clone(), jimaku::copy_api_token))
         .layer(jimaku::logging::HttpTrace)
         .layer(middleware::from_fn(jimaku::flash::process_flash_messages))
         .layer(middleware::from_fn(jimaku::parse_cookies))
-        .layer(middleware::from_fn_with_state(state.clone(), jimaku::copy_api_token))
         .layer(Extension(secret_key))
         .layer(Extension(jimaku::cached::BodyCache::new(Duration::from_secs(120))))
         .layer(DefaultBodyLimit::max(jimaku::MAX_BODY_SIZE))
