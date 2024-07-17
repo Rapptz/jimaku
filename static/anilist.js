@@ -189,8 +189,7 @@ function anilistEntryToElement(data, entry, files) {
   let nextAiringEpisode = data.media.nextAiringEpisode?.episode;
   let formattedNextEpisode = nextAiringEpisode != null && data.media.episodes == null ? ` (${nextAiringEpisode - 1})` : "";
   let isCaughtUp = nextAiringEpisode != null && data.progress === (nextAiringEpisode - 1);
-  let newestEpisode = data.media.episodes ?? ((nextAiringEpisode ?? 1) - 1);
-  let isSiteBehind = data.media.status === 'RELEASING' && lastEntryEpisode < newestEpisode;
+  let isSiteBehind = data.media.status === 'RELEASING' && nextAiringEpisode != null && lastEntryEpisode < (nextAiringEpisode - 1);
   let missingEpisodes = data.media.episodes === 1 ? (files.length === 0 ? 1 : 0) : episodesInEntry.size;
   let isEntryIncomplete = data.media.status === 'FINISHED' && data.media.episodes != null && missingEpisodes !== 0;
 
