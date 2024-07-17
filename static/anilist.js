@@ -122,9 +122,29 @@ function maxEpisodeFound(previous, parsed) {
   return previous;
 }
 
+function removeFoundEpisodes(episodes, parsed) {
+  if(parsed.episode) {
+    if(Array.isArray(parsed.episode)) {
+      let start = parseInt(parsed.episode[0]);
+      let end = parseInt(parsed.episode[1]);
+      for(; start <= end; ++start) {
+        episodes.delete(start);
+      }
+    }
+    let value = parseInt(parsed.episode);
+    episodes.delete(value);
+  }
+}
+
 function anilistEntryToElement(data, entry, files) {
   let isHiding = false;
   let lastEntryEpisode = 0;
+  let episodesInEntry = new Set();
+  if(data.status === 'PLANNING' && data.media.status !== 'NOT_YET_RELEASED' && data.media.episodes != null) {
+    for(let i = 1; i <= data.media.episodes; ++i) {
+      episodesInEntry.add(i);
+    }
+  }
   let table = html('div.files', {dataset: {columns: '4'}},
     html('div.table-headers',
       html('span.table-header', html('input.bulk-check', {type: 'checkbox', autocomplete: 'off'})),
@@ -137,6 +157,7 @@ function anilistEntryToElement(data, entry, files) {
       let parsed = parse(file.name);
       let hidden = data.progress !== 0 ? !isValidFile(parsed, data.progress) : false;
       lastEntryEpisode = maxEpisodeFound(lastEntryEpisode, parsed);
+      removeFoundEpisodes(episodesInEntry, parsed);
       isHiding = isHiding || hidden;
       return html('div.entry', {dataset: {name: file.name, size: file.size, lastModified: date}},
         hidden ? {class: 'hidden filtered-episode'} : null,
@@ -167,12 +188,11 @@ function anilistEntryToElement(data, entry, files) {
   });
   let nextAiringEpisode = data.media.nextAiringEpisode?.episode;
   let formattedNextEpisode = nextAiringEpisode != null && data.media.episodes == null ? ` (${nextAiringEpisode - 1})` : "";
-  let isCaughtUp = false;
-  let isSiteBehind = false;
-  if(data.progress !== 0 && nextAiringEpisode != null) {
-    isCaughtUp = data.progress === (nextAiringEpisode - 1);
-    isSiteBehind = lastEntryEpisode < Math.max(data.progress, nextAiringEpisode - 1);
-  }
+  let isCaughtUp = nextAiringEpisode != null && data.progress === (nextAiringEpisode - 1);
+  let newestEpisode = data.media.episodes ?? ((nextAiringEpisode ?? 1) - 1);
+  let isSiteBehind = data.media.status === 'RELEASING' && lastEntryEpisode < newestEpisode;
+  let missingEpisodes = data.media.episodes === 1 ? (files.length === 0 ? 1 : 0) : episodesInEntry.size;
+  let isEntryIncomplete = data.media.status === 'FINISHED' && data.media.episodes != null && missingEpisodes !== 0;
 
   return html('details.anilist-entry', isCaughtUp ? {class: 'caught-up'} : null,
     html('summary',
@@ -180,6 +200,7 @@ function anilistEntryToElement(data, entry, files) {
         html('img', {loading: 'lazy', src: data.media.coverImage.medium, alt: `Cover image for ${entry.name}`})),
       entryLink(entry),
       isSiteBehind ? html('span.behind', '🐢', {title: 'Currently missing subtitles for the latest episodes for this series.', dataset: {lastEpisode: lastEntryEpisode}}) : null,
+      isEntryIncomplete ? html('span.missing', '⚠️', {title: `This entry might be missing ${missingEpisodes} episode${missingEpisodes == 1 ? '' : 's'}.`, dataset: {missing: missingEpisodes}}) : null,
       html('span.progress', `${data.progress}/${data.media.episodes ?? '?'}${formattedNextEpisode}`)),
     html('div.contents', table,
       html('div.commands',
