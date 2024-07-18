@@ -140,7 +140,7 @@ function anilistEntryToElement(data, entry, files) {
   let isHiding = false;
   let lastEntryEpisode = 0;
   let episodesInEntry = new Set();
-  if(data.status === 'PLANNING' && data.media.status !== 'NOT_YET_RELEASED' && data.media.episodes != null) {
+  if(data.media.status === 'FINISHED' && data.media.episodes != null) {
     for(let i = 1; i <= data.media.episodes; ++i) {
       episodesInEntry.add(i);
     }
