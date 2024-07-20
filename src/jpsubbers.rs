@@ -385,7 +385,9 @@ pub async fn auto_scrape_loop(state: AppState) {
                 state.audit(AuditLogEntry::new(scrape)).await;
             }
             Err(e) => {
-                state.audit(AuditLogEntry::new(ScrapeResult::errored())).await;
+                state
+                    .audit(AuditLogEntry::new(ScrapeResult::errored(ScrapeSource::Jpsubbers)))
+                    .await;
                 tracing::error!(error = %e, "Error occurred while scraping JPSubbers");
             }
         }

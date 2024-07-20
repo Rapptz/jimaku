@@ -94,12 +94,12 @@ pub struct ScrapeResult {
 
 impl ScrapeResult {
     /// A shortcut constructor to signify that the scrape failed
-    pub fn errored() -> Self {
+    pub fn errored(source: ScrapeSource) -> Self {
         Self {
             directories: Vec::new(),
             error: true,
             date: None,
-            source: ScrapeSource::Kitsunekko,
+            source,
         }
     }
 }
