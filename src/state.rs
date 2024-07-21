@@ -1,6 +1,6 @@
 use quick_cache::sync::Cache;
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use tokio::sync::RwLockReadGuard;
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
     audit::AuditLogEntry,
@@ -8,6 +8,7 @@ use crate::{
     cached::TimedCachedValue,
     database::Table,
     models::{Account, DirectoryEntry, Session},
+    relations::Relations,
     token::MAX_TOKEN_AGE,
     Config, Database,
 };
@@ -40,6 +41,7 @@ struct InnerState {
     config: Config,
     database: Database,
     cached_directories: TimedCachedValue<Vec<DirectoryEntry>>,
+    relations: RwLock<Relations>,
     cached_users: Cache<i64, Account>,
     valid_sessions: Cache<String, SessionInfo>,
 }
@@ -53,21 +55,24 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config, database: Database) -> Self {
+    pub async fn new(config: Config, database: Database) -> Self {
         let incorrect_default_password_hash =
             hash_password("incorrect-default-password").expect("could not hash default password");
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(600))
+            .build()
+            .expect("could not build HTTP client");
+
         Self {
             inner: Arc::new(InnerState {
                 config,
                 database,
+                relations: RwLock::new(Relations::load(&client).await.unwrap_or_default()),
                 cached_directories: TimedCachedValue::new(Duration::from_secs(60 * 30)),
                 cached_users: Cache::new(1000),
                 valid_sessions: Cache::new(1000),
             }),
-            client: reqwest::Client::builder()
-                .timeout(Duration::from_secs(600))
-                .build()
-                .expect("could not build HTTP client"),
+            client,
             incorrect_default_password_hash,
         }
     }
@@ -398,5 +403,16 @@ impl AppState {
             })
             .await
             .ok()
+    }
+
+    /// Returns the anime relations bound to this state
+    pub async fn anime_relations(&self) -> RwLockReadGuard<'_, Relations> {
+        self.inner.relations.read().await
+    }
+
+    /// Updates the anime relations to the one given
+    pub async fn set_anime_relations(&self, relations: Relations) {
+        let mut guard = self.inner.relations.write().await;
+        *guard = relations;
     }
 }

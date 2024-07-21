@@ -91,3 +91,27 @@ td.error {
 .table-container:has(#recent-logs) {
   flex-basis: 100%;
 }
+
+.anime-relations {
+  border: 1px solid var(--box-border);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  width: 300px;
+  background: var(--box);
+  display: flex;
+  flex-direction: column;
+  margin-left: auto;
+}
+
+.anime-relations-date {
+  font-weight: bold;
+}
+
+.anime-relations-date > span {
+  font-weight: normal;
+}
+
+#update-anime-relations {
+  align-self: end;
+  margin-top: 0.5rem;
+}

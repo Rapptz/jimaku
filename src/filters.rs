@@ -55,7 +55,8 @@ pub fn maybe_anilist_url(opt: &Option<u32>) -> askama::Result<String> {
 }
 
 /// HTML input pattern for TMDB URLs
-pub const TMDB_PATTERN: &str = r#"https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?(?:\?.*)?"#;
+pub const TMDB_PATTERN: &str =
+    r#"https:\/\/(?:www\.)?themoviedb\.org\/(?:tv|movie)\/(\d+)(?:-[a-zA-Z0-9\-]+)?(\/.*)?(?:\?.*)?"#;
 
 /// HTML input pattern for AniList URLs
 pub const ANILIST_PATTERN: &str = r#"https:\/\/anilist\.co\/anime\/(\d+)(?:\/.*)?"#;

@@ -228,7 +228,7 @@ async fn run(command: jimaku::Command) -> anyhow::Result<()> {
         .open()
         .await?;
 
-    let state = jimaku::AppState::new(config, database);
+    let state = jimaku::AppState::new(config, database).await;
     match command {
         jimaku::Command::Run => run_server(state).await,
         jimaku::Command::Admin => {

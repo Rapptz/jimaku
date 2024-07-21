@@ -4,6 +4,7 @@ import { init, parse } from "./anitomy.js";
 const entriesElement = document.getElementById('anilist-entries');
 const loadingElement = document.getElementById('loading');
 const loadMoreButton = document.getElementById('load-more');
+let animeRelationData = null;
 let afterIndex = 0;
 const anilistQuery = `
 query ($username: String) {
@@ -95,44 +96,82 @@ const entryLink = (entry) => {
   });
 }
 
-function isValidFile(parsed, progress) {
-  if(parsed.episode) {
-    if(Array.isArray(parsed.episode)) {
-      let start = parseInt(parsed.episode[0]);
-      let end = parseInt(parsed.episode[1]);
-      let nextEpisode = progress + 1;
-      return nextEpisode >= start && nextEpisode <= end;
+function findEquivalentEpisode(anilistId, episode) {
+  if(animeRelationData == null || episode == null || anilistId == null) {
+    return null;
+  }
+
+  let rules = animeRelationData[anilistId];
+  if(!Array.isArray(rules)) {
+    return null;
+  }
+
+  const getBegin = (r) => r.begin ?? r.value;
+  const getEnd = (r) => r.type === 'from' ? Number.MAX_SAFE_INTEGER : (r.end ?? r.value);
+
+  for(const rule of rules) {
+    let distance = episode - getBegin(rule.source);
+    if(getEnd(rule.source) - episode >= 0) {
+      let found = getBegin(rule.destination);
+      if(found.type !== 'number') {
+        found += distance;
+      }
+      return found;
     }
-    let value = parseInt(parsed.episode);
-    return value > progress;
+  }
+  return null;
+}
+
+const getEpisode = (ep) => {
+  if(ep) {
+    if(Array.isArray(ep)) {
+      return [parseInt(ep[0]), parseInt(ep[1])]
+    } else {
+      return parseInt(ep);
+    }
+  }
+  return null;
+}
+
+const getEquivalentEpisode = (anilistId, ep) => {
+  if(Array.isArray(ep)) {
+    let b = findEquivalentEpisode(anilistId, ep[0]);
+    let e = findEquivalentEpisode(anilistId, ep[1]);
+    if(b == null || e == null) return null;
+    return [b, e];
+  }
+  return findEquivalentEpisode(anilistId, ep);
+}
+
+function isValidFile(range, progress) {
+  if(range != null) {
+    if(Array.isArray(range)) {
+      let nextEpisode = progress + 1;
+      return nextEpisode >= range[0] && nextEpisode <= range[1];
+    }
+    return range > progress;
   }
   return true;
 }
 
-function maxEpisodeFound(previous, parsed) {
-  if(parsed.episode) {
-    if(Array.isArray(parsed.episode)) {
-      let start = parseInt(parsed.episode[0]);
-      let end = parseInt(parsed.episode[1]);
-      return Math.max(previous, Math.max(start, end));
+function maxEpisodeFound(previous, range) {
+  if(range != null) {
+    if(Array.isArray(range)) {
+      return Math.max(previous, Math.max(range[0], range[1]));
     }
-    let value = parseInt(parsed.episode);
-    return Math.max(previous, value);
+    return Math.max(previous, range);
   }
   return previous;
 }
 
-function removeFoundEpisodes(episodes, parsed) {
-  if(parsed.episode) {
-    if(Array.isArray(parsed.episode)) {
-      let start = parseInt(parsed.episode[0]);
-      let end = parseInt(parsed.episode[1]);
-      for(; start <= end; ++start) {
+function removeFoundEpisodes(episodes, range) {
+  if(range != null) {
+    if(Array.isArray(range)) {
+      for(let start = range[0]; start <= range[1]; ++start) {
         episodes.delete(start);
       }
     }
-    let value = parseInt(parsed.episode);
-    episodes.delete(value);
+    episodes.delete(range);
   }
 }
 
@@ -155,9 +194,14 @@ function anilistEntryToElement(data, entry, files) {
     files.map(file => {
       let date = Date.parse(file.last_modified);
       let parsed = parse(file.name);
-      let hidden = data.progress !== 0 ? !isValidFile(parsed, data.progress) : false;
-      lastEntryEpisode = maxEpisodeFound(lastEntryEpisode, parsed);
-      removeFoundEpisodes(episodesInEntry, parsed);
+      let episodes = getEpisode(parsed.episode);
+      let equivalent = getEquivalentEpisode(entry.anilist_id, episodes);
+      let hidden = data.progress !== 0 ?
+        !isValidFile(episodes, data.progress) || (equivalent !== null && !isValidFile(equivalent, data.progress))
+        : false;
+      lastEntryEpisode = maxEpisodeFound(lastEntryEpisode, episodes);
+      removeFoundEpisodes(episodesInEntry, episodes);
+      removeFoundEpisodes(episodesInEntry, equivalent);
       isHiding = isHiding || hidden;
       return html('div.entry', {dataset: {name: file.name, size: file.size, lastModified: date}},
         hidden ? {class: 'hidden filtered-episode'} : null,
@@ -314,8 +358,30 @@ async function fillData(entries) {
   loadingElement.classList.add('hidden');
 }
 
+async function loadAnimeRelations() {
+  let previous = Date.parse(localStorage.getItem('anime_relations_last_modified') ?? '1970-01-01');
+  if(previous !== 0) {
+    let r = await fetch('/anime-relations/date');
+    if(r.status === 200) {
+      let dates = await r.json();
+      let date = Date.parse(dates.last_modified);
+      if(date === previous) return JSON.parse(localStorage.getItem('anime_relations'));
+    }
+  }
+
+  let current = await fetch('/anime-relations');
+  if(current.status === 200) {
+    let js = await current.json();
+    localStorage.setItem('anime_relations_last_modified', js.last_modified);
+    localStorage.setItem('anime_relations', JSON.stringify(js.relations));
+    return js.relations;
+  }
+  return null;
+}
+
 async function loadData() {
   await init();
+  animeRelationData = await loadAnimeRelations();
   let entries;
   try {
     entries = await getAniListEntries(entriesElement.dataset.username);

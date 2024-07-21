@@ -275,9 +275,33 @@ function updateGraphs() {
   getRecentServerLogs();
 }
 
+async function updateAnimeRelations() {
+  let resp = await fetch('/anime-relations/date');
+  const serverDate = document.getElementById('anime-relations-server-date');
+  const createDate = document.getElementById('anime-relations-create-date');
+  const localDate = document.getElementById('anime-relations-local-date');
+  localDate.textContent = localStorage.getItem('anime_relations_last_modified') ?? '1970-01-01';
+  createDate.textContent = '1970-01-01';
+  serverDate.textContent = '1970-01-01';
+
+  if(resp.status === 200) {
+    let dates = await resp.json();
+    createDate.textContent = formatRelative(Math.floor(Date.parse(dates.created_at) / 1000));
+    createDate.setAttribute('title', dates.created_at);
+    serverDate.textContent = dates.last_modified;
+  }
+}
+
 logSelect.addEventListener('change', async () => {
   await getLogs(logSelect.value);
   updateGraphs();
 });
 
 getLogs(logSelect.value).then(updateGraphs);
+updateAnimeRelations();
+document.getElementById('update-anime-relations')?.addEventListener('click', async () => {
+  await callApi('/anime-relations/update', {
+    method: 'POST',
+  });
+  await updateAnimeRelations();
+});

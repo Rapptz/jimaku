@@ -20,6 +20,7 @@ pub mod kitsunekko;
 pub mod logging;
 pub mod models;
 pub mod ratelimit;
+pub mod relations;
 pub mod routes;
 mod state;
 pub mod tmdb;

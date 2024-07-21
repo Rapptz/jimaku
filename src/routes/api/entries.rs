@@ -7,6 +7,7 @@ use crate::{
     anilist::MediaTitle,
     error::{ApiError, ApiErrorCode},
     models::{DirectoryEntry, EntryFlags},
+    relations::{Range as RelationRange, Relations},
     routes::entry::{
         get_file_entries, raw_create_directory_entry, raw_upload_file, FileEntry, PendingDirectoryEntry, UploadResult,
     },
@@ -61,23 +62,48 @@ pub struct FilesQuery {
     episode: Option<u16>,
 }
 
-fn is_valid_episode(filename: &str, episode: u16) -> bool {
-    let result = anitomy::parse(filename);
-    let mut episodes = result.iter().filter(|p| p.kind() == anitomy::ElementKind::Episode);
-    let Some(start) = episodes.next().map(|e| e.value()).and_then(|s| s.parse::<u16>().ok()) else {
-        return false;
-    };
+fn get_episode_range(filename: &str) -> Option<RelationRange> {
+    let parsed = anitomy::parse(filename);
+    let mut episodes = parsed.iter().filter(|p| p.kind() == anitomy::ElementKind::Episode);
+    let begin = episodes.next().map(|e| e.value()).and_then(|s| s.parse::<u16>().ok())?;
     let end = episodes.next().map(|e| e.value()).and_then(|s| s.parse::<u16>().ok());
     match end {
-        Some(end) => (start..=end).contains(&episode),
-        None => episode == start,
+        Some(end) => Some(RelationRange::Inclusive { begin, end }),
+        None => Some(RelationRange::Number { value: begin }),
+    }
+}
+
+fn get_equivalent_episodes(
+    relation: &Relations,
+    anilist_id: Option<u32>,
+    episodes: RelationRange,
+) -> Option<RelationRange> {
+    let id = anilist_id?;
+    match episodes {
+        RelationRange::Number { value } => {
+            let (_, value) = relation.find(id, value)?;
+            Some(RelationRange::Number { value })
+        }
+        RelationRange::Inclusive { begin, end } => {
+            let (_, begin) = relation.find(id, begin)?;
+            let (_, end) = relation.find(id, end)?;
+            Some(RelationRange::Inclusive { begin, end })
+        }
+        _ => None,
     }
 }
 
 impl FilesQuery {
-    fn filter(&self, files: &mut Vec<FileEntry>) {
+    async fn filter(&self, files: &mut Vec<FileEntry>, entry: &DirectoryEntry, state: &AppState) {
         if let Some(episode) = self.episode {
-            files.retain(|f| is_valid_episode(&f.name, episode));
+            let guard = state.anime_relations().await;
+            files.retain(|f| {
+                let Some(range) = get_episode_range(&f.name) else {
+                    return false;
+                };
+                range.contains(episode)
+                    || get_equivalent_episodes(&guard, entry.anilist_id, range).is_some_and(|eq| eq.contains(episode))
+            });
         }
     }
 }
@@ -114,7 +140,7 @@ pub async fn get_entry_files(
         Some(entry) => {
             let mut files = get_file_entries(id, &entry.path)?;
             if !entry.flags.is_movie() {
-                query.filter(&mut files);
+                query.filter(&mut files, &entry, &state).await;
             }
             let url = state.config().canonical_url();
             for file in files.iter_mut() {

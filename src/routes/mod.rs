@@ -22,6 +22,7 @@ mod api;
 mod audit;
 mod auth;
 mod entry;
+mod relations;
 
 pub use api::{copy_api_token, ApiToken};
 
@@ -159,5 +160,6 @@ pub fn all() -> Router<AppState> {
         .merge(entry::routes())
         .merge(admin::routes())
         .merge(audit::routes())
+        .merge(relations::routes())
         .nest("/api", api::routes())
 }
