@@ -116,7 +116,7 @@ function findEquivalentEpisode(anilistId, episode) {
       if(found.type !== 'number') {
         found += distance;
       }
-      if(found >= 1) {
+      if(found >= 1 && found <= getEnd(rule.destination)) {
         return found;
       }
     }
