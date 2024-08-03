@@ -46,7 +46,7 @@ pub use auth::{copy_api_token, ApiToken};
         ),
         responses(utils::RateLimitResponse),
     ),
-    modifiers(&RequiredAuthentication, &FixApiDescriptions),
+    modifiers(&RequiredAuthentication),
     tags(
         (name = "entries", description = "Working with entries on the site")
     )
@@ -62,23 +62,6 @@ impl Modify for RequiredAuthentication {
                 "api_key",
                 SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("Authorization"))),
             )
-        }
-    }
-}
-
-/// Remove the summaries from the descriptions
-struct FixApiDescriptions;
-
-impl Modify for FixApiDescriptions {
-    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        for path in openapi.paths.paths.values_mut() {
-            for operation in path.operations.values_mut() {
-                if let Some((summary, description)) = operation.summary.as_mut().zip(operation.description.as_mut()) {
-                    if description.starts_with(summary.as_str()) {
-                        *description = (&description[summary.len()..].trim_start()).to_string();
-                    }
-                }
-            }
         }
     }
 }
