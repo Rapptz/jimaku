@@ -184,7 +184,30 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         });
 
         loop {
-            let (tcp, addr) = listener.accept().await.context("Failed during accept loop")?;
+            let (tcp, addr) = match listener.accept().await {
+                Ok(conn) => conn,
+                Err(e) => {
+                    // Connection errors can be ignored
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::ConnectionRefused
+                            | std::io::ErrorKind::ConnectionAborted
+                            | std::io::ErrorKind::ConnectionReset
+                    ) {
+                        continue;
+                    }
+
+                    // If we get any other type of error then just log it and sleep for a little bit
+                    // and try again. According to hyper's old server implementation
+                    // https://github.com/hyperium/hyper/blob/v0.14.27/src/server/tcp.rs#L184-L198
+                    //
+                    // They used to sleep if the file limit was reached, presumably to let other files
+                    // close down.
+                    error!("error during accept loop: {e}");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+            };
             let challenge_config = challenge_config.clone();
             let default_config = default_config.clone();
             let tower_service = unwrap_infallible(service.call(addr).await);
