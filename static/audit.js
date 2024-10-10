@@ -345,7 +345,7 @@ const auditLogTypes = Object.freeze({
         }
       case 'tmdb_id':
         before = tmdbIdToUrl(before);
-        before = tmdbIdToUrl(after);
+        after = tmdbIdToUrl(after);
         if(before == null && after != null) {
           return html('li', 'Set TMDB URL to ', html('a.after', after, {href: after}));
         } else if (before != null && after == null) {
