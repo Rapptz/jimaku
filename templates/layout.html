@@ -28,6 +28,9 @@
             <a class="nav-item" href="/dramas">Live Action</a>
             {% endblock %}
             {% if let Some(account) = account %}
+            {% if let Some(username) = account.anilist_username.as_ref() %}
+            <a class="nav-item" href="/anilist/{{ username }}">Anime List</a>
+            {% endif %}
             {% if account.flags.is_editor() %}
             <a class="nav-item" href="/logs">Audit Logs</a>
             {% endif %}

@@ -10,6 +10,7 @@ use crate::{
     models::{is_valid_username, Account, AccountFlags, DirectoryEntry, Session},
     ratelimit::RateLimit,
     token::{Token, TokenRejection},
+    utils::Patch,
     AppState,
 };
 use askama::Template;
@@ -358,24 +359,53 @@ async fn show_other_account_info(
 
 #[derive(Deserialize)]
 struct EditAccountPayload {
-    editor: bool,
+    #[serde(default)]
+    editor: Option<bool>,
+    #[serde(default)]
+    anilist_username: Patch<String>,
 }
 
 async fn edit_account(
     State(state): State<AppState>,
-    account: Account,
+    mut account: Account,
     Path(id): Path<i64>,
     Json(payload): Json<EditAccountPayload>,
 ) -> Result<StatusCode, ApiError> {
-    if !account.flags.is_admin() {
+    // Admin accounts are the only ones that can toggle the editor flag
+    // Admins and regular users can change their anilist_username
+    if payload.editor.is_some() && !account.flags.is_admin() {
         return Err(ApiError::forbidden());
     }
 
-    let mut flags = AccountFlags::new();
-    flags.set_editor(payload.editor);
+    if account.id != id || !account.flags.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+
+    if let Some(toggle) = payload.editor {
+        account.flags.set_editor(toggle);
+    }
+
+    // At some point it might make sense to verify that this username is valid
+    // But there's no current security risk in just letting this be as-is,
+    // outside of some extraneous 404s being formed.
+    // As far as I know, AniList usernames can only be ASCII alphanumeric
+    if let Some(toggle) = payload.anilist_username.to_option() {
+        let is_valid = toggle
+            .as_ref()
+            .map(|s| s.as_bytes().iter().all(u8::is_ascii_alphanumeric))
+            .unwrap_or(true);
+        if !is_valid {
+            return Err(ApiError::new("AniList username is not proper"));
+        }
+        account.anilist_username = toggle;
+    }
+
     state
         .database()
-        .execute("UPDATE account SET flags = ? WHERE id = ?", (flags, id))
+        .execute(
+            "UPDATE account SET flags = ?, anilist_username = ? WHERE id = ?",
+            (account.flags, account.anilist_username, id),
+        )
         .await?;
 
     state.invalidate_account_cache(id);

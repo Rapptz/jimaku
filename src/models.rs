@@ -460,12 +460,14 @@ pub struct Account {
     pub password: String,
     /// The account flags associated with this account.
     pub flags: AccountFlags,
+    /// The AniList username associated with this account
+    pub anilist_username: Option<String>,
 }
 
 impl Table for Account {
     const NAME: &'static str = "account";
 
-    const COLUMNS: &'static [&'static str] = &["id", "name", "password", "flags"];
+    const COLUMNS: &'static [&'static str] = &["id", "name", "password", "flags", "anilist_username"];
 
     type Id = i64;
 
@@ -475,6 +477,7 @@ impl Table for Account {
             name: row.get("name")?,
             password: row.get("password")?,
             flags: row.get("flags")?,
+            anilist_username: row.get("anilist_username")?,
         })
     }
 }

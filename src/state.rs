@@ -194,7 +194,8 @@ impl AppState {
             Err(guard) => {
                 let query = r#"
                     SELECT account.id AS id, account.name AS name, account.password AS password,
-                           account.flags AS flags, session.api_key AS api_key, session.created_at AS created_at
+                           account.flags AS flags, session.api_key AS api_key, session.created_at AS created_at,
+                           account.anilist_username AS anilist_username
                     FROM account INNER JOIN session ON session.account_id = account.id
                     WHERE session.id = ? AND session.account_id = ? AND session.api_key = ?
                 "#;

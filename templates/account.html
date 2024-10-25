@@ -43,6 +43,19 @@ My Account · Jimaku
   {% endif %}
   </div>
 </div>
+{% if account.id == user.id || account.flags.is_admin() %}
+<form id="edit-anilist">
+  <h3>AniList Integration</h3>
+  <p>Save your <a href="https://anilist.co/">AniList</a> username to quickly access your AniList list.</p>
+  <div class="form-container">
+    <label for="anilist-username">AniList Username</label>
+    <div class="combined-field">
+      <input type="text" pattern="[a-zA-Z0-9]*" name="anilist-username" id="anilist-username" autocomplete="off" value="{{ account.anilist_username|maybe_display }}">
+      <button data-endpoint="/account/{{ user.id }}/edit" id="submit-anilist" class="button primary">Save</button>
+    </div>
+  </div>
+</form>
+{% endif %}
 {% if account.id == user.id %}
 <form id="api-section">
   <h3>Developer Access</h3>

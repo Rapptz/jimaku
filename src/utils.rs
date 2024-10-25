@@ -2,7 +2,7 @@ use std::{path::PathBuf, str::FromStr, sync::OnceLock};
 
 use percent_encoding::{AsciiSet, CONTROLS};
 use regex::Regex;
-use serde::{de::DeserializeOwned, Deserialize, Deserializer};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 
 /// The maximum amount of bytes an upload can have, in bytes.
 pub const MAX_UPLOAD_SIZE: u64 = 1024 * 1024 * 16;
@@ -106,5 +106,92 @@ pub mod base64_bytes {
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
         let s = MaybeBorrowedString::deserialize(deserializer)?;
         BASE64_STANDARD.decode(s.as_bytes()).map_err(serde::de::Error::custom)
+    }
+}
+
+/// Utility type to differentiate between explicit null and missing values.
+///
+/// This still requires using `#[serde(default)]` or `#[serde(skip_serialization_if = "Patch::is_missing")]`
+/// but this allows for easier differentiation than the double `Option` approach.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum Patch<T> {
+    Missing,
+    Null,
+    Value(T),
+}
+
+impl<T> Patch<T> {
+    /// Returns `true` if the patch is [`Missing`].
+    ///
+    /// [`Missing`]: Patch::Missing
+    #[must_use]
+    pub fn is_missing(&self) -> bool {
+        matches!(self, Self::Missing)
+    }
+
+    /// Returns `true` if the patch is [`Null`].
+    ///
+    /// [`Null`]: Patch::Null
+    #[must_use]
+    pub fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
+
+    /// Returns the double option for this type.
+    ///
+    /// - `None` is missing
+    /// - `Some(None)` is `null`
+    /// - `Some(Some(T))` is a given value
+    #[must_use]
+    pub fn to_option(self) -> Option<Option<T>> {
+        match self {
+            Patch::Missing => None,
+            Patch::Null => Some(None),
+            Patch::Value(value) => Some(Some(value)),
+        }
+    }
+}
+
+impl<T> Default for Patch<T> {
+    fn default() -> Self {
+        Self::Missing
+    }
+}
+
+impl<T> From<Option<T>> for Patch<T> {
+    fn from(value: Option<T>) -> Self {
+        match value {
+            Some(v) => Self::Value(v),
+            None => Self::Null,
+        }
+    }
+}
+
+impl<T> Serialize for Patch<T>
+where
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            // There's unfortunately no way to tell the serializer to not serialize a variant
+            Patch::Missing => serializer.serialize_none(),
+            Patch::Null => serializer.serialize_none(),
+            Patch::Value(value) => serializer.serialize_some(value),
+        }
+    }
+}
+
+impl<'de, T> Deserialize<'de> for Patch<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Option::deserialize(deserializer).map(Into::into)
     }
 }

@@ -106,3 +106,29 @@ document.querySelector('#api-section button[type=submit][name="new"]')?.addEvent
     showAlert({level: 'success', content: 'Successfully regenerated API key.'})
   }
 })
+
+document.getElementById('submit-anilist')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const userName = document.getElementById('anilist-username');
+  const form = document.getElementById('edit-anilist');
+  if(userName.validity.patternMismatch) {
+    userName.setCustomValidity('AniList username must be alphanumeric');
+    form.reportValidity();
+    return;
+  }
+  const text = userName.value.trim();
+  let anilistUsername = text.length === 0 ? null : text;
+  let resp = await callApi(e.target.dataset.endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({anilist_username: anilistUsername})
+  });
+  if (resp !== null) {
+    let content = anilistUsername !== null ? 'changed your AniList username' : 'removed your AniList username';
+    showAlert({level: 'success', content: `Successfully ${content}.`});
+    await sleep(2000);
+    window.location.reload();
+  }
+});
