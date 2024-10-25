@@ -377,7 +377,7 @@ async fn edit_account(
         return Err(ApiError::forbidden());
     }
 
-    if account.id != id || !account.flags.is_admin() {
+    if account.id != id && !account.flags.is_admin() {
         return Err(ApiError::forbidden());
     }
 

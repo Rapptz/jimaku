@@ -50,7 +50,7 @@ My Account · Jimaku
   <div class="form-container">
     <label for="anilist-username">AniList Username</label>
     <div class="combined-field">
-      <input type="text" pattern="[a-zA-Z0-9]*" name="anilist-username" id="anilist-username" autocomplete="off" value="{{ account.anilist_username|maybe_display }}">
+      <input type="text" pattern="[a-zA-Z0-9]*" name="anilist-username" id="anilist-username" autocomplete="off" value="{{ user.anilist_username|maybe_display }}">
       <button data-endpoint="/account/{{ user.id }}/edit" id="submit-anilist" class="button primary">Save</button>
     </div>
   </div>
