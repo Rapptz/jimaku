@@ -22,9 +22,10 @@ mod api;
 mod audit;
 mod auth;
 mod entry;
+mod opensearch;
 mod relations;
 
-pub use api::{copy_api_token, ApiToken};
+pub use api::{copy_api_token, ApiToken, SearchQuery};
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -161,5 +162,6 @@ pub fn all() -> Router<AppState> {
         .merge(admin::routes())
         .merge(audit::routes())
         .merge(relations::routes())
+        .merge(opensearch::routes())
         .nest("/api", api::routes())
 }

@@ -152,37 +152,37 @@ pub async fn get_entry_files(
     }
 }
 
-#[derive(Deserialize, IntoParams)]
+#[derive(Default, Deserialize, IntoParams)]
 pub struct SearchQuery {
     /// Return entries that are anime.
     #[serde(default = "crate::utils::default_true")]
     #[param(default = true)]
-    anime: bool,
+    pub anime: bool,
     /// Return the entry that has the given AniList ID.
     #[serde(default)]
-    anilist_id: Option<u32>,
+    pub anilist_id: Option<u32>,
     /// Return the entry that has the given TMDB ID.
     ///
     /// Check the documentation for TMDB ID encoding.
     #[serde(deserialize_with = "crate::utils::generic_empty_string_is_none")]
     #[param(pattern = r#"(tv|movie):(\d+)"#, value_type = Option<String>, example = "tv:12345")]
     #[serde(default)]
-    tmdb_id: Option<tmdb::Id>,
+    pub tmdb_id: Option<tmdb::Id>,
     /// Return entries that match the given string.
     ///
     /// Currently this search is done through a fuzzy
     /// search.
     #[serde(deserialize_with = "crate::utils::generic_empty_string_is_none")]
     #[serde(default)]
-    query: Option<String>,
+    pub query: Option<String>,
 
     /// Return entries that are after this UNIX timestamp (in seconds).
     #[serde(default)]
-    after: Option<i64>,
+    pub after: Option<i64>,
 
     /// Return entries that are before this UNIX timestamp (in seconds).
     #[serde(default)]
-    before: Option<i64>,
+    pub before: Option<i64>,
 }
 
 impl SearchQuery {
@@ -198,7 +198,7 @@ impl SearchQuery {
         max
     }
 
-    fn apply(&self, entry: &DirectoryEntry) -> Option<isize> {
+    pub fn apply(&self, entry: &DirectoryEntry) -> Option<isize> {
         if self.anime != entry.flags.is_anime() {
             return None;
         }
