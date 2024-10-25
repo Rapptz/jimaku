@@ -244,10 +244,27 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     Ok(())
 }
 
+const MIGRATIONS: [&str; 1] = [
+    include_str!("../sql/0.sql"),
+];
+
+fn init_db(connection: &mut rusqlite::Connection) -> rusqlite::Result<()> {
+    let tx = connection.transaction()?;
+    tx.execute_batch("PRAGMA foreign_keys=1;\nPRAGMA journal_mode=wal;")?;
+    let version: usize = {
+        let mut stmt = tx.prepare_cached("PRAGMA user_version;")?;
+        stmt.query_row([], |r| r.get(0))?
+    };
+    for migration in MIGRATIONS.iter().skip(version) {
+        tx.execute_batch(migration)?;
+    }
+    tx.commit()
+}
+
 async fn run(command: jimaku::Command) -> anyhow::Result<()> {
     let config = jimaku::Config::load()?;
     let database = jimaku::Database::file(&database_directory()?)
-        .with_init(|conn| conn.execute_batch(include_str!("../main.sql")))
+        .with_init(init_db)
         .open()
         .await?;
 

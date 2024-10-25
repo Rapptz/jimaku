@@ -1,6 +1,3 @@
-PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = wal;
-
 -- Storage related information for directory entries
 -- This has to be a little bit complicated to power the fact
 -- that multiple searches are allowed
@@ -78,3 +75,5 @@ CREATE INDEX IF NOT EXISTS audit_log_entry_id_idx ON audit_log(entry_id);
 -- BEGIN
 --   DELETE FROM audit_log WHERE id <= cast((julianday('now') - 2440587.5)*86400.0 * 1000 as integer) - (180 * 86400000);
 -- END;
+
+PRAGMA user_version = 1;
