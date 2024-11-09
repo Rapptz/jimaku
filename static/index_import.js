@@ -13,10 +13,11 @@ importModal?.querySelector('button[formmethod=dialog]').addEventListener('click'
 });
 
 const throwHook = (alert) => { throw new Error(alert.querySelector('p').textContent) };
+const ZIP_OPTIONS = {filenameEncoding: "utf-8" };
 
 async function downloadZipFromUrl(url) {
   let blob = await callApi(`/download-zip?url=${encodeURIComponent(url)}`, undefined, throwHook, true);
-  return await new zip.ZipReader(new zip.BlobReader(blob)).getEntries({});
+  return await new zip.ZipReader(new zip.BlobReader(blob)).getEntries(ZIP_OPTIONS);
 }
 
 async function blobToBase64(blob) {
@@ -63,7 +64,7 @@ async function handleImport() {
     } else {
       name = file.name;
     }
-    entries = await new zip.ZipReader(new zip.BlobReader(file)).getEntries({});
+    entries = await new zip.ZipReader(new zip.BlobReader(file)).getEntries(ZIP_OPTIONS);
   }
   else if (fileUrl.value.length !== 0) {
     let url = new URL(fileUrl.value);
@@ -82,10 +83,6 @@ async function handleImport() {
     throw new Error('ZIP file is empty');
   }
 
-  const isUtf8 = entries.every(e => e.filenameUTF8);
-  if(!isUtf8) {
-    throw new Error('ZIP file does not contain UTF-8 files within it');
-  }
   const encrypted = entries.some(e => e.encrypted);
   if(encrypted) {
     throw new Error('ZIP file is encrypted and requires password, please use another ZIP');
@@ -109,7 +106,12 @@ confirmImport?.addEventListener('click', async (e) => {
   try {
     await handleImport();
   } catch(e) {
-    showModalAlert(importModal, {level: 'error', content: e.toString() });
+    const alertOptions = {level: 'error', content: e.toString() };
+    if(importModal.open) {
+      showModalAlert(importModal, alertOptions);
+    } else {
+      showAlert(alertOptions);
+    }
     confirmImport.disabled = false;
     return false;
   }
