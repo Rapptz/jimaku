@@ -62,9 +62,9 @@ confirmImport.addEventListener('click', async (e) => {
   }
 
   if(js !== null) {
-    showAlert({level: 'success', content: 'Successfully created entry, redirecting there in 3 seconds...'});
+    showAlert({level: 'success', content: 'Successfully created entry, redirecting soon...'});
     localStorage.removeItem('pending_import_file');
-    await sleep(3000);
+    await sleep(1000);
     window.location.href = `/entry/${js.entry_id}`;
   } else {
     confirmImport.disabled = false;
