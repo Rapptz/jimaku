@@ -244,7 +244,7 @@ where
             .extensions
             .get::<Flasher>()
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)
-            .map(|x| x.clone())
+            .cloned()
     }
 }
 

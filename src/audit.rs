@@ -72,6 +72,9 @@ impl TryFrom<u8> for ScrapeSource {
     }
 }
 
+// This is explicit because I don't want to support ScrapeSource::from(u8)
+// but source.into() u8 is okay
+#[allow(clippy::from_over_into)]
 impl Into<u8> for ScrapeSource {
     fn into(self) -> u8 {
         self as u8

@@ -7,7 +7,7 @@ use crate::{
     headers::Referrer,
     key::SecretKey,
     logging::BadRequestReason,
-    models::{is_valid_username, Account, AccountFlags, DirectoryEntry, Session},
+    models::{is_valid_username, Account, DirectoryEntry, Session},
     ratelimit::RateLimit,
     token::{Token, TokenRejection},
     utils::Patch,

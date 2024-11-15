@@ -73,6 +73,7 @@ where
 }
 
 /// Rate limit exceeded.
+#[allow(dead_code)]
 #[derive(utoipa::ToResponse)]
 #[response(headers(
     ("x-ratelimit-limit" = u16, description = "The number of requests you can make"),
