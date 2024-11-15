@@ -91,7 +91,9 @@ impl<T: KeyExtractor> RateLimitLayer<T> {
         };
 
         let ratelimited = now < (tat - Duration::from_secs_f32(tau));
-        self.lookup.insert(key, new_tat);
+        if !ratelimited {
+            self.lookup.insert(key, new_tat);
+        }
         RateLimitInfo {
             limit,
             remaining,
