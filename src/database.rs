@@ -535,6 +535,21 @@ pub fn is_unique_constraint_violation(e: &rusqlite::Error) -> bool {
     }
 }
 
+/// Returns (and creates) the directory for the main.db file
+pub fn directory() -> anyhow::Result<PathBuf> {
+    use anyhow::Context;
+
+    let mut path = dirs::data_dir().context("could not find a data directory for the current user")?;
+    path.push(crate::PROGRAM_NAME);
+    if let Err(e) = std::fs::create_dir(&path) {
+        if e.kind() != std::io::ErrorKind::AlreadyExists {
+            return Err(e).context("could not create application local data directory");
+        }
+    }
+    path.push("main.db");
+    Ok(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

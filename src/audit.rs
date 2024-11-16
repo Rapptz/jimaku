@@ -34,7 +34,7 @@ pub struct ScrapeDirectory {
     pub original_name: String,
     /// The romaji name of the entry that was mapped
     pub name: String,
-    /// The anilist ID of the entryo
+    /// The anilist ID of the entry
     #[serde(default)]
     pub anilist_id: Option<u32>,
     /// The TMDB ID of the entry

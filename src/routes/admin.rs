@@ -4,6 +4,8 @@ use crate::{
     audit,
     download::{validate_path, DownloadResponse},
     filters,
+    logging::RequestLogEntry,
+    utils::logs_directory,
 };
 use askama::Template;
 use axum::{
@@ -23,83 +25,89 @@ use crate::{
     error::ApiError,
     models::Account,
     trash::{Trash, TrashListing},
-    utils::logs_directory,
     AppState,
 };
 
-fn available_logs() -> std::io::Result<Vec<String>> {
-    let path = logs_directory();
-    let mut result = Vec::new();
-    for entry in path.read_dir()? {
-        let entry = entry?;
-        let mut filename = entry.file_name().to_string_lossy().into_owned();
-        if filename.ends_with(".log") {
-            filename.truncate(filename.len() - 4);
-        }
-        result.push(filename);
-    }
-    result.sort_by(|a, b| b.cmp(a));
-    Ok(result)
-}
-
 #[derive(Deserialize)]
 struct LogsQuery {
-    days: u8,
+    begin: Option<i64>,
+    end: Option<i64>,
+    days: Option<u8>,
+}
+
+fn datetime_to_unix_ms(dt: OffsetDateTime) -> i64 {
+    (dt.unix_timestamp_nanos() / 1_000_000) as i64
 }
 
 const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[year]-[month]-[day]");
 
-async fn append_logs(path: PathBuf, buffer: &mut Vec<serde_json::Value>) -> std::io::Result<()> {
-    let loaded = tokio::fs::read_to_string(path).await?;
-    for line in loaded.lines() {
+impl LogsQuery {
+    fn limit(&self) -> (i64, i64) {
+        // This is going to be represented as `ts >= begin AND ts <= end`
+        // The default is "today" with proper day boundaries
+        if let Some(days) = self.days {
+            let now = OffsetDateTime::now_utc();
+            // This API sucks since it's not calendar aware but nothing I can do about that
+            let begin = now.saturating_sub(time::Duration::days(days as i64));
+            return (datetime_to_unix_ms(begin), datetime_to_unix_ms(now));
+        }
+
+        match (self.begin, self.end) {
+            (None, None) => {
+                let now = OffsetDateTime::now_utc();
+                let start = now.replace_time(time::Time::MIDNIGHT);
+                let end = now.replace_time(time::macros::time!(23:59));
+                (datetime_to_unix_ms(start), datetime_to_unix_ms(end))
+            }
+            (None, Some(end)) => (0, end),
+            (Some(begin), None) => (begin, i64::MAX),
+            (Some(begin), Some(end)) => (begin, end),
+        }
+    }
+}
+
+async fn get_last_logs(
+    account: Account,
+    State(state): State<AppState>,
+    Query(query): Query<LogsQuery>,
+) -> Result<Json<Vec<RequestLogEntry>>, ApiError> {
+    if !account.flags.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+
+    let (begin, end) = query.limit();
+    Ok(Json(
+        state
+            .requests
+            .query("SELECT * FROM request WHERE ts >= ? AND ts <= ?", (begin, end))
+            .await?,
+    ))
+}
+
+async fn get_server_logs(account: Account) -> Result<Json<serde_json::Value>, ApiError> {
+    if !account.flags.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+
+    let today = OffsetDateTime::now_utc().date();
+    let path = logs_directory().join(today.format(&DATE_FORMAT)?).with_extension("log");
+    let file = tokio::fs::read_to_string(path).await?;
+    let mut result = Vec::new();
+    for line in file.lines() {
         let Ok(value) = serde_json::from_str(line) else {
             continue;
         };
-        buffer.push(value);
-    }
-    Ok(())
-}
-
-async fn get_last_logs(account: Account, Query(query): Query<LogsQuery>) -> Result<Json<serde_json::Value>, ApiError> {
-    if !account.flags.is_admin() {
-        return Err(ApiError::forbidden());
-    }
-
-    let dir = logs_directory();
-    let mut result = Vec::new();
-    let mut date = OffsetDateTime::now_utc().date();
-    for _ in 0..query.days.max(30) {
-        let path = dir.join(date.format(&DATE_FORMAT)?).with_extension("log");
-        if append_logs(path, &mut result).await.is_err() {
-            break;
-        }
-        date = date.previous_day().unwrap();
+        result.push(value);
     }
 
     Ok(Json(serde_json::Value::Array(result)))
-}
-
-async fn get_logs_from(Path(mut date): Path<String>, account: Account) -> Result<Json<serde_json::Value>, ApiError> {
-    if !account.flags.is_admin() {
-        return Err(ApiError::forbidden());
-    }
-
-    if date == "today" {
-        date = OffsetDateTime::now_utc().date().format(&DATE_FORMAT)?;
-    }
-
-    let file = logs_directory().join(date).with_extension("log");
-    let mut array = Vec::with_capacity(1000);
-    append_logs(file, &mut array).await?;
-    Ok(Json(serde_json::Value::Array(array)))
 }
 
 #[derive(Template)]
 #[template(path = "admin.html")]
 struct AdminIndexTemplate {
     account: Option<Account>,
-    logs: Vec<String>,
 }
 
 async fn admin_index(account: Account) -> Result<AdminIndexTemplate, StatusCode> {
@@ -107,10 +115,7 @@ async fn admin_index(account: Account) -> Result<AdminIndexTemplate, StatusCode>
         return Err(StatusCode::FORBIDDEN);
     }
 
-    Ok(AdminIndexTemplate {
-        account: Some(account),
-        logs: available_logs().unwrap_or_default(),
-    })
+    Ok(AdminIndexTemplate { account: Some(account) })
 }
 
 async fn admin_user_by_id(
@@ -241,7 +246,7 @@ async fn download_trash(account: Account, Path(path): Path<String>, req: Request
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/logs", get(get_last_logs))
-        .route("/admin/logs/:date", get(get_logs_from))
+        .route("/admin/logs/server", get(get_server_logs))
         .route("/admin", get(admin_index))
         .route("/admin/user/:id", get(admin_user_by_id))
         .route("/admin/trash", get(show_trash).post(trash_management))

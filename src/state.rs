@@ -7,6 +7,7 @@ use crate::{
     auth::hash_password,
     cached::TimedCachedValue,
     database::Table,
+    logging::RequestLogger,
     models::{Account, DirectoryEntry, Session},
     relations::Relations,
     token::MAX_TOKEN_AGE,
@@ -51,6 +52,7 @@ struct InnerState {
 pub struct AppState {
     inner: Arc<InnerState>,
     pub client: reqwest::Client,
+    pub requests: RequestLogger,
     pub incorrect_default_password_hash: String,
 }
 
@@ -63,6 +65,7 @@ impl AppState {
             .build()
             .expect("could not build HTTP client");
 
+        let requests = RequestLogger::new().expect("could not build request logger");
         Self {
             inner: Arc::new(InnerState {
                 config,
@@ -73,6 +76,7 @@ impl AppState {
                 valid_sessions: Cache::new(1000),
             }),
             client,
+            requests,
             incorrect_default_password_hash,
         }
     }

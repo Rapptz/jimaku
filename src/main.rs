@@ -1,4 +1,4 @@
-use std::{convert::Infallible, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
+use std::{convert::Infallible, net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::{
@@ -76,18 +76,6 @@ fn setup_logging() -> anyhow::Result<(WorkerGuard, WorkerGuard)> {
     Ok((main_guard, bad_req_guard))
 }
 
-fn database_directory() -> anyhow::Result<PathBuf> {
-    let mut path = dirs::data_dir().context("could not find a data directory for the current user")?;
-    path.push(jimaku::PROGRAM_NAME);
-    if let Err(e) = std::fs::create_dir(&path) {
-        if e.kind() != std::io::ErrorKind::AlreadyExists {
-            return Err(e).context("could not create application local data directory");
-        }
-    }
-    path.push("main.db");
-    Ok(path)
-}
-
 async fn shutdown_signal() {
     let ctrl_c = async {
         tokio::signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
@@ -116,8 +104,18 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     let addr = config.server.address();
     let secret_key = config.secret_key;
 
+    let request_logger = state.requests.clone();
     tokio::spawn(jimaku::kitsunekko::auto_scrape_loop(state.clone()));
     tokio::spawn(jimaku::jpsubbers::auto_scrape_loop(state.clone()));
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3600));
+        loop {
+            interval.tick().await;
+            if !request_logger.cleanup() {
+                break;
+            }
+        }
+    });
 
     // Middleware order for request processing is bottom to top
     // and for response processing it's top to bottom
@@ -127,7 +125,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .nest_service("/robots.txt", ServeFile::new("static/robots.txt"))
         .nest_service("/static", ServeDir::new("static"))
         .layer(middleware::from_fn_with_state(state.clone(), jimaku::copy_api_token))
-        .layer(jimaku::logging::HttpTrace)
+        .layer(jimaku::logging::HttpTrace::new(state.requests.clone()))
         .layer(middleware::from_fn(jimaku::flash::process_flash_messages))
         .layer(middleware::from_fn(jimaku::parse_cookies))
         .layer(Extension(secret_key))
@@ -261,7 +259,7 @@ fn init_db(connection: &mut rusqlite::Connection) -> rusqlite::Result<()> {
 
 async fn run(command: jimaku::Command) -> anyhow::Result<()> {
     let config = jimaku::Config::load()?;
-    let database = jimaku::Database::file(&database_directory()?)
+    let database = jimaku::Database::file(&jimaku::database::directory()?)
         .with_init(init_db)
         .open()
         .await?;

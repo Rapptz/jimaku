@@ -20,19 +20,16 @@ const styles = getComputedStyle(document.documentElement);
 let logs = [];
 
 const isMultiDay = () => logSelect.value.endsWith('-days');
-const httpRequestLogs = () => logs.filter(data => data?.span?.name === 'http request');
-const nonStaticHttpRequests = () => httpRequestLogs().filter(data => data?.span?.['http.url']?.startsWith('/static/') === false);
-const logToUrl = (data) => {
-  let url = data?.span?.['http.url'];
-  return url != null ? new URL(url, baseUrl) : null;
-}
+const nonStaticHttpRequests = () => logs.filter(data => data.path.startsWith('/static/') === false);
+const logToUrl = (data) => new URL(data.path, baseUrl);
 
 async function getLogs(value) {
-  let endpoint = '/admin/logs/today';
+  let endpoint = '/admin/logs';
   if (value.endsWith('-days')) {
     endpoint = `/admin/logs?days=${value.substring(0, value.lastIndexOf('-'))}`;
-  } else if (value !== 'today') {
-    endpoint = `/admin/logs/${value}`;
+  } else if (value.indexOf(';') !== -1) {
+    const [begin, end] = value.split(';');
+    endpoint = `/admin/logs?begin=${begin}&end=${end}`;
   }
 
   logs = await callApi(endpoint);
@@ -43,25 +40,25 @@ function clearTable(table) {
 }
 
 function getActiveUsers(requests) {
-  let unique = new Set(requests.map(data => data?.span?.user_id).filter(e => typeof e == 'number'));
+  let unique = new Set(requests.map(data => data.user_id).filter(e => typeof e == 'number'));
   return unique.size;
 }
 
 const stripPrefix = (s, prefix) => s.startsWith(prefix) ? s.slice(prefix.length) : s;
-const isDownloadLog = (d) => /\/entry\/\d+\/(?:bulk|download)/.test(d?.span?.['http.url'] || "");
+const isDownloadLog = (d) => /\/entry\/\d+\/(?:bulk|download)/.test(d.path || "");
 
 function getAverageResponseTime(requests) {
-  let responseTimes = requests.map(data => (data?.span?.['http.latency'] ?? 0) / 1000);
+  let responseTimes = requests.map(data => data.latency * 1000.0);
   return Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
 }
 
 const isSpanSuccess = (data) => {
-  let code = data?.span?.['http.status_code'];
-  return code !== null && code >= 200 && code < 400;
+  let code = data.status_code;
+  return code >= 200 && code < 400;
 }
 
 const spanToUserData = (data) => {
-  return { user_id: data?.span?.user_id, success: isSpanSuccess(data), url: logToUrl(data), download: isDownloadLog(data) };
+  return { user_id: data.user_id, success: isSpanSuccess(data), url: logToUrl(data), download: isDownloadLog(data) };
 }
 
 function getSuccessRate(requests) {
@@ -112,7 +109,7 @@ function getSearchEngine(url) {
 }
 
 function getReferringSites(requests) {
-  let counter = requests.map(d => d?.span?.['http.referrer'] || "").filter(r => r.indexOf(window.location.hostname) === -1 && r.length != 0).reduce((count, referrer) => {
+  let counter = requests.map(d => d.referrer || "").filter(r => r.indexOf(window.location.hostname) === -1 && r.length != 0).reduce((count, referrer) => {
     if (count.hasOwnProperty(referrer)) {
       count[referrer] += 1;
     } else {
@@ -227,10 +224,11 @@ function getTopApiUsers(requests) {
   }
 }
 
-function getRecentServerLogs() {
+async function getRecentServerLogs() {
   const formatValue = (x) => typeof x === 'string' ? JSON.stringify(x) : x.toString();
 
-  let filtered = logs.filter(log => log.target !== "jimaku::logging").reverse().slice(0, 25);
+  let serverLogs = await callApi('/admin/logs/server');
+  let filtered = serverLogs.reverse().slice(0, 25);
   let tbody = recentLogs.querySelector('tbody');
   tbody.innerHTML = '';
   for (const log of filtered) {
@@ -292,6 +290,29 @@ async function updateAnimeRelations() {
   }
 }
 
+function backfillLogSearch() {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+  // Prefill with last ~45 days
+  for (let day = 0; day <= 45; ++day) {
+    const logDate = new Date(now.valueOf());
+    logDate.setDate(logDate.getDate() - day);
+    let el = document.createElement('option');
+    el.textContent = formatter.format(logDate);
+    logDate.setHours(0, 0, 0, 0);
+    let begin = logDate.getTime();
+    logDate.setHours(23, 59, 59, 999);
+    let end = logDate.getTime();
+    el.value = `${begin};${end}`;
+    logSelect.appendChild(el);
+  }
+}
+
+backfillLogSearch();
 logSelect.addEventListener('change', async () => {
   await getLogs(logSelect.value);
   updateGraphs();
