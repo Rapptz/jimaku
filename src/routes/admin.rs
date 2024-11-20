@@ -243,6 +243,74 @@ async fn download_trash(account: Account, Path(path): Path<String>, req: Request
     }
 }
 
+mod api {
+    use super::*;
+    use crate::ApiToken;
+    use audit::ScrapeSource;
+    use std::collections::HashMap;
+
+    #[derive(Deserialize)]
+    pub(super) struct ScrapeRedirectQuery {
+        source: ScrapeSource,
+    }
+
+    pub(super) async fn scrape_redirects(
+        State(state): State<AppState>,
+        auth: ApiToken,
+        Query(query): Query<ScrapeRedirectQuery>,
+    ) -> Result<Json<HashMap<String, i64>>, ApiError> {
+        let Some(account) = state.get_account(auth.id).await else {
+            return Err(ApiError::unauthorized());
+        };
+
+        if !account.flags.is_admin() {
+            return Err(ApiError::forbidden());
+        }
+
+        let key = match query.source {
+            ScrapeSource::Kitsunekko => "kitsunekko_redirects",
+            ScrapeSource::Jpsubbers => "jpsubbers_redirects",
+        };
+
+        match state.database().get_from_storage::<String>(key).await {
+            Some(data) => Ok(Json(serde_json::from_str(&data)?)),
+            None => Ok(Json(HashMap::new())),
+        }
+    }
+
+    #[derive(Deserialize)]
+    pub(super) struct ScrapeRedirectPayload {
+        source: ScrapeSource,
+        data: HashMap<String, i64>,
+    }
+
+    pub(super) async fn set_scrape_redirects(
+        State(state): State<AppState>,
+        auth: ApiToken,
+        Json(payload): Json<ScrapeRedirectPayload>,
+    ) -> Result<StatusCode, ApiError> {
+        let Some(account) = state.get_account(auth.id).await else {
+            return Err(ApiError::unauthorized());
+        };
+
+        if !account.flags.is_admin() {
+            return Err(ApiError::forbidden());
+        }
+
+        let key = match payload.source {
+            ScrapeSource::Kitsunekko => "kitsunekko_redirects",
+            ScrapeSource::Jpsubbers => "jpsubbers_redirects",
+        };
+
+        state
+            .database()
+            .update_storage(key, serde_json::to_string(&payload.data)?)
+            .await?;
+
+        Ok(StatusCode::NO_CONTENT)
+    }
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/logs", get(get_last_logs))
@@ -252,4 +320,8 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/trash", get(show_trash).post(trash_management))
         .route("/admin/trash/download/*path", get(download_trash))
         .route("/admin/cache/invalidate", get(invalidate_caches))
+        .route(
+            "/admin/api/scrape-redirects",
+            get(api::scrape_redirects).post(api::set_scrape_redirects),
+        )
 }
