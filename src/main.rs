@@ -215,12 +215,18 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
 
                 let stream = if is_tls_alpn_challenge(&start_handshake.client_hello()) {
                     info!("Received TLS-ALPN-01 validation request");
-                    start_handshake.into_stream(challenge_config).await.unwrap()
+                    start_handshake.into_stream(challenge_config).await
                 } else {
-                    start_handshake.into_stream(default_config).await.unwrap()
+                    start_handshake.into_stream(default_config).await
                 };
 
-                let socket = TokioIo::new(stream);
+                let socket = match stream {
+                    Err(e) => {
+                        eprintln!("failed to start handshake: {e:?}");
+                        return;
+                    }
+                    Ok(stream) => TokioIo::new(stream),
+                };
                 let hyper_service = hyper::service::service_fn(move |request: Request<Incoming>| {
                     tower_service.clone().oneshot(request)
                 });
