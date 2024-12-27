@@ -211,7 +211,13 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
             let tower_service = unwrap_infallible(service.call(addr).await);
 
             tokio::spawn(async move {
-                let start_handshake = LazyConfigAcceptor::new(Default::default(), tcp).await.unwrap();
+                let start_handshake = match LazyConfigAcceptor::new(Default::default(), tcp).await {
+                    Err(e) => {
+                        eprintln!("failed to start handshake accept: {e:?}");
+                        return;
+                    }
+                    Ok(s) => s,
+                };
 
                 let stream = if is_tls_alpn_challenge(&start_handshake.client_hello()) {
                     info!("Received TLS-ALPN-01 validation request");
