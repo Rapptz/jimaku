@@ -18,7 +18,8 @@ pub const FRAGMENT: &AsciiSet = &CONTROLS
     .add(b'`')
     .add(b'#')
     .add(b';')
-    .add(b'%');
+    .add(b'%')
+    .add(b'?');
 
 /// This is mainly for use in forms.
 ///
