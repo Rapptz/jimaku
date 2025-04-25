@@ -1073,7 +1073,7 @@ pub async fn raw_upload_file(
         }
     }
 
-    let successful = total > 0 && errored == 0 && processed.skipped == 0;
+    let successful = total > 0 && errored == 0 && processed.skipped != total;
     if successful && errored != total {
         let _ = state
             .database()
