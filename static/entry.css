@@ -5,6 +5,8 @@
 
 .entry {
   display: contents;
+  content-visibility: auto;
+  contain-intrinsic-size: auto;
 }
 
 .entry > .table-data {
