@@ -411,8 +411,8 @@ impl EditDirectoryEntry {
             errors.push("Japanese name cannot be more than 1024 bytes.");
         }
 
-        if is_over_length(&self.notes, 1024) {
-            errors.push("Notes cannot be more than 1024 bytes.");
+        if is_over_length(&self.notes, 2048) {
+            errors.push("Notes cannot be more than 2048 bytes.");
         }
         errors
     }
