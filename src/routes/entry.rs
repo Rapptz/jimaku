@@ -1050,6 +1050,7 @@ pub async fn raw_upload_file(
 
     let mut errored = 0usize;
     let total = processed.files.len();
+    let requested = total + processed.skipped;
     let mut data = audit::Upload {
         files: Vec::with_capacity(total),
         api,
@@ -1073,7 +1074,7 @@ pub async fn raw_upload_file(
         }
     }
 
-    let successful = total > 0 && errored == 0 && processed.skipped != total;
+    let successful = total > 0 && errored == 0 && processed.skipped != requested;
     if successful && errored != total {
         let _ = state
             .database()
