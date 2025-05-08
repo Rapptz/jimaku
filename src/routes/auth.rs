@@ -381,6 +381,13 @@ async fn edit_account(
         return Err(ApiError::forbidden());
     }
 
+    if account.id != id {
+        match state.get_account(id).await {
+            Some(acc) => account = acc,
+            None => return Err(ApiError::not_found("user does not exist"))
+        }
+    }
+
     if let Some(toggle) = payload.editor {
         account.flags.set_editor(toggle);
     }
