@@ -16,6 +16,7 @@ use tower_http::{
     compression::CompressionLayer,
     normalize_path::NormalizePathLayer,
     services::{ServeDir, ServeFile},
+    timeout::TimeoutLayer,
 };
 use tracing::{error, info};
 use tracing_appender::{non_blocking::WorkerGuard, rolling::Rotation};
@@ -133,6 +134,7 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
         .layer(DefaultBodyLimit::max(jimaku::MAX_BODY_SIZE))
         .layer(tower_http::limit::RequestBodyLimitLayer::new(jimaku::MAX_BODY_SIZE))
         .layer(CompressionLayer::new())
+        .layer(TimeoutLayer::new(Duration::from_secs(30)))
         .layer(GlobalConcurrencyLimitLayer::new(512))
         .with_state(state);
 
