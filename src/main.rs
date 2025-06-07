@@ -208,6 +208,12 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
                     continue;
                 }
             };
+
+            let sock_ref = socket2::SockRef::from(&tcp);
+            let keep_alive = socket2::TcpKeepalive::new()
+                .with_time(Duration::from_secs(60))
+                .with_interval(Duration::from_secs(10));
+            let _ = sock_ref.set_tcp_keepalive(&keep_alive);
             let challenge_config = challenge_config.clone();
             let default_config = default_config.clone();
             let tower_service = unwrap_infallible(service.call(addr).await);
