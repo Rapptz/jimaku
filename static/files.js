@@ -27,6 +27,19 @@ const changeModifiedToRelative = () => {
   });
 }
 
+const localizeHoverOverDates = () => {
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'long',
+    timeStyle: 'long',
+  });
+  document.querySelectorAll('.file-modified').forEach(node => {
+    const dt = new Date(node.getAttribute('title'));
+    if(!isNaN(dt.getTime())) {
+      node.setAttribute('title', formatter.format(dt));
+    }
+  });
+}
+
 const changeDisplayNames = (value) => {
   let keys = {'romaji':'data-name', 'native':'data-japanese-name', 'english':'data-english-name'};
   let key = keys[value];
@@ -207,6 +220,7 @@ function filterEntries(query) {
 
 parseEntryObjects();
 changeModifiedToRelative();
+localizeHoverOverDates();
 {
   let pref = localStorage.getItem('preferred_name') ?? 'romaji';
   if (pref != 'romaji') changeDisplayNames(pref);
