@@ -25,6 +25,9 @@ My Account · Jimaku
     {% if user.flags.is_editor() -%}
     <span class="badge info" title="User is an editor">Editor</span>
     {% endif -%}
+    {% if user.flags.is_restricted() -%}
+    <span class="badge danger" title="User is restricted from uploading">Restricted</span>
+    {% endif -%}
     {% if account.flags.is_editor() -%}
     <a class="history" href="/logs?account_id={{ user.id }}">
       <img alt="History icon" src="/static/history.svg" width="24px" height="24px">
@@ -40,6 +43,10 @@ My Account · Jimaku
   {% if account.flags.is_admin() %}
   <button class="button primary" data-editor="{{ user.flags.is_editor() }}"
           data-endpoint="/account/{{ user.id }}/edit" id="toggle-editor">Toggle Editor</button>
+  {% endif %}
+  {% if account.flags.is_admin() %}
+  <button class="button primary" data-restricted="{{ user.flags.is_restricted() }}"
+          data-endpoint="/account/{{ user.id }}/edit" id="toggle-restricted">Toggle Restricted</button>
   {% endif %}
   </div>
 </div>

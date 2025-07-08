@@ -362,6 +362,8 @@ struct EditAccountPayload {
     #[serde(default)]
     editor: Option<bool>,
     #[serde(default)]
+    restricted: Option<bool>,
+    #[serde(default)]
     anilist_username: Patch<String>,
 }
 
@@ -377,6 +379,11 @@ async fn edit_account(
         return Err(ApiError::forbidden());
     }
 
+    // Admin accounts are the only ones that can toggle the restricted flag
+    if payload.restricted.is_some() && !account.flags.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+
     if account.id != id && !account.flags.is_admin() {
         return Err(ApiError::forbidden());
     }
@@ -384,12 +391,16 @@ async fn edit_account(
     if account.id != id {
         match state.get_account(id).await {
             Some(acc) => account = acc,
-            None => return Err(ApiError::not_found("user does not exist"))
+            None => return Err(ApiError::not_found("user does not exist")),
         }
     }
 
     if let Some(toggle) = payload.editor {
         account.flags.set_editor(toggle);
+    }
+
+    if let Some(toggle) = payload.restricted {
+        account.flags.set_restricted(toggle);
     }
 
     // At some point it might make sense to verify that this username is valid

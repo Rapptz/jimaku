@@ -236,6 +236,10 @@ pub async fn raw_create_directory_entry(
 ) -> Result<(i64, PathBuf), ApiError> {
     let creator_id = account.id;
 
+    if account.flags.is_restricted() {
+        return Err(ApiError::new("Account is restricted from uploading").with_code(ApiErrorCode::NoPermissions));
+    }
+
     let (names, flags) = match pending.get_info(state).await? {
         Some(title) => title,
         None if account.flags.is_editor() => {
@@ -1036,6 +1040,10 @@ pub async fn raw_upload_file(
     multipart: Multipart,
     api: bool,
 ) -> Result<UploadResult, ApiError> {
+    if account.flags.is_restricted() {
+        return Err(ApiError::new("Account is restricted from uploading").with_code(ApiErrorCode::NoPermissions));
+    }
+
     let Some(entry) = state.get_directory_entry_path(entry_id).await else {
         return Err(ApiError::not_found("Entry not found"));
     };

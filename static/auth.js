@@ -66,6 +66,24 @@ toggleEditor?.addEventListener('click', async () => {
   }
 })
 
+const toggleRestricted = document.getElementById('toggle-restricted');
+toggleRestricted?.addEventListener('click', async () => {
+  let restricted = toggleRestricted.dataset.restricted == 'false';
+  let resp = await callApi(toggleRestricted.dataset.endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({restricted})
+  });
+  if (resp !== null) {
+    let content = restricted ? 'restricted the user' : 'removed restrictions from user';
+    showAlert({level: 'success', content: `Successfully ${content}.`});
+    await sleep(2000);
+    window.location.reload();
+  }
+})
+
 document.getElementById('session-description')?.setAttribute('value', deviceDescription());
 
 document.querySelectorAll('.created[data-timestamp]').forEach(el => {

@@ -395,6 +395,7 @@ impl ToSql for AccountFlags {
 impl AccountFlags {
     const ADMIN: u32 = 1 << 0;
     const EDITOR: u32 = 1 << 1;
+    const RESTRICTED: u32 = 1 << 2;
 
     pub const fn new() -> Self {
         Self(0)
@@ -429,6 +430,14 @@ impl AccountFlags {
     pub fn set_editor(&mut self, toggle: bool) {
         self.toggle_flag(Self::EDITOR, toggle)
     }
+
+    pub fn is_restricted(&self) -> bool {
+        self.has_flag(Self::RESTRICTED)
+    }
+
+    pub fn set_restricted(&mut self, toggle: bool) {
+        self.toggle_flag(Self::RESTRICTED, toggle)
+    }
 }
 
 impl std::fmt::Debug for AccountFlags {
@@ -437,6 +446,7 @@ impl std::fmt::Debug for AccountFlags {
             .field("value", &self.0)
             .field("editor", &self.is_editor())
             .field("admin", &self.is_admin())
+            .field("restricted", &self.is_restricted())
             .finish()
     }
 }
