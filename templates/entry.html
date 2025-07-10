@@ -120,6 +120,8 @@
     <button id="move-files" disabled class="button">Move</button>
     {% else if account.is_some() %}
     <button id="report-files" class="button danger">Report</button>
+    {% else %}
+    <a href="/login" class="button danger">Report</a>
     {% endif %}
     <button id="download-files" disabled class="button primary">Download</button>
   </div>
