@@ -22,6 +22,7 @@ mod api;
 mod audit;
 mod auth;
 mod entry;
+mod notification;
 mod opensearch;
 mod relations;
 
@@ -163,5 +164,6 @@ pub fn all() -> Router<AppState> {
         .merge(audit::routes())
         .merge(relations::routes())
         .merge(opensearch::routes())
+        .merge(notification::routes())
         .nest("/api", api::routes())
 }

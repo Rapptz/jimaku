@@ -5,6 +5,8 @@ const editButton = document.getElementById('edit-entry');
 const uploadForm = document.getElementById('upload-form');
 const uploadInput = document.getElementById('upload-file-input');
 
+const bookmarkButton = document.getElementById('bookmark');
+
 const updateInfo = document.getElementById('update-info');
 
 const dropZone = document.getElementById('file-upload-drop-zone');
@@ -730,6 +732,8 @@ updateInfo?.addEventListener('click', async (e) => {
     }
   }
 });
+
+bookmarkButton?.addEventListener('click', bookmarkEntry);
 
 populateAnimeRelations();
 uploadInput?.addEventListener('change', () => {

@@ -72,6 +72,43 @@ const parseEntryObjects = () => {
   });
 };
 
+async function bookmarkEntry(e) {
+  let button = e.target.parentElement;
+  if(button.dataset.bookmarked === undefined) return;
+  let isBookmarked = button.dataset.bookmarked === 'true';
+  let method = isBookmarked ? 'DELETE' : 'PUT';
+  let resp = await fetch(`/entry/${button.dataset.id}/bookmark`, { method });
+  const img = button.querySelector('img');
+  if(!resp.ok || !img) return;
+
+  if(button.dataset.cleanup === '1') {
+    const entryNode = button.parentElement;
+    const table = entryNode?.parentElement;
+    if(table) {
+      table.removeChild(entryNode);
+    }
+    return;
+  }
+  button.dataset.bookmarked = (!isBookmarked).toString();
+  // Swap the icon and text
+  if(isBookmarked) {
+    img.setAttribute('src', '/static/bookmark.svg');
+    img.title = 'Add this to your bookmarks';
+    img.alt = 'Add bookmark icon';
+  }
+  else {
+    img.setAttribute('src', '/static/bookmarked.svg');
+    img.title = 'Remove this from your bookmarks';
+    img.alt = 'Bookmarked icon';
+  }
+}
+
+const processBookmarkButtons = () => {
+  document.querySelectorAll('a.bookmark[data-id]').forEach(el => {
+    el.addEventListener('click', bookmarkEntry);
+  });
+}
+
 class TableSorter {
   constructor(parent) {
     this.parent = parent;
@@ -221,6 +258,7 @@ function filterEntries(query) {
 parseEntryObjects();
 changeModifiedToRelative();
 localizeHoverOverDates();
+processBookmarkButtons();
 {
   let pref = localStorage.getItem('preferred_name') ?? 'romaji';
   if (pref != 'romaji') changeDisplayNames(pref);

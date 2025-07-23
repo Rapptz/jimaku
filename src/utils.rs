@@ -1,4 +1,9 @@
-use std::{path::PathBuf, str::FromStr, sync::OnceLock};
+use std::{
+    path::PathBuf,
+    str::FromStr,
+    sync::OnceLock,
+    time::{Duration, SystemTime},
+};
 
 use percent_encoding::{AsciiSet, CONTROLS};
 use regex::Regex;
@@ -195,4 +200,14 @@ where
     {
         Option::deserialize(deserializer).map(Into::into)
     }
+}
+
+pub fn unix_duration() -> Duration {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+}
+
+pub fn unix_now_ms() -> i64 {
+    unix_duration().as_millis() as i64
 }

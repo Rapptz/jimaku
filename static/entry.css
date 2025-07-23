@@ -24,6 +24,10 @@
   word-wrap: break-word;
 }
 
+.table-data.bookmark {
+  text-align: right;
+}
+
 .entry:hover > .table-data, .table-headers:hover > .table-header {
   background-color: var(--table-background-hover);
 }

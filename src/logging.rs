@@ -5,7 +5,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     pin::Pin,
     task::{Context, Poll},
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, Instant},
 };
 
 use axum::{extract::Request, response::Response};
@@ -14,7 +14,10 @@ use serde::{Deserialize, Serialize};
 use tower::{Layer, Service};
 use tracing::{event, Level};
 
-use crate::token::get_token_from_request;
+use crate::{
+    token::get_token_from_request,
+    utils::{unix_duration, unix_now_ms},
+};
 
 const REQUEST_LOGGING_QUERY: &str = r#"
 PRAGMA journal_mode=wal;
@@ -115,16 +118,6 @@ where
     }
     tx.commit()?;
     Ok(())
-}
-
-fn unix_duration() -> Duration {
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-}
-
-fn unix_now_ms() -> i64 {
-    unix_duration().as_millis() as i64
 }
 
 fn clean_request_logs(connection: &mut rusqlite::Connection) -> rusqlite::Result<()> {

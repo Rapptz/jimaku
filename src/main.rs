@@ -106,12 +106,14 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     let secret_key = config.secret_key;
 
     let request_logger = state.requests.clone();
+    let notifications = state.notifications.clone();
     tokio::spawn(jimaku::kitsunekko::auto_scrape_loop(state.clone()));
     tokio::spawn(jimaku::jpsubbers::auto_scrape_loop(state.clone()));
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3600));
         loop {
             interval.tick().await;
+            notifications.cleanup();
             if !request_logger.cleanup() {
                 break;
             }
@@ -262,7 +264,11 @@ async fn run_server(state: jimaku::AppState) -> anyhow::Result<()> {
     Ok(())
 }
 
-const MIGRATIONS: [&str; 2] = [include_str!("../sql/0.sql"), include_str!("../sql/1.sql")];
+const MIGRATIONS: [&str; 3] = [
+    include_str!("../sql/0.sql"),
+    include_str!("../sql/1.sql"),
+    include_str!("../sql/2.sql"),
+];
 
 fn init_db(connection: &mut rusqlite::Connection) -> rusqlite::Result<()> {
     connection.execute_batch("PRAGMA foreign_keys=1;\nPRAGMA journal_mode=wal;")?;

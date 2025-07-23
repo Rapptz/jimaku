@@ -177,10 +177,12 @@ function removeFoundEpisodes(episodes, range) {
   }
 }
 
-function anilistEntryToElement(data, entry, files) {
+function anilistEntryToElement(data, payload) {
   let isHiding = false;
   let lastEntryEpisode = 0;
   let episodesInEntry = new Set();
+  const entry = payload.entry;
+  const files = payload.files;
   if(data.media.status === 'FINISHED' && data.media.episodes != null) {
     for(let i = 1; i <= data.media.episodes; ++i) {
       episodesInEntry.add(i);
@@ -232,6 +234,15 @@ function anilistEntryToElement(data, entry, files) {
     showHiddenFiles.textContent = show ? 'Hide Watched Episodes' : 'Show Watched Episodes';
     table.bulkEvents.updateFileCounts();
   });
+  let bookmarkButton = html('button.button', payload.bookmarked ? 'Remove Bookmark' : 'Bookmark');
+  bookmarkButton.addEventListener('click', async (e) => {
+    const method = payload.bookmarked ? 'DELETE' : 'PUT';
+    const response = await fetch(`/entry/${entry.id}/bookmark`, {method});
+    if(response.ok) {
+      payload.bookmarked = !payload.bookmarked;
+      bookmarkButton.textContent = payload.bookmarked ? 'Remove Bookmark' : 'Bookmark';
+    }
+  })
   let nextAiringEpisode = data.media.nextAiringEpisode?.episode;
   let formattedNextEpisode = nextAiringEpisode != null && data.media.episodes == null ? ` (${nextAiringEpisode - 1})` : "";
   let isCaughtUp = nextAiringEpisode != null && data.progress === (nextAiringEpisode - 1);
@@ -250,7 +261,11 @@ function anilistEntryToElement(data, entry, files) {
     html('div.contents', table,
       html('div.commands',
         html('div.file-count', totalFileCount, selectedFileCount),
-        html('div.command-buttons', isHiding ? showHiddenFiles : null, downloadFiles),
+        html('div.command-buttons',
+          payload.bookmarked !== null ? bookmarkButton : null,
+          isHiding ? showHiddenFiles : null,
+          downloadFiles
+        ),
       )
     )
   );
@@ -288,7 +303,7 @@ async function loadMorePlanning(planning) {
   for(const e of sublist) {
     if(lookup.hasOwnProperty(e.mediaId)) {
       let data = lookup[e.mediaId];
-      entriesElement.appendChild(anilistEntryToElement(e, data.entry, data.files));
+      entriesElement.appendChild(anilistEntryToElement(e, data));
     }
   }
 
@@ -317,7 +332,7 @@ async function fillData(entries) {
     for(const e of watching) {
       if(lookup.hasOwnProperty(e.mediaId)) {
         let data = lookup[e.mediaId];
-        let el = anilistEntryToElement(e, data.entry, data.files);
+        let el = anilistEntryToElement(e, data);
         el.sortByValue = Date.parse(data.entry.last_modified);
         children.push(el);
       }
@@ -346,7 +361,7 @@ async function fillData(entries) {
     for(const e of sublist) {
       if(lookup.hasOwnProperty(e.mediaId)) {
         let data = lookup[e.mediaId];
-        entriesElement.appendChild(anilistEntryToElement(e, data.entry, data.files));
+        entriesElement.appendChild(anilistEntryToElement(e, data));
       }
     }
     if(hasMore) {

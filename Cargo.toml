@@ -33,7 +33,7 @@ quick_cache = "0.4.1"
 regex = "1.10.3"
 reqwest = { version = "0.12.3", default-features = false, features = ["json", "rustls-tls"] }
 rpassword = "7.3.1"
-rusqlite = { version = "0.31.0", features = ["bundled", "time"] }
+rusqlite = { version = "0.31.0", features = ["bundled", "time", "vtab", "array"] }
 rustls-acme = { git = "https://github.com/Rapptz/rustls-acme/", branch = "update-deps", features = ["tokio"] }
 sanitise-file-name = "1.0.0"
 serde = { version = "1.0.197", features = ["derive"] }

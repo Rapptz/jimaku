@@ -1,5 +1,5 @@
 use quick_cache::sync::Cache;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::HashSet, path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
     database::Table,
     logging::RequestLogger,
     models::{Account, DirectoryEntry, Session},
+    notification::NotificationService,
     relations::Relations,
     token::MAX_TOKEN_AGE,
     Config, Database,
@@ -53,6 +54,7 @@ pub struct AppState {
     inner: Arc<InnerState>,
     pub client: reqwest::Client,
     pub requests: RequestLogger,
+    pub notifications: NotificationService,
     pub incorrect_default_password_hash: String,
 }
 
@@ -66,6 +68,7 @@ impl AppState {
             .expect("could not build HTTP client");
 
         let requests = RequestLogger::new().expect("could not build request logger");
+        let notifications = NotificationService::new().expect("could not start notification service");
         Self {
             inner: Arc::new(InnerState {
                 config,
@@ -77,6 +80,7 @@ impl AppState {
             }),
             client,
             requests,
+            notifications,
             incorrect_default_password_hash,
         }
     }
@@ -199,7 +203,8 @@ impl AppState {
                 let query = r#"
                     SELECT account.id AS id, account.name AS name, account.password AS password,
                            account.flags AS flags, session.api_key AS api_key, session.created_at AS created_at,
-                           account.anilist_username AS anilist_username
+                           account.anilist_username AS anilist_username,
+                           account.notification_ack AS notification_ack
                     FROM account INNER JOIN session ON session.account_id = account.id
                     WHERE session.id = ? AND session.account_id = ? AND session.api_key = ?
                 "#;
@@ -419,5 +424,59 @@ impl AppState {
     pub async fn set_anime_relations(&self, relations: Relations) {
         let mut guard = self.inner.relations.write().await;
         *guard = relations;
+    }
+
+    /// Returns true if the given entry ID is bookmarked by the user.
+    pub async fn is_bookmarked(&self, user_id: i64, entry_id: i64) -> bool {
+        self.database()
+            .get_row(
+                "SELECT 1 FROM bookmark WHERE user_id = ? AND entry_id = ?",
+                (user_id, entry_id),
+                |row| Ok(row.get_ref(0).is_ok()),
+            )
+            .await
+            .unwrap_or_default()
+    }
+
+    /// Returns the bookmarked entry IDs by the user
+    pub async fn bookmarked_ids(&self, user_id: i64) -> rusqlite::Result<HashSet<i64>> {
+        self.database()
+            .call(move |conn| -> rusqlite::Result<_> {
+                let mut result = HashSet::new();
+                let query = "SELECT entry_id FROM bookmark WHERE user_id = ?";
+                let mut stmt = conn.prepare_cached(query)?;
+                let mut rows = stmt.query((user_id,))?;
+                while let Some(row) = rows.next()? {
+                    result.insert(row.get(0)?);
+                }
+                Ok(result)
+            })
+            .await
+    }
+
+    /// Returns the notification count for a user
+    pub async fn get_notification_count(&self, account: &Account) -> u64 {
+        self.database()
+            .get_row(
+                "SELECT COUNT(*) FROM notification WHERE user_id = ? AND ts > ?",
+                (account.id, account.notification_ack.unwrap_or_default()),
+                |row| row.get(0),
+            )
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+    }
+
+    /// Updates the notification ack on the account
+    pub async fn update_notification_ack(&self, account: &Account) {
+        let _ = self
+            .database()
+            .execute(
+                "UPDATE account SET notification_ack = ? WHERE id = ?",
+                (crate::utils::unix_now_ms(), account.id),
+            )
+            .await;
+        self.invalidate_account_cache(account.id);
     }
 }

@@ -58,8 +58,17 @@
     {% if entry.flags.is_external() -%}
     <span class="badge info" title="Entry originated from an outside source">External</span>
     {% endif -%}
+    {% if let Some(account) = account -%}
+    <a class="icon-button" id="bookmark" data-id="{{ entry.id}}" data-bookmarked="{{ bookmarked}}">
+      {% if bookmarked -%}
+      <img alt="Bookmarked icon" title="Remove this from your bookmarks" src="/static/bookmarked.svg" width="24px" height="24px">
+      {% else -%}
+      <img alt="Add bookmark icon" title="Add this to your bookmarks" src="/static/bookmark.svg" width="24px" height="24px">
+      {% endif -%}
+    </a>
+    {% endif -%}
     {% if flags.is_editor() -%}
-    <a class="history" href="/logs?entry_id={{ entry.id }}">
+    <a class="icon-button" href="/logs?entry_id={{ entry.id }}">
       <img alt="History icon" src="/static/history.svg" width="24px" height="24px">
     </a>
     {% endif -%}

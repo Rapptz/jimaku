@@ -17,7 +17,7 @@ use axum::extract::{Json, Multipart, Query};
 use axum::http::header::{CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderName, HeaderValue};
 use axum::response::Redirect;
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 use axum::{
     extract::{Form, Path, Request, State},
     response::{IntoResponse, Response},
@@ -54,6 +54,7 @@ pub(crate) struct FileEntry {
 struct EntryTemplate {
     account: Option<Account>,
     entry: DirectoryEntry,
+    bookmarked: bool,
     files: Vec<FileEntry>,
     flashes: Flashes,
 }
@@ -98,9 +99,14 @@ async fn get_entry(
         return Ok(Redirect::to("/").into_response());
     };
     let files = get_file_entries(entry_id, &entry.path)?;
+    let bookmarked = match account.as_ref() {
+        Some(acc) => state.is_bookmarked(acc.id, entry_id).await,
+        None => false,
+    };
     Ok(EntryTemplate {
         account,
         entry,
+        bookmarked,
         files,
         flashes,
     }
@@ -1092,6 +1098,16 @@ pub async fn raw_upload_file(
             )
             .await;
         state.cached_directories().invalidate().await;
+
+        // Unfortunate copy required
+        let files = data
+            .files
+            .iter()
+            .filter(|f| !f.failed)
+            .map(|f| f.name.clone())
+            .collect();
+
+        state.notifications.notify_new_subtitles(entry_id, files);
     }
 
     state
@@ -1171,6 +1187,36 @@ async fn bulk_download(
     Ok((headers, body).into_response())
 }
 
+async fn add_bookmark(
+    State(state): State<AppState>,
+    Path(entry_id): Path<i64>,
+    account: Account,
+) -> Result<axum::http::StatusCode, ApiError> {
+    state
+        .database()
+        .execute(
+            "INSERT INTO bookmark(user_id, entry_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+            (account.id, entry_id),
+        )
+        .await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+async fn remove_bookmark(
+    State(state): State<AppState>,
+    Path(entry_id): Path<i64>,
+    account: Account,
+) -> Result<axum::http::StatusCode, ApiError> {
+    state
+        .database()
+        .execute(
+            "DELETE FROM bookmark WHERE user_id = ? AND entry_id = ?",
+            (account.id, entry_id),
+        )
+        .await?;
+    Ok(axum::http::StatusCode::OK)
+}
+
 #[derive(Deserialize)]
 struct RelationsRequest {
     anilist_ids: Vec<u32>,
@@ -1233,10 +1279,12 @@ async fn bulk_tmdb_lookup(
 struct EntryWithFiles {
     entry: DirectoryEntry,
     files: Vec<FileEntry>,
+    bookmarked: Option<bool>,
 }
 
 async fn get_full_data_from_anilist(
     State(state): State<AppState>,
+    account: Option<Account>,
     Json(requested): Json<RelationsRequest>,
 ) -> Result<Json<Vec<EntryWithFiles>>, ApiError> {
     if requested.anilist_ids.len() > 250 {
@@ -1256,11 +1304,21 @@ async fn get_full_data_from_anilist(
         .all(query, rusqlite::params_from_iter(requested.anilist_ids))
         .await?;
 
+    let bookmarks = match &account {
+        Some(account) => state.bookmarked_ids(account.id).await?,
+        None => Default::default(),
+    };
+
     let mut result = Vec::with_capacity(entries.len());
     for entry in entries.into_iter() {
+        let mut bookmarked = Some(bookmarks.contains(&entry.id));
+        if account.is_none() {
+            bookmarked.take();
+        }
         result.push(EntryWithFiles {
             files: get_file_entries(entry.id, &entry.path).unwrap_or_default(),
             entry,
+            bookmarked,
         });
     }
     Ok(Json(result))
@@ -1503,4 +1561,10 @@ pub fn routes() -> Router<AppState> {
         .route("/entry/tmdb", get(tmdb_lookup))
         .route("/entry/import", post(import_entry))
         .route("/entry/import/create", post(create_imported_entry))
+        .route(
+            "/entry/:id/bookmark",
+            put(add_bookmark)
+                .delete(remove_bookmark)
+                .layer(RateLimit::default().build()),
+        )
 }

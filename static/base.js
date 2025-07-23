@@ -4,6 +4,8 @@ const tmdbRegex = /^https:\/\/(?:www\.)?themoviedb\.org\/(tv|movie)\/(\d+)(?:-[a
 const main = document.querySelector('main');
 const settings = document.getElementById('settings');
 const settingsModal = document.getElementById('settings-modal');
+const notificationDot = document.getElementById('notification-dot');
+const notificationCount = document.getElementById('notification-count');
 const rtf = new Intl.RelativeTimeFormat(undefined, {
   style: 'long', numberic: 'auto',
 });
@@ -250,3 +252,26 @@ function getPreferredNameForEntry(entry) {
   if(value == 'english') return entry.english_name ?? entry.name;
   return entry.name;
 }
+
+function updateNotificationBadge(count) {
+  if(count > 0) {
+    notificationCount.textContent = count;
+    notificationCount.classList.remove('hidden');
+    notificationDot.classList.remove('hidden');
+  } else {
+    notificationCount.textContent = '';
+    notificationCount.classList.add('hidden');
+    notificationDot.classList.add('hidden');
+  }
+}
+
+async function fillNotificationBadge() {
+  const resp = await fetch('/notifications/count', {method: 'GET'});
+  if(!resp.ok) {
+    return;
+  }
+  const js = await resp.json();
+  updateNotificationBadge(js.count);
+}
+
+fillNotificationBadge();

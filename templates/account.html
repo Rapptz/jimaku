@@ -29,7 +29,7 @@ My Account · Jimaku
     <span class="badge danger" title="User is restricted from uploading">Restricted</span>
     {% endif -%}
     {% if account.flags.is_editor() -%}
-    <a class="history" href="/logs?account_id={{ user.id }}">
+    <a class="icon-button" href="/logs?account_id={{ user.id }}">
       <img alt="History icon" src="/static/history.svg" width="24px" height="24px">
     </a>
     {% endif -%}
@@ -88,6 +88,26 @@ My Account · Jimaku
   {% endmatch %}
   </div>
 </form>
+{% endif %}
+<h3>Bookmarked Entries</h3>
+{% if bookmarks.is_empty() %}
+<p>You have no bookmarked entries!</p>
+{% else %}
+<div class="files" data-columns="2">
+  <div class="table-headers">
+    <span class="table-header sorting-ascending" data-sort-by="name">Name</span>
+    <span class="table-header">Bookmarked</span>
+  </div>
+  {% for entry in bookmarks %}
+  <div class="entry" data-extra="{{ entry.data()|json }}">
+    <a href="/entry/{{ entry.id }}" class="table-data file-name">{{ entry.name|e }}</a>
+    <a class="table-data bookmark icon-button" data-cleanup="1" data-id="{{ entry.id }}" data-bookmarked="true">
+      <img alt="Bookmarked icon" title="Remove this from your bookmarks" src="/static/bookmarked.svg" width="24px" height="24px">
+    </a>
+  </div>
+  {% endfor %}
+</div>
+<button class="button danger outline" id="remove-all-bookmarks">Remove all bookmarks</button>
 {% endif %}
 {% if current_session.is_some() || !sessions.is_empty() %}
 <section id="session-section">

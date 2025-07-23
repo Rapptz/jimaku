@@ -472,12 +472,21 @@ pub struct Account {
     pub flags: AccountFlags,
     /// The AniList username associated with this account
     pub anilist_username: Option<String>,
+    /// The last timestamp that a notification was acked
+    pub notification_ack: Option<i64>,
 }
 
 impl Table for Account {
     const NAME: &'static str = "account";
 
-    const COLUMNS: &'static [&'static str] = &["id", "name", "password", "flags", "anilist_username"];
+    const COLUMNS: &'static [&'static str] = &[
+        "id",
+        "name",
+        "password",
+        "flags",
+        "anilist_username",
+        "notification_ack",
+    ];
 
     type Id = i64;
 
@@ -488,6 +497,50 @@ impl Table for Account {
             password: row.get("password")?,
             flags: row.get("flags")?,
             anilist_username: row.get("anilist_username")?,
+            notification_ack: row.get("notification_ack")?,
+        })
+    }
+}
+
+impl Account {
+    pub async fn get_bookmarks(&self, database: &crate::Database) -> rusqlite::Result<Vec<DirectoryEntry>> {
+        let query = r#"
+            SELECT * FROM directory_entry
+            INNER JOIN bookmark ON bookmark.entry_id = directory_entry.id
+            WHERE bookmark.user_id = ?
+        "#;
+        database.all(query, (self.id,)).await
+    }
+}
+
+/// A bookmark on an entry that a user has done.
+///
+/// This is essentially just a way for users to follow
+/// an entry and get notified when a new file was uploaded
+/// to that entry.
+///
+/// This is represented as a many-to-many relationship in the
+/// SQL table.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Bookmark {
+    /// The account ID of the user who bookmarked the entry.
+    pub user_id: i64,
+    /// The entry ID that was bookmarked
+    pub entry_id: i64,
+}
+
+impl Table for Bookmark {
+    const NAME: &'static str = "bookmark";
+
+    const COLUMNS: &'static [&'static str] = &["user_id", "entry_id"];
+
+    // This table doesn't actually have an `id` column so this is unused
+    type Id = (i64, i64);
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            user_id: row.get("user_id")?,
+            entry_id: row.get("entry_id")?,
         })
     }
 }

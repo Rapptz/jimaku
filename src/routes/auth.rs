@@ -18,7 +18,7 @@ use axum::{
     extract::{Path, State},
     http::{header::SET_COOKIE, HeaderValue, StatusCode},
     response::{IntoResponse, Redirect, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
     Form, Json, Router,
 };
 use cookie::Cookie;
@@ -191,6 +191,19 @@ async fn invalidate_session(
     }
 }
 
+async fn remove_all_bookmarks(State(state): State<AppState>, account: Account) -> StatusCode {
+    if state
+        .database()
+        .execute("DELETE FROM bookmark WHERE user_id = ?", (account.id,))
+        .await
+        .is_err()
+    {
+        StatusCode::BAD_GATEWAY
+    } else {
+        StatusCode::OK
+    }
+}
+
 #[derive(Deserialize)]
 struct ChangePasswordForm {
     old_password: String,
@@ -284,6 +297,7 @@ struct AccountInfoTemplate {
     account: Option<Account>,
     user: Account,
     entries: Vec<DirectoryEntry>,
+    bookmarks: Vec<DirectoryEntry>,
     sessions: Vec<Session>,
     current_session: Option<Session>,
     api_key: Option<String>,
@@ -308,6 +322,7 @@ impl AccountInfoTemplate {
             Vec::<Session>::new()
         };
 
+        let bookmarks = user.get_bookmarks(state.database()).await.unwrap_or_default();
         let session_id = current_token.base64();
         let current_session = sessions
             .iter()
@@ -324,6 +339,7 @@ impl AccountInfoTemplate {
 
         Self {
             account: Some(account),
+            bookmarks,
             user,
             entries,
             sessions,
@@ -462,6 +478,7 @@ pub fn routes() -> Router<AppState> {
         .route("/logout", get(logout))
         .route("/logout/all", get(logout_all))
         .route("/account/invalidate", post(invalidate_session))
+        .route("/account/bookmarks", delete(remove_all_bookmarks))
         .route("/account", get(account_info))
         .route(
             "/account/api_key",

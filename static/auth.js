@@ -150,3 +150,9 @@ document.getElementById('submit-anilist')?.addEventListener('click', async (e) =
     window.location.reload();
   }
 });
+
+document.getElementById('remove-all-bookmarks')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  await fetch('/account/bookmarks', { method: 'DELETE' });
+  window.location.reload();
+});
