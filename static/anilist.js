@@ -4,6 +4,10 @@ import { init, parse } from "./anitomy.js";
 const entriesElement = document.getElementById('anilist-entries');
 const loadingElement = document.getElementById('loading');
 const loadMoreButton = document.getElementById('load-more');
+const dtFormat = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'full',
+  timeStyle: 'medium',
+});
 let animeRelationData = null;
 let afterIndex = 0;
 const anilistQuery = `
@@ -24,6 +28,8 @@ query ($username: String) {
         media {
           nextAiringEpisode {
             episode
+            timeUntilAiring
+            airingAt
           }
           coverImage {
             extraLarge
@@ -81,6 +87,30 @@ async function getAniListEntries(username) {
 function humanFileSize(size) {
     var i = size == 0 ? 0 : Math.floor(Math.log(size) / Math.log(1000));
     return Number((size / Math.pow(1000, i)).toFixed(2)) + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
+}
+
+function simpleRelativeFormat(seconds) {
+  let hours = Math.floor(seconds / 3600);
+  let rem = seconds % 3600;
+  let minutes = Math.floor(rem / 60);
+  seconds = rem % 60;
+  let days = Math.floor(hours / 24);
+  hours = hours % 24;
+
+  let parts = [];
+  if(days > 0) {
+    parts.push(`${days}d`);
+  }
+  if(hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  if(minutes > 0) {
+    parts.push(`${minutes}m`);
+  }
+  if(seconds > 0 && parts.length < 3) {
+    parts.push(`${seconds}s`);
+  }
+  return parts.join(' ');
 }
 
 const entryLink = (entry) => {
@@ -250,11 +280,22 @@ function anilistEntryToElement(data, payload) {
   let missingEpisodes = data.media.episodes === 1 ? (files.length === 0 ? 1 : 0) : episodesInEntry.size;
   let isEntryIncomplete = data.media.status === 'FINISHED' && data.media.episodes != null && missingEpisodes !== 0;
 
+  let airingAt = data.media.nextAiringEpisode?.airingAt;
+  let timeUntilAiring = data.media.nextAiringEpisode?.timeUntilAiring;
+  let nextAiringCountdownEl = null;
+  if(nextAiringEpisode != null && airingAt != null && timeUntilAiring != null) {
+    // Episode <N> airs in <time>
+    nextAiringCountdownEl = html('span.countdown',
+      `Episode ${nextAiringEpisode} airs in ${simpleRelativeFormat(timeUntilAiring)}`,
+      { title: dtFormat.format(new Date(airingAt * 1000)) }
+    )
+  }
+
   return html('details.anilist-entry', isCaughtUp ? {class: 'caught-up'} : null,
     html('summary',
       html('a.cover', {href: `https://anilist.co/anime/${data.mediaId}/`},
         html('img', {loading: 'lazy', src: data.media.coverImage.medium, alt: `Cover image for ${entry.name}`})),
-      entryLink(entry),
+      html('.description', entryLink(entry), nextAiringCountdownEl),
       isSiteBehind ? html('span.behind', '🐢', {title: 'Currently missing subtitles for the latest episodes for this series.', dataset: {lastEpisode: lastEntryEpisode}}) : null,
       isEntryIncomplete ? html('span.missing', '⚠️', {title: `This entry might be missing ${missingEpisodes} episode${missingEpisodes == 1 ? '' : 's'}.`, dataset: {missing: missingEpisodes}}) : null,
       html('span.progress', `${data.progress}/${data.media.episodes ?? '?'}${formattedNextEpisode}`)),
