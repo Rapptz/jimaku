@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use axum::{
-    extract::FromRequestParts,
+    extract::{FromRequestParts, OptionalFromRequestParts},
     http::{
         header::{LOCATION, SET_COOKIE},
         request::Parts,
@@ -183,7 +183,6 @@ pub fn get_token_from_request(exts: &Extensions) -> Option<Token> {
     Token::from_signed(cookie.value(), key)
 }
 
-#[async_trait::async_trait]
 impl<S> FromRequestParts<S> for Token
 where
     S: Send + Sync,
@@ -197,7 +196,29 @@ where
     }
 }
 
-#[async_trait::async_trait]
+impl<S> OptionalFromRequestParts<S> for Token
+where
+    S: Send + Sync,
+{
+    type Rejection = TokenRejection;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Option<Self>, Self::Rejection> {
+        let Some(cookie) = parts
+            .extensions
+            .get::<Vec<Cookie>>()
+            .and_then(|cookies| cookies.iter().find(|c| c.name() == "token"))
+        else {
+            return Ok(None);
+        };
+        let Some(key) = parts.extensions.get::<SecretKey>() else {
+            return Ok(None);
+        };
+        let token = Token::from_signed(cookie.value(), key).ok_or(TokenRejection)?;
+        parts.extensions.insert(token.clone());
+        Ok(Some(token))
+    }
+}
+
 impl FromRequestParts<AppState> for Account {
     type Rejection = TokenRejection;
 
@@ -220,5 +241,34 @@ impl FromRequestParts<AppState> for Account {
             .get_session_account(session_id, token.id, false)
             .await
             .ok_or(TokenRejection)
+    }
+}
+
+impl OptionalFromRequestParts<AppState> for Account {
+    type Rejection = TokenRejection;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Option<Self>, Self::Rejection> {
+        let Some(cookie) = parts
+            .extensions
+            .get::<Vec<Cookie>>()
+            .and_then(|cookies| cookies.iter().find(|c| c.name() == "token"))
+        else {
+            return Ok(None);
+        };
+
+        let Some(token) = parts
+            .extensions
+            .get::<SecretKey>()
+            .and_then(|key| Token::from_signed(cookie.value(), key))
+        else {
+            return Ok(None);
+        };
+
+        // This unwrap is safe because it's validated above
+        let (session_id, _) = cookie.value().split_once('.').unwrap();
+        match state.get_session_account(session_id, token.id, false).await {
+            Some(account) => Ok(Some(account)),
+            None => Err(TokenRejection),
+        }
     }
 }

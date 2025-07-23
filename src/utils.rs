@@ -5,6 +5,12 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use askama::Template;
+use axum::{
+    http::{HeaderValue, StatusCode},
+    response::IntoResponse,
+};
+use bytes::Bytes;
 use percent_encoding::{AsciiSet, CONTROLS};
 use regex::Regex;
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
@@ -199,6 +205,38 @@ where
         D: Deserializer<'de>,
     {
         Option::deserialize(deserializer).map(Into::into)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct HtmlTemplate<T>(pub T);
+
+impl<T: Template> std::fmt::Display for HtmlTemplate<T> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <T as std::fmt::Display>::fmt(&self.0, f)
+    }
+}
+
+impl<T: Template> IntoResponse for HtmlTemplate<T> {
+    fn into_response(self) -> axum::response::Response {
+        let result = T::render(&self.0);
+        const HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");
+        const TEXT: HeaderValue = HeaderValue::from_static("text/plain; charset=utf-8");
+        const FAILURE: Bytes = Bytes::from_static(b"Internal Server Error");
+        let (status, content_type, body) = match result {
+            Ok(body) => (StatusCode::OK, HTML, Bytes::from_owner(body)),
+            Err(err) => {
+                tracing::error!(error = %err, "Failed to render template");
+                (StatusCode::INTERNAL_SERVER_ERROR, TEXT, FAILURE)
+            }
+        };
+
+        let mut resp = axum::body::Body::from(body).into_response();
+        *resp.status_mut() = status;
+        resp.headers_mut()
+            .insert(axum::http::header::CONTENT_TYPE, content_type);
+        resp
     }
 }
 

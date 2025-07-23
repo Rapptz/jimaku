@@ -6,7 +6,7 @@ use crate::flash::{FlashMessage, Flasher, Flashes};
 use crate::headers::Referrer;
 use crate::models::{Account, AccountCheck, DirectoryEntry, EntryFlags};
 use crate::ratelimit::RateLimit;
-use crate::utils::{is_over_length, FRAGMENT};
+use crate::utils::{is_over_length, HtmlTemplate, FRAGMENT};
 use crate::{audit, filters};
 use crate::{tmdb, AppState};
 use anyhow::{bail, Context};
@@ -103,13 +103,13 @@ async fn get_entry(
         Some(acc) => state.is_bookmarked(acc.id, entry_id).await,
         None => false,
     };
-    Ok(EntryTemplate {
+    Ok(HtmlTemplate(EntryTemplate {
         account,
         entry,
         bookmarked,
         files,
         flashes,
-    }
+    })
     .into_response())
 }
 
@@ -1413,12 +1413,12 @@ async fn import_entry(
     }
 
     let pending = get_pending_directory_entry(&state, payload.anime, payload.name).await;
-    let mut response = ImportEntryTemplate {
+    let mut response = HtmlTemplate(ImportEntryTemplate {
         account: Some(account),
         flashes,
         pending,
         anime: payload.anime,
-    }
+    })
     .into_response();
     response
         .headers_mut()
@@ -1526,30 +1526,30 @@ async fn create_imported_entry(
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/entry/:id", get(get_entry))
+        .route("/entry/{id}", get(get_entry))
         .route(
-            "/entry/:id/download/*path",
+            "/entry/{id}/download/{*path}",
             get(download_entry).layer(CorsLayer::permissive()),
         )
         .route(
             "/entry/create",
             post(create_directory_entry).layer(RateLimit::default().quota(5, 30.0).build()),
         )
-        .route("/entry/:id/edit", post(edit_directory_entry))
-        .route("/entry/:id/move", post(move_directory_entries))
-        .route("/entry/:id/rename", post(bulk_rename_files))
-        .route("/entry/:id", delete(bulk_delete_files))
+        .route("/entry/{id}/edit", post(edit_directory_entry))
+        .route("/entry/{id}/move", post(move_directory_entries))
+        .route("/entry/{id}/rename", post(bulk_rename_files))
+        .route("/entry/{id}", delete(bulk_delete_files))
         .route(
-            "/entry/:id/report",
+            "/entry/{id}/report",
             post(report_entry).layer(RateLimit::default().build()),
         )
         .route("/entry/search", get(search_directory_entries))
         .route(
-            "/entry/:id/upload",
+            "/entry/{id}/upload",
             post(upload_file).layer(RateLimit::default().build()),
         )
         .route(
-            "/entry/:id/bulk",
+            "/entry/{id}/bulk",
             post(bulk_download).layer(RateLimit::default().build()),
         )
         .route("/entry/relations", post(relations))
@@ -1562,7 +1562,7 @@ pub fn routes() -> Router<AppState> {
         .route("/entry/import", post(import_entry))
         .route("/entry/import/create", post(create_imported_entry))
         .route(
-            "/entry/:id/bookmark",
+            "/entry/{id}/bookmark",
             put(add_bookmark)
                 .delete(remove_bookmark)
                 .layer(RateLimit::default().build()),

@@ -20,7 +20,6 @@
 {% for flash in flashes %}
 {{ flash.html()|safe }}
 {% endfor %}
-{%- let editor = account.flags().is_editor() -%}
 {%- let placeholder -%}
 {%- if anime -%}
 {%- let placeholder = "Search files by name or AniList URL..." -%}

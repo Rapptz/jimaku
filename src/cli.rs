@@ -123,7 +123,7 @@ impl Command {
                     Self::Move { path }
                 }
                 "-h" | "--help" | "help" => {
-                    println!("{}", HELP_OUTPUT);
+                    println!("{HELP_OUTPUT}");
                     std::process::exit(0);
                 }
                 other => {

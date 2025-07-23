@@ -4,7 +4,7 @@ use crate::{
     filters,
     flash::Flashes,
     headers::{AcceptEncoding, UserAgent},
-    models::{Account, AccountCheck},
+    models::{Account, AccountCheck}, utils::HtmlTemplate,
 };
 use askama::Template;
 use axum::{
@@ -39,6 +39,7 @@ where
     flashes: Flashes,
     url: String,
     anime: bool,
+    editor: bool,
 }
 
 async fn index(
@@ -50,12 +51,14 @@ async fn index(
 ) -> impl IntoResponse {
     let entries = state.directory_entries().await;
     let bypass_cache = account.is_some();
+    let editor = account.flags().is_editor();
     let template = ListingTemplate {
         account,
         entries: entries.iter().filter(|e| e.flags.is_anime()),
         flashes,
         url: state.config().canonical_url(),
         anime: true,
+        editor,
     };
     cacher.cache_template("index", template, encoding, bypass_cache).await
 }
@@ -69,12 +72,14 @@ async fn dramas(
 ) -> impl IntoResponse {
     let entries = state.directory_entries().await;
     let bypass_cache = account.is_some();
+    let editor = account.flags().is_editor();
     let template = ListingTemplate {
         account,
         entries: entries.iter().filter(|e| !e.flags.is_anime()),
         flashes,
         url: state.config().url_to("/dramas"),
         anime: false,
+        editor,
     };
     cacher.cache_template("dramas", template, encoding, bypass_cache).await
 }
@@ -86,7 +91,7 @@ struct HelpTemplate {
 }
 
 async fn help_page(account: Option<Account>) -> impl IntoResponse {
-    HelpTemplate { account }
+    HtmlTemplate(HelpTemplate { account })
 }
 
 #[derive(Template)]
@@ -96,7 +101,7 @@ struct ContactTemplate {
 }
 
 async fn contact_page(account: Option<Account>) -> impl IntoResponse {
-    ContactTemplate { account }
+    HtmlTemplate(ContactTemplate { account })
 }
 
 #[derive(serde::Deserialize)]
@@ -147,7 +152,7 @@ struct AniListTemplate {
 }
 
 async fn show_anilist_page(account: Option<Account>, Path(user_name): Path<String>) -> impl IntoResponse {
-    AniListTemplate { account, user_name }
+    HtmlTemplate(AniListTemplate { account, user_name })
 }
 
 pub fn all() -> Router<AppState> {
@@ -157,7 +162,7 @@ pub fn all() -> Router<AppState> {
         .route("/help", get(help_page))
         .route("/contact", get(contact_page))
         .route("/download-zip", get(bypass_download_zip_cors))
-        .route("/anilist/:name", get(show_anilist_page))
+        .route("/anilist/{name}", get(show_anilist_page))
         .merge(auth::routes())
         .merge(entry::routes())
         .merge(admin::routes())

@@ -10,11 +10,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    audit::{AuditLogData, AuditLogEntry},
-    database::Table,
-    error::ApiError,
-    models::{Account, DirectoryEntry},
-    AppState,
+    audit::{AuditLogData, AuditLogEntry}, database::Table, error::ApiError, models::{Account, DirectoryEntry}, utils::HtmlTemplate, AppState
 };
 
 #[derive(Debug, Serialize)]
@@ -172,11 +168,11 @@ struct AuditLogTemplate {
     account: Option<Account>,
 }
 
-async fn logs(account: Account) -> Result<AuditLogTemplate, Redirect> {
+async fn logs(account: Account) -> Result<HtmlTemplate<AuditLogTemplate>, Redirect> {
     if !account.flags.is_editor() {
         Err(Redirect::to("/"))
     } else {
-        Ok(AuditLogTemplate { account: Some(account) })
+        Ok(HtmlTemplate(AuditLogTemplate { account: Some(account) }))
     }
 }
 

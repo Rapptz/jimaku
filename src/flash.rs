@@ -117,7 +117,7 @@ impl<'a> std::fmt::Display for FlashMessageHtml<'a> {
         writeln!(
             f,
             r#"<p>{}</p>"#,
-            askama::MarkupDisplay::new_unsafe(&self.message.content, askama::Html)
+            askama::filters::escape(&self.message.content, askama::filters::Html).unwrap()
         )?;
         writeln!(
             f,
@@ -232,7 +232,6 @@ impl Flasher {
     }
 }
 
-#[async_trait::async_trait]
 impl<S> FromRequestParts<S> for Flasher
 where
     S: Send + Sync,
@@ -248,7 +247,6 @@ where
     }
 }
 
-#[async_trait::async_trait]
 impl<S> FromRequestParts<S> for Flashes
 where
     S: Send + Sync,

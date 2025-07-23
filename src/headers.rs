@@ -14,7 +14,6 @@ use crate::AppState;
 #[derive(Debug, Clone)]
 pub struct Referrer(pub String);
 
-#[async_trait::async_trait]
 impl FromRequestParts<AppState> for Referrer {
     type Rejection = (StatusCode, &'static str);
 
@@ -33,7 +32,6 @@ pub struct AcceptEncoding {
     pub gzip: bool,
 }
 
-#[async_trait::async_trait]
 impl<S> FromRequestParts<S> for AcceptEncoding
 where
     S: Send + Sync,
@@ -73,7 +71,6 @@ pub fn get_safe_referrer(config: &crate::Config, header: Option<&HeaderValue>) -
 #[derive(Debug, Clone)]
 pub struct UserAgent(pub String);
 
-#[async_trait::async_trait]
 impl<S> FromRequestParts<S> for UserAgent
 where
     S: Send + Sync,

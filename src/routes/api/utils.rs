@@ -1,8 +1,6 @@
-use async_trait::async_trait;
 use axum::{
-    extract::{path::Path, FromRequest, FromRequestParts, Query, Request},
+    extract::{path::Path, FromRequest, FromRequestParts, OptionalFromRequest, Query, Request},
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::de::DeserializeOwned;
 
@@ -10,7 +8,6 @@ use crate::error::ApiError;
 
 pub struct ApiPath<T>(pub T);
 
-#[async_trait]
 impl<S, T> FromRequestParts<S> for ApiPath<T>
 where
     T: DeserializeOwned + Send,
@@ -28,7 +25,6 @@ where
 
 pub struct ApiQuery<T>(pub T);
 
-#[async_trait]
 impl<S, T> FromRequestParts<S> for ApiQuery<T>
 where
     T: DeserializeOwned + Send,
@@ -46,7 +42,6 @@ where
 
 pub struct ApiJson<T>(pub T);
 
-#[async_trait]
 impl<S, T> FromRequest<S> for ApiJson<T>
 where
     // these trait bounds are copied from `impl FromRequest for axum::extract::path::Path`
@@ -56,8 +51,24 @@ where
     type Rejection = ApiError;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
-        match Json::<T>::from_request(req, state).await {
+        match <axum::Json<T> as axum::extract::FromRequest<S>>::from_request(req, state).await {
             Ok(value) => Ok(Self(value.0)),
+            Err(rejection) => Err(ApiError::new(rejection.to_string())),
+        }
+    }
+}
+
+impl<S, T> OptionalFromRequest<S> for ApiJson<T>
+where
+    T: DeserializeOwned + Send,
+    S: Send + Sync,
+{
+    type Rejection = ApiError;
+
+    async fn from_request(req: Request, state: &S) -> Result<Option<Self>, Self::Rejection> {
+        match <axum::Json<T> as axum::extract::OptionalFromRequest<S>>::from_request(req, state).await {
+            Ok(Some(value)) => Ok(Some(Self(value.0))),
+            Ok(None) => Ok(None),
             Err(rejection) => Err(ApiError::new(rejection.to_string())),
         }
     }

@@ -5,7 +5,7 @@ use crate::{
     download::{validate_path, DownloadResponse},
     filters,
     logging::RequestLogEntry,
-    utils::logs_directory,
+    utils::{logs_directory, HtmlTemplate},
 };
 use askama::Template;
 use axum::{
@@ -110,12 +110,12 @@ struct AdminIndexTemplate {
     account: Option<Account>,
 }
 
-async fn admin_index(account: Account) -> Result<AdminIndexTemplate, StatusCode> {
+async fn admin_index(account: Account) -> Result<HtmlTemplate<AdminIndexTemplate>, StatusCode> {
     if !account.flags.is_admin() {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    Ok(AdminIndexTemplate { account: Some(account) })
+    Ok(HtmlTemplate(AdminIndexTemplate { account: Some(account) }))
 }
 
 async fn admin_user_by_id(
@@ -154,7 +154,7 @@ struct AdminTrashTemplate {
     trash: Trash,
 }
 
-async fn show_trash(account: Account) -> Result<AdminTrashTemplate, Redirect> {
+async fn show_trash(account: Account) -> Result<HtmlTemplate<AdminTrashTemplate>, Redirect> {
     if !account.flags.is_admin() {
         return Err(Redirect::to("/"));
     }
@@ -165,11 +165,11 @@ async fn show_trash(account: Account) -> Result<AdminTrashTemplate, Redirect> {
 
     let listing = trash.list().await.unwrap_or_default();
 
-    Ok(AdminTrashTemplate {
+    Ok(HtmlTemplate(AdminTrashTemplate {
         account: Some(account),
         trash,
         listing,
-    })
+    }))
 }
 
 #[derive(Debug, Deserialize, Copy, Clone, Eq, PartialEq, Hash)]
@@ -316,9 +316,9 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/logs", get(get_last_logs))
         .route("/admin/logs/server", get(get_server_logs))
         .route("/admin", get(admin_index))
-        .route("/admin/user/:id", get(admin_user_by_id))
+        .route("/admin/user/{id}", get(admin_user_by_id))
         .route("/admin/trash", get(show_trash).post(trash_management))
-        .route("/admin/trash/download/*path", get(download_trash))
+        .route("/admin/trash/download/{*path}", get(download_trash))
         .route("/admin/cache/invalidate", get(invalidate_caches))
         .route(
             "/admin/api/scrape-redirects",

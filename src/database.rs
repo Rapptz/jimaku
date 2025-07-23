@@ -39,7 +39,7 @@ pub trait Table: Sized {
                 query.push_str(column);
                 query.push_str(" = ?");
             } else {
-                panic!("Column {} is not in the COLUMNS array", column);
+                panic!("Column {column} is not in the COLUMNS array");
             }
         }
         query.push_str(" WHERE id = ?");

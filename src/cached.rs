@@ -20,7 +20,7 @@ use bytes::Bytes;
 use quick_cache::sync::Cache;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::headers::AcceptEncoding;
+use crate::{headers::AcceptEncoding, utils::HtmlTemplate};
 
 /// A timed cache value that only lasts for a specified duration before expiring.
 #[derive(Debug)]
@@ -133,7 +133,7 @@ impl BodyCache {
         self.templates.clear();
     }
 
-    pub async fn cache_template<T: askama::Template + IntoResponse>(
+    pub async fn cache_template<T: askama::Template>(
         &self,
         key: &'static str,
         template: T,
@@ -141,7 +141,7 @@ impl BodyCache {
         bypass_cache: bool,
     ) -> CachedTemplateResponse {
         if bypass_cache {
-            return CachedTemplateResponse::Bypass(template.into_response());
+            return CachedTemplateResponse::Bypass(HtmlTemplate(template).into_response());
         }
 
         if let Some(cached) = self.get_cached(key) {

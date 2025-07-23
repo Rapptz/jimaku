@@ -141,7 +141,7 @@ My Account · Jimaku
     <span class="description">{{ session.label() }}</span>
     <span class="created" title="{{ session.created_at|isoformat }}" data-timestamp="{{ session.created_at.unix_timestamp() }}">{{ session.created_at|isoformat }}</span>
   </div>
-  <button class="invalidate button danger outline" data-token="{{ session.signed(key)|as_ref|maybe_display }}">Logout</button>
+  <button class="invalidate button danger outline" data-token="{{ session.signed(key)|ref|maybe_display }}">Logout</button>
 </div>
 {% endfor %}
 </div>

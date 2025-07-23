@@ -26,7 +26,6 @@ async fn extract_api_token_from_headers(headers: &HeaderMap, state: &AppState) -
     }
 }
 
-#[async_trait::async_trait]
 impl FromRequestParts<AppState> for ApiToken {
     type Rejection = ApiError;
 
