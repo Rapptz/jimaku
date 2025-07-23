@@ -4,7 +4,8 @@ use crate::{
     filters,
     flash::Flashes,
     headers::{AcceptEncoding, UserAgent},
-    models::{Account, AccountCheck}, utils::HtmlTemplate,
+    models::{Account, AccountCheck},
+    utils::HtmlPage,
 };
 use askama::Template;
 use axum::{
@@ -91,7 +92,7 @@ struct HelpTemplate {
 }
 
 async fn help_page(account: Option<Account>) -> impl IntoResponse {
-    HtmlTemplate(HelpTemplate { account })
+    HtmlPage(HelpTemplate { account })
 }
 
 #[derive(Template)]
@@ -101,7 +102,7 @@ struct ContactTemplate {
 }
 
 async fn contact_page(account: Option<Account>) -> impl IntoResponse {
-    HtmlTemplate(ContactTemplate { account })
+    HtmlPage(ContactTemplate { account })
 }
 
 #[derive(serde::Deserialize)]
@@ -152,7 +153,7 @@ struct AniListTemplate {
 }
 
 async fn show_anilist_page(account: Option<Account>, Path(user_name): Path<String>) -> impl IntoResponse {
-    HtmlTemplate(AniListTemplate { account, user_name })
+    HtmlPage(AniListTemplate { account, user_name })
 }
 
 pub fn all() -> Router<AppState> {

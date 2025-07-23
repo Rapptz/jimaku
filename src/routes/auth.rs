@@ -10,7 +10,7 @@ use crate::{
     models::{is_valid_username, Account, DirectoryEntry, Session},
     ratelimit::RateLimit,
     token::{Token, TokenRejection},
-    utils::{HtmlTemplate, Patch},
+    utils::{HtmlPage, Patch},
     AppState,
 };
 use askama::Template;
@@ -35,7 +35,7 @@ async fn login(account: Option<Account>, flashes: Flashes) -> Response {
     if account.is_some() {
         Redirect::to("/").into_response()
     } else {
-        HtmlTemplate(LoginTemplate { account, flashes }).into_response()
+        HtmlPage(LoginTemplate { account, flashes }).into_response()
     }
 }
 
@@ -350,8 +350,8 @@ impl AccountInfoTemplate {
     }
 }
 
-async fn account_info(State(state): State<AppState>, token: Token, account: Account) -> HtmlTemplate<AccountInfoTemplate> {
-    HtmlTemplate(AccountInfoTemplate::new(account.clone(), account, token, &state).await)
+async fn account_info(State(state): State<AppState>, token: Token, account: Account) -> HtmlPage<AccountInfoTemplate> {
+    HtmlPage(AccountInfoTemplate::new(account.clone(), account, token, &state).await)
 }
 
 async fn show_other_account_info(
@@ -359,7 +359,7 @@ async fn show_other_account_info(
     token: Token,
     account: Account,
     Path(name): Path<String>,
-) -> Result<HtmlTemplate<AccountInfoTemplate>, Redirect> {
+) -> Result<HtmlPage<AccountInfoTemplate>, Redirect> {
     let Some(user) = state
         .database()
         .get::<Account, _, _>("SELECT * FROM account WHERE name = ?", [name])
@@ -370,7 +370,7 @@ async fn show_other_account_info(
         return Err(Redirect::to("/"));
     };
 
-    Ok(HtmlTemplate(AccountInfoTemplate::new(account, user, token, &state).await))
+    Ok(HtmlPage(AccountInfoTemplate::new(account, user, token, &state).await))
 }
 
 #[derive(Deserialize)]

@@ -9,7 +9,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{logging::BadRequestReason, models::Account, utils::HtmlTemplate};
+use crate::{logging::BadRequestReason, models::Account, utils::HtmlPage};
 
 #[derive(Template)]
 #[template(path = "error.html")]
@@ -25,7 +25,7 @@ impl IntoResponse for InternalError {
     fn into_response(self) -> Response {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            HtmlTemplate(ErrorTemplate {
+            HtmlPage(ErrorTemplate {
                 account: None,
                 error: self.0,
             }),

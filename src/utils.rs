@@ -208,17 +208,18 @@ where
     }
 }
 
+/// A wrapper type to render an askama template as an HTML page response
 #[derive(Debug, Clone, Copy)]
-pub struct HtmlTemplate<T>(pub T);
+pub struct HtmlPage<T>(pub T);
 
-impl<T: Template> std::fmt::Display for HtmlTemplate<T> {
+impl<T: Template> std::fmt::Display for HtmlPage<T> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <T as std::fmt::Display>::fmt(&self.0, f)
     }
 }
 
-impl<T: Template> IntoResponse for HtmlTemplate<T> {
+impl<T: Template> IntoResponse for HtmlPage<T> {
     fn into_response(self) -> axum::response::Response {
         let result = T::render(&self.0);
         const HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");

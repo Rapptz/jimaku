@@ -5,7 +5,7 @@ use crate::{
     download::{validate_path, DownloadResponse},
     filters,
     logging::RequestLogEntry,
-    utils::{logs_directory, HtmlTemplate},
+    utils::{logs_directory, HtmlPage},
 };
 use askama::Template;
 use axum::{
@@ -110,12 +110,12 @@ struct AdminIndexTemplate {
     account: Option<Account>,
 }
 
-async fn admin_index(account: Account) -> Result<HtmlTemplate<AdminIndexTemplate>, StatusCode> {
+async fn admin_index(account: Account) -> Result<HtmlPage<AdminIndexTemplate>, StatusCode> {
     if !account.flags.is_admin() {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    Ok(HtmlTemplate(AdminIndexTemplate { account: Some(account) }))
+    Ok(HtmlPage(AdminIndexTemplate { account: Some(account) }))
 }
 
 async fn admin_user_by_id(
@@ -154,7 +154,7 @@ struct AdminTrashTemplate {
     trash: Trash,
 }
 
-async fn show_trash(account: Account) -> Result<HtmlTemplate<AdminTrashTemplate>, Redirect> {
+async fn show_trash(account: Account) -> Result<HtmlPage<AdminTrashTemplate>, Redirect> {
     if !account.flags.is_admin() {
         return Err(Redirect::to("/"));
     }
@@ -165,7 +165,7 @@ async fn show_trash(account: Account) -> Result<HtmlTemplate<AdminTrashTemplate>
 
     let listing = trash.list().await.unwrap_or_default();
 
-    Ok(HtmlTemplate(AdminTrashTemplate {
+    Ok(HtmlPage(AdminTrashTemplate {
         account: Some(account),
         trash,
         listing,

@@ -6,7 +6,7 @@ use crate::flash::{FlashMessage, Flasher, Flashes};
 use crate::headers::Referrer;
 use crate::models::{Account, AccountCheck, DirectoryEntry, EntryFlags};
 use crate::ratelimit::RateLimit;
-use crate::utils::{is_over_length, HtmlTemplate, FRAGMENT};
+use crate::utils::{is_over_length, HtmlPage, FRAGMENT};
 use crate::{audit, filters};
 use crate::{tmdb, AppState};
 use anyhow::{bail, Context};
@@ -103,7 +103,7 @@ async fn get_entry(
         Some(acc) => state.is_bookmarked(acc.id, entry_id).await,
         None => false,
     };
-    Ok(HtmlTemplate(EntryTemplate {
+    Ok(HtmlPage(EntryTemplate {
         account,
         entry,
         bookmarked,
@@ -1413,7 +1413,7 @@ async fn import_entry(
     }
 
     let pending = get_pending_directory_entry(&state, payload.anime, payload.name).await;
-    let mut response = HtmlTemplate(ImportEntryTemplate {
+    let mut response = HtmlPage(ImportEntryTemplate {
         account: Some(account),
         flashes,
         pending,

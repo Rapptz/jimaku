@@ -7,7 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{error::ApiError, models::Account, notification::NotificationData, utils::HtmlTemplate, AppState};
+use crate::{error::ApiError, models::Account, notification::NotificationData, utils::HtmlPage, AppState};
 
 #[derive(Serialize)]
 struct NotificationCount {
@@ -121,8 +121,8 @@ struct NotificationTemplate {
     account: Option<Account>,
 }
 
-async fn notifications(account: Account) -> HtmlTemplate<NotificationTemplate> {
-    HtmlTemplate(NotificationTemplate { account: Some(account) })
+async fn notifications(account: Account) -> HtmlPage<NotificationTemplate> {
+    HtmlPage(NotificationTemplate { account: Some(account) })
 }
 
 pub fn routes() -> Router<AppState> {
