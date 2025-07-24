@@ -266,6 +266,9 @@ function updateNotificationBadge(count) {
 }
 
 async function fillNotificationBadge() {
+  if(!notificationCount || !notificationDot) {
+    return;
+  }
   const resp = await fetch('/notifications/count', {method: 'GET'});
   if(!resp.ok) {
     return;
