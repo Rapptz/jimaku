@@ -156,3 +156,21 @@ document.getElementById('remove-all-bookmarks')?.addEventListener('click', async
   await fetch('/account/bookmarks', { method: 'DELETE' });
   window.location.reload();
 });
+
+function switchTab(event, destination) {
+  document.querySelectorAll('section.tab-content').forEach(el => {
+    if(el.id === destination) {
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+    }
+  });
+
+  const target = event.target;
+  document.querySelector(".tab[aria-selected=true]")?.setAttribute('aria-selected', 'false');
+  target.setAttribute('aria-selected', 'true');
+}
+
+document.querySelectorAll('.tab[data-link]').forEach(el => {
+  el.addEventListener('click', (e) => switchTab(e, el.dataset.link));
+});

@@ -35,6 +35,13 @@ My Account · Jimaku
     {% endif -%}
   </div>
 </div>
+<nav class="tabs" role="tablist" aria-orientation="horizontal">
+  <div class="tab" tabindex="-1" role="tab" aria-selected="true" data-link="account-settings-section">Account Settings</div>
+  <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="bookmarks-section">Bookmarks</div>
+  <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="session-section">Sessions</div>
+  <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="created-entries-section">Entries</div>
+</nav>
+<section tabindex="-1" role="tabpanel" class="tab-content active" id="account-settings-section">
 <div class="commands">
   <div class="command-buttons left">
   {% if account.id == user.id %}
@@ -89,6 +96,8 @@ My Account · Jimaku
   </div>
 </form>
 {% endif %}
+</section>
+<section tabindex="-1" role="tabpanel" class="tab-content" id="bookmarks-section">
 <h3>Bookmarked Entries</h3>
 {% if bookmarks.is_empty() %}
 <p>You have no bookmarked entries!</p>
@@ -109,8 +118,9 @@ My Account · Jimaku
 </div>
 <button class="button danger outline" id="remove-all-bookmarks">Remove all bookmarks</button>
 {% endif %}
+</section>
 {% if current_session.is_some() || !sessions.is_empty() %}
-<section id="session-section">
+<section tabindex="-1" role="tabpanel" class="tab-content" id="session-section">
 <h3>Sessions</h3>
 <p>
   These are all the sessions that are currently logged in with your account. You can log out of each one individually or revoke all of them.
@@ -149,6 +159,7 @@ My Account · Jimaku
 {% endif %}
 </section>
 {% endif %}
+<section tabindex="-1" role="tabpanel" class="tab-content" id="created-entries-section">
 {% if !entries.is_empty() %}
 <h3>Created Entries</h3>
 <div class="files" data-columns="2">
@@ -164,6 +175,7 @@ My Account · Jimaku
   {% endfor %}
 </div>
 {% endif %}
+</section>
 <dialog id="change-password-modal">
   <form autocomplete="off" method="POST" action="/account/change_password">
     <h1>Change Password</h1>

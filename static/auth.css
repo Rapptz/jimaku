@@ -104,6 +104,48 @@
   order: 2;
 }
 
+nav.tabs {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--dividers);
+}
+
+.tab {
+  padding-bottom: 0.5rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.tab[aria-selected="true"] {
+  border-bottom: 2px solid var(--box-border-bright);
+  color: var(--branding);
+}
+
+.tab[aria-selected="true"]:hover {
+  cursor: default;
+}
+
+.tab:hover {
+  border-bottom: 2px solid var(--box-border-bright);
+  color: var(--nav-link);
+  cursor: pointer;
+}
+
+.tab {
+  font-weight: 600;
+  cursor: default;
+}
+
+section.tab-content {
+  display: none;
+}
+
+section.tab-content.active {
+  display: initial;
+}
+
 .session {
   display: flex;
   align-items: center;
