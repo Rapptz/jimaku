@@ -313,7 +313,8 @@ impl AccountInfoTemplate {
             .await
             .unwrap_or_default();
 
-        let mut sessions = if user.id == account.id {
+        let own_page = account.id == user.id;
+        let mut sessions = if own_page {
             state
                 .database()
                 .all("SELECT * FROM session WHERE account_id = ?", [user.id])
@@ -323,7 +324,11 @@ impl AccountInfoTemplate {
             Vec::<Session>::new()
         };
 
-        let bookmarks = user.get_bookmarks(state.database()).await.unwrap_or_default();
+        let bookmarks = if own_page || account.flags.is_admin() {
+            user.get_bookmarks(state.database()).await.unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         let session_id = current_token.base64();
         let current_session = sessions
             .iter()
@@ -337,7 +342,6 @@ impl AccountInfoTemplate {
 
         sessions.sort_by_key(|s| std::cmp::Reverse(s.created_at));
         let key = state.config().secret_key;
-        let own_page = account.id == user.id;
         Self {
             account: Some(account),
             bookmarks,

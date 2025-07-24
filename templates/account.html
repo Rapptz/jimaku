@@ -40,7 +40,9 @@ My Account · Jimaku
   {% if own_page || account.flags.is_admin() %}
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="bookmarks-section">Bookmarks</div>
   {% endif %}
+  {% if own_page %}
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="session-section">Sessions</div>
+  {% endif %}
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="created-entries-section">Entries</div>
 </nav>
 <section tabindex="-1" role="tabpanel" class="tab-content active" id="account-settings-section">
