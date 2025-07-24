@@ -37,14 +37,16 @@ My Account · Jimaku
 </div>
 <nav class="tabs" role="tablist" aria-orientation="horizontal">
   <div class="tab" tabindex="-1" role="tab" aria-selected="true" data-link="account-settings-section">Account Settings</div>
+  {% if own_page || account.flags.is_admin() %}
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="bookmarks-section">Bookmarks</div>
+  {% endif %}
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="session-section">Sessions</div>
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="created-entries-section">Entries</div>
 </nav>
 <section tabindex="-1" role="tabpanel" class="tab-content active" id="account-settings-section">
 <div class="commands">
   <div class="command-buttons left">
-  {% if account.id == user.id %}
+  {% if own_page %}
   <button class="button" id="change-password">Change Password</button>
   {% endif %}
   {% if account.flags.is_admin() %}
@@ -57,7 +59,7 @@ My Account · Jimaku
   {% endif %}
   </div>
 </div>
-{% if account.id == user.id || account.flags.is_admin() %}
+{% if own_page || account.flags.is_admin() %}
 <form id="edit-anilist">
   <h3>AniList Integration</h3>
   <p>Save your <a href="https://anilist.co/">AniList</a> username to quickly access your AniList list.</p>
@@ -70,7 +72,7 @@ My Account · Jimaku
   </div>
 </form>
 {% endif %}
-{% if account.id == user.id %}
+{% if own_page %}
 <form id="api-section">
   <h3>Developer Access</h3>
   <p>Please check the <a href="/api/docs">documentation</a> to learn how to use the API.</p>
@@ -97,6 +99,7 @@ My Account · Jimaku
 </form>
 {% endif %}
 </section>
+{% if own_page || account.flags.is_admin() %}
 <section tabindex="-1" role="tabpanel" class="tab-content" id="bookmarks-section">
 <h3>Bookmarked Entries</h3>
 {% if bookmarks.is_empty() %}
@@ -117,6 +120,7 @@ My Account · Jimaku
   {% endfor %}
 </div>
 <button class="button danger outline" id="remove-all-bookmarks">Remove all bookmarks</button>
+{% endif %}
 {% endif %}
 </section>
 {% if current_session.is_some() || !sessions.is_empty() %}

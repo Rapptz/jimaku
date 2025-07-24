@@ -296,6 +296,7 @@ async fn login_form(
 struct AccountInfoTemplate {
     account: Option<Account>,
     user: Account,
+    own_page: bool,
     entries: Vec<DirectoryEntry>,
     bookmarks: Vec<DirectoryEntry>,
     sessions: Vec<Session>,
@@ -336,10 +337,11 @@ impl AccountInfoTemplate {
 
         sessions.sort_by_key(|s| std::cmp::Reverse(s.created_at));
         let key = state.config().secret_key;
-
+        let own_page = account.id == user.id;
         Self {
             account: Some(account),
             bookmarks,
+            own_page,
             user,
             entries,
             sessions,
