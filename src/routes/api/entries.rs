@@ -263,21 +263,6 @@ pub async fn search_entries(
     Ok(Json(entries.into_iter().map(|(_, entry)| entry).collect()))
 }
 
-#[derive(Deserialize, IntoParams)]
-pub struct CreateQuery {
-    /// Create an entry backed by the given AniList ID.
-    #[serde(deserialize_with = "crate::utils::generic_empty_string_is_none")]
-    #[serde(default)]
-    anilist_id: Option<u32>,
-    /// Create an entry backed by the given TMDB ID.
-    ///
-    /// Check the documentation for the string TMDB ID encoding.
-    #[serde(deserialize_with = "crate::utils::generic_empty_string_is_none")]
-    #[param(pattern = r#"(tv|movie):(\d+)"#, value_type = Option<String>, example = "tv:12345")]
-    #[serde(default)]
-    tmdb_id: Option<tmdb::Id>,
-}
-
 #[derive(Deserialize, ToSchema, Default)]
 pub struct CreatePayload {
     /// Create an entry backed by the given AniList ID.
@@ -340,7 +325,6 @@ pub struct CreateEntryResult {
         (status = 403, description = "The user does not have permission to do this", body = ApiError),
         (status = 429, response = RateLimitResponse),
     ),
-    params(CreateQuery),
     security(
         ("api_key" = [])
     ),
@@ -348,16 +332,14 @@ pub struct CreateEntryResult {
 )]
 pub async fn create_entry(
     State(state): State<AppState>,
-    Query(query): Query<CreateQuery>,
     auth: ApiToken,
-    payload: Option<Json<CreatePayload>>,
+    Json(payload): Json<CreatePayload>,
 ) -> Result<Json<CreateEntryResult>, ApiError> {
     let Some(account) = state.get_account(auth.id).await else {
         return Err(ApiError::unauthorized());
     };
-    let Json(payload) = payload.unwrap_or_else(|| Json(Default::default()));
-    let anilist_id = payload.anilist_id.or(query.anilist_id);
-    let tmdb_id = payload.tmdb_id.or(query.tmdb_id);
+    let anilist_id = payload.anilist_id;
+    let tmdb_id = payload.tmdb_id;
     if !account.flags.is_editor()
         && (payload.name.is_some()
             || payload.japanese_name.is_some()
