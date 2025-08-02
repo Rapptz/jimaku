@@ -68,6 +68,9 @@
     </a>
     {% endif -%}
     {% if flags.is_editor() -%}
+    <a class="icon-button" href="/reports?entry_id={{ entry.id }}">
+      <img alt="Reports icon" src="/static/reports.svg" width="24px" height="24px">
+    </a>
     <a class="icon-button" href="/logs?entry_id={{ entry.id }}">
       <img alt="History icon" src="/static/history.svg" width="24px" height="24px">
     </a>

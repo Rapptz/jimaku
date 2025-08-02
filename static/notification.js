@@ -26,14 +26,15 @@ const downloadLink = (entryId, filename) => {
   );
 }
 
-const entryLink = (entry) => {
+const entryLink = (entry, entryId, fallback) => {
   if(entry == null) {
-    return html('span.fallback', 'Unknown Entry');
+    return html('strong', fallback ?? 'Unknown Entry');
   }
 
+  let id = entryId ?? entry.id;
   let name = getPreferredNameForEntry(entry);
-  return html('a.entry-name', name, {
-    href: `/entry/${entry.id}`,
+  return html('a.entry-name', name,
+    id != null ? { href: `/entry/${id}` } : null, {
     dataset: {
       name: entry.name,
       japaneseName: entry.japanese_name,
@@ -70,6 +71,71 @@ const notificationTypes = Object.freeze({
       html('ul', files),
       html('p.disclaimer', 'Some files may have been deleted or renamed due to moderation.')
     ]
+    return createNotification(data.last_ack, notification.timestamp, title, content);
+  },
+  new_report: (payload, notification, data) => {
+    let reportInfo = data.reports.find(r => r.report.id === payload.report_id);
+    if(!reportInfo) {
+      return null;
+    }
+    let report = reportInfo.report;
+
+    let status = getReportStatusInfo(report.status);
+    let title = [
+      html('span.report-status.badge', {class: status.className }, status.text),
+      html('a', {href: `/user/${reportInfo.account_name}`}, reportInfo.account_name),
+      ' reported ',
+      entryLink(reportInfo.entry, report.entry_id, report.payload.name)
+    ];
+
+    let content = [
+      html('span.report-reason', report.reason),
+    ];
+    if(report.entry_id != null && report.payload.files.length !== 0) {
+      let files = report.payload.files.map(name => downloadLink(report.entry_id, name));
+      content.push(html('ul', files));
+    }
+
+    if(report.status === 0) {
+      const button = html('button.button.primary', 'Respond');
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const modal = document.getElementById('resolve-report-modal');
+        if(modal != null) {
+          modal.dataset.id = report.id;
+          modal.showModal();
+        }
+      })
+      content.push(button);
+    }
+
+    return createNotification(data.last_ack, notification.timestamp, title, content);
+  },
+  report_answered: (payload, notification, data) => {
+    let reportInfo = data.reports.find(r => r.report.id === payload.report_id);
+    if(!reportInfo) {
+      return null;
+    }
+    let report = reportInfo.report;
+
+    let status = getReportStatusInfo(report.status);
+    let title = [
+      html('span.report-status.badge', {class: status.className }, status.text),
+      'Your report for ',
+      entryLink(reportInfo.entry, report.entry_id, report.payload.name),
+      ' has been answered.'
+    ];
+
+    let content = [
+      html('span.report-reason', report.reason),
+      html('span.report-response', report.response),
+    ];
+
+    if(report.entry_id != null && report.payload.files.length !== 0) {
+      let files = report.payload.files.map(name => downloadLink(report.entry_id, name));
+      content.push(html('ul', files));
+    }
+
     return createNotification(data.last_ack, notification.timestamp, title, content);
   }
 });

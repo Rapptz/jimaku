@@ -250,3 +250,25 @@ pub fn unix_duration() -> Duration {
 pub fn unix_now_ms() -> i64 {
     unix_duration().as_millis() as i64
 }
+
+/// Creates `ToSql` and `FromSql` inheritance from the JSON representation
+/// of the inner type.
+macro_rules! sql_json_bridge {
+    ($name:ty) => {
+        impl rusqlite::types::FromSql for $name {
+            fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+                serde_json::from_str(value.as_str()?).map_err(|e| rusqlite::types::FromSqlError::Other(Box::new(e)))
+            }
+        }
+
+        impl rusqlite::types::ToSql for $name {
+            fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+                let as_str =
+                    serde_json::to_string(self).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                Ok(rusqlite::types::ToSqlOutput::Owned(as_str.into()))
+            }
+        }
+    };
+}
+
+pub(crate) use sql_json_bridge;

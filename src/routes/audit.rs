@@ -164,6 +164,38 @@ async fn get_audit_logs(
         }
     }
 
+    // These are backfilled user IDs
+    let mut backfilled_ids = Vec::new();
+    for entry in result.logs.iter() {
+        if let AuditLogData::ResolveReport(s) = &entry.data {
+            if let Some(reporter_id) = s.reporter_id {
+                if !result.users.contains_key(&reporter_id) {
+                    backfilled_ids.push(rusqlite::types::Value::Integer(reporter_id));
+                }
+            }
+        }
+    }
+
+    if !backfilled_ids.is_empty() {
+        let query = "SELECT id, name FROM account WHERE id IN rarray(?)";
+        let users = state
+            .database()
+            .call(move |conn| -> rusqlite::Result<_> {
+                let mut stmt = conn.prepare_cached(query)?;
+                let mut rows = stmt.query((std::rc::Rc::new(backfilled_ids),))?;
+                let mut result = Vec::<(i64, String)>::new();
+                while let Some(row) = rows.next()? {
+                    result.push((row.get("id")?, row.get("name")?));
+                }
+                Ok(result)
+            })
+            .await
+            .unwrap_or_default();
+        for (id, name) in users {
+            result.users.insert(id, name);
+        }
+    }
+
     Ok(Json(result))
 }
 

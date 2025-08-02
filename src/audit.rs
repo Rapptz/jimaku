@@ -1,10 +1,14 @@
 //! Implements an audit log trail for editor actions
 
-use rusqlite::{types::FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{database::Table, models::EntryFlags, tmdb};
+use crate::{
+    database::Table,
+    models::{EntryFlags, ReportStatus},
+    tmdb,
+    utils::sql_json_bridge,
+};
 
 /*
     It's important to note that the data in here should be backwards compatible.
@@ -237,6 +241,8 @@ pub struct DeleteEntry {
 pub struct ReportFiles {
     pub files: Vec<String>,
     pub reason: String,
+    #[serde(default)]
+    pub report_id: Option<i64>,
 }
 
 /// Audit log data for an entry delete operation
@@ -247,6 +253,25 @@ pub struct ReportEntry {
     /// The name of the deleted entry
     pub name: String,
     pub reason: String,
+    #[serde(default)]
+    pub report_id: Option<i64>,
+}
+
+/// Audit log data for a resolved report
+///
+/// For this data `entry_id` and `account_id` are only null if the data is deleted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResolveReport {
+    /// The report ID that got resolved
+    pub report_id: i64,
+    /// The fallback name of the entry that just got its report resolved
+    pub name: String,
+    /// The new report status for the report
+    pub status: ReportStatus,
+    /// The reporter's user ID
+    pub reporter_id: Option<i64>,
+    /// The reason the report got resolved
+    pub response: String,
 }
 
 /// Inner audit log data that represents a snapshot of the entry being edited
@@ -313,6 +338,13 @@ pub enum AuditLogData {
     EditEntry(EditEntry),
     ReportFiles(ReportFiles),
     ReportEntry(ReportEntry),
+    ResolveReport(ResolveReport),
+}
+
+impl From<ResolveReport> for AuditLogData {
+    fn from(v: ResolveReport) -> Self {
+        Self::ResolveReport(v)
+    }
 }
 
 impl From<ReportEntry> for AuditLogData {
@@ -381,18 +413,7 @@ impl From<CreateEntry> for AuditLogData {
     }
 }
 
-impl FromSql for AuditLogData {
-    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        serde_json::from_str(value.as_str()?).map_err(|e| rusqlite::types::FromSqlError::Other(Box::new(e)))
-    }
-}
-
-impl ToSql for AuditLogData {
-    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        let as_str = serde_json::to_string(self).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-        Ok(rusqlite::types::ToSqlOutput::Owned(as_str.into()))
-    }
-}
+sql_json_bridge!(AuditLogData);
 
 /// An audit log entry
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

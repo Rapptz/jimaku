@@ -7,7 +7,9 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{error::ApiError, models::Account, notification::NotificationData, utils::HtmlPage, AppState};
+use crate::{
+    error::ApiError, models::Account, notification::NotificationData, routes::RichReport, utils::HtmlPage, AppState,
+};
 
 #[derive(Serialize)]
 struct NotificationCount {
@@ -46,6 +48,7 @@ struct Notification {
 struct NotificationResult {
     last_ack: i64,
     notifications: Vec<Notification>,
+    reports: Vec<RichReport>,
 }
 
 async fn get_notifications(
@@ -79,12 +82,13 @@ async fn get_notifications(
     sql.push_str("ORDER BY notification.ts DESC LIMIT 100;");
 
     let last_ack = account.notification_ack.unwrap_or_default();
-    let result = state
+    let mut result = state
         .database()
         .call(move |conn| -> rusqlite::Result<_> {
             let mut result = NotificationResult {
                 last_ack,
                 notifications: Vec::default(),
+                reports: Vec::default(),
             };
             let mut stmt = conn.prepare_cached(sql.as_str())?;
             let mut rows = stmt.query(rusqlite::params_from_iter(params))?;
@@ -107,6 +111,37 @@ async fn get_notifications(
             Ok(result)
         })
         .await?;
+
+    let mut report_ids = Vec::new();
+    for notification in result.notifications.iter() {
+        match &notification.payload {
+            NotificationData::NewReport(data) => {
+                report_ids.push(rusqlite::types::Value::Integer(data.report_id));
+            }
+            NotificationData::ReportAnswered(data) => {
+                report_ids.push(rusqlite::types::Value::Integer(data.report_id));
+            }
+            _ => {}
+        }
+    }
+
+    if !report_ids.is_empty() {
+        result.reports = state
+            .database()
+            .call(move |conn| -> rusqlite::Result<_> {
+                let mut query = RichReport::starting_query();
+                query.push_str("WHERE report.id IN rarray(?)");
+                let mut stmt = conn.prepare_cached(query.as_str())?;
+                let rows = stmt.query_map((std::rc::Rc::new(report_ids),), RichReport::from_row)?;
+                let mut result = Vec::new();
+                for row in rows {
+                    result.push(row?);
+                }
+                Ok(result)
+            })
+            .await
+            .unwrap_or_default();
+    }
     Ok(Json(result))
 }
 

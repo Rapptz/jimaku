@@ -292,6 +292,26 @@ const auditLogTypes = Object.freeze({
     let contents = html('span.reason', html('strong', 'Reason: '), data.reason);
     return auditLogEntry(log.id, title, contents);
   },
+  resolve_report: (data, log, info) => {
+    const reportStatuses = {
+      0: 'Pending',
+      1: 'Rejected',
+      2: 'Solved',
+    };
+    let title = [
+      userLink(log.account_id, info),
+      ' marked a ',
+      html('a', {href: `/reports?id=${data.report_id}`}, 'report'),
+      ' by ',
+      userLink(data.reporter_id, info),
+      ' in ',
+      entryLink(log.entry_id, info, data.name),
+      ' as ',
+      html('strong', reportStatuses[data.status] ?? 'Unknown')
+    ];
+    let contents = html('span.reason', html('strong', 'Response: '), data.response);
+    return auditLogEntry(log.id, title, contents);
+  },
   trash_action: (data, log, info) => {
     let title = [
       userLink(log.account_id, info),

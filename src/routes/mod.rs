@@ -26,8 +26,10 @@ mod entry;
 mod notification;
 mod opensearch;
 mod relations;
+mod report;
 
 pub use api::{copy_api_token, ApiToken, SearchQuery};
+pub(crate) use report::RichReport;
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -171,5 +173,6 @@ pub fn all() -> Router<AppState> {
         .merge(relations::routes())
         .merge(opensearch::routes())
         .merge(notification::routes())
+        .merge(report::routes())
         .nest("/api", api::routes())
 }

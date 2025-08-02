@@ -4,7 +4,7 @@ use crate::download::{validate_path, DownloadResponse};
 use crate::error::{ApiError, ApiErrorCode, InternalError};
 use crate::flash::{FlashMessage, Flasher, Flashes};
 use crate::headers::Referrer;
-use crate::models::{Account, AccountCheck, DirectoryEntry, EntryFlags};
+use crate::models::{Account, AccountCheck, DirectoryEntry, EntryFlags, Report, ReportPayload};
 use crate::ratelimit::RateLimit;
 use crate::utils::{is_over_length, HtmlPage, FRAGMENT};
 use crate::{audit, filters};
@@ -777,6 +777,10 @@ async fn bulk_delete_files(
             )
             .await?;
         state.cached_directories().invalidate().await;
+        // state
+        //     .database()
+        //     .execute("UPDATE report SET entry_id = NULL WHERE entry_id = ?", [entry_id])
+        //     .await?;
         let result = tokio::fs::remove_dir_all(entry).await;
         state
             .audit(
@@ -832,7 +836,7 @@ async fn bulk_delete_files(
 }
 
 #[derive(Deserialize)]
-struct ReportPayload {
+struct ReportEntryPayload {
     files: Vec<String>,
     reason: String,
 }
@@ -841,7 +845,7 @@ async fn report_entry(
     State(state): State<AppState>,
     Path(entry_id): Path<i64>,
     account: Account,
-    Json(payload): Json<ReportPayload>,
+    Json(payload): Json<ReportEntryPayload>,
 ) -> Result<(), ApiError> {
     let Some(entry) = state.get_directory_entry(entry_id).await else {
         return Err(ApiError::not_found("Directory entry not found."));
@@ -854,38 +858,70 @@ async fn report_entry(
         return Err(ApiError::new("Reason can only be up to 512 characters long"));
     }
 
+    if payload.files.len() > 100 {
+        return Err(ApiError::new("You can only report up to 100 files"));
+    }
+
     let account_id = account.id;
+    let report = Report::full(
+        payload.reason,
+        ReportPayload {
+            files: payload.files,
+            name: entry.name.clone(),
+        },
+        entry_id,
+        account_id,
+    );
+
     let mut alert = crate::discord::Alert::error(format!("Entry Reported: {}", entry.name))
         .url(format!("/entry/{entry_id}"))
-        .field("Reason", &payload.reason)
+        .field("Reason", &report.reason)
         .account(account);
-    if payload.files.is_empty() {
+
+    if report.payload.files.is_empty() {
         state
             .audit(audit::AuditLogEntry::full(
                 audit::ReportEntry {
+                    report_id: Some(report.id),
                     name: entry.name,
-                    reason: payload.reason,
+                    reason: report.reason.clone(),
                 },
                 entry_id,
                 account_id,
             ))
             .await;
-        state.send_alert(alert);
     } else {
-        let description = crate::utils::join_iter("\n", payload.files.iter().map(|x| format!("- {x}")).take(25));
+        let description = crate::utils::join_iter("\n", report.payload.files.iter().map(|x| format!("- {x}")).take(25));
         alert = alert.description(description);
         state
             .audit(audit::AuditLogEntry::full(
                 audit::ReportFiles {
-                    files: payload.files,
-                    reason: payload.reason,
+                    report_id: Some(report.id),
+                    files: report.payload.files.clone(),
+                    reason: report.reason.clone(),
                 },
                 entry_id,
                 account_id,
             ))
             .await;
-        state.send_alert(alert);
     }
+
+    state.send_alert(alert);
+    state
+        .database()
+        .execute(
+            "INSERT INTO report(id, account_id, entry_id, status, reason, payload) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                report.id,
+                report.account_id,
+                report.entry_id,
+                report.status,
+                report.reason,
+                report.payload,
+            ),
+        )
+        .await?;
+    state.notifications.notify_new_report(report.id);
 
     Ok(())
 }

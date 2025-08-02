@@ -1,22 +1,22 @@
 {% extends "layout.html" %}
 
 {% block css %}
-<link rel="stylesheet" href="/static/notification.css" type="text/css" />
+<link rel="stylesheet" href="/static/report.css" type="text/css" />
 {% endblock %}
 
 {% block title %}
-Notifications · Jimaku
+Reports · Jimaku
 {% endblock %}
 
 {% block body %}
-<h1>Notifications</h1>
-<svg id="loading" class="spinner" viewBox="0 0 50 50">
+<h1 id="report-header">Reports</h1>
+<svg id="loading-report-spinner" class="spinner" viewBox="0 0 50 50">
   <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
 </svg>
-<div id="notifications" class="hidden">
+<div id="reports-container" class="hidden">
 </div>
 <div class="center">
-  <button class="hidden" id="load-more">Load more</button>
+  <button class="hidden" id="load-more-reports">Load more</button>
 </div>
 
 <dialog id="resolve-report-modal">
@@ -42,5 +42,4 @@ Notifications · Jimaku
 
 {% block body_end %}
 <script src="/static/report.js"></script>
-<script src="/static/notification.js"></script>
 {% endblock %}

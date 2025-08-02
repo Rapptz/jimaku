@@ -3,6 +3,7 @@
 {% block css %}
 <link rel="stylesheet" href="/static/auth.css" type="text/css" />
 <link rel="stylesheet" href="/static/entry.css" type="text/css" />
+<link rel="stylesheet" href="/static/report.css" type="text/css" />
 {% endblock %}
 
 {% block title %}
@@ -11,6 +12,7 @@ My Account · Jimaku
 
 {% block body_end %}
 <script src="/static/auth.js"></script>
+<script src="/static/report.js"></script>
 <script src="/static/files.js"></script>
 {% endblock %}
 
@@ -44,6 +46,7 @@ My Account · Jimaku
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="session-section">Sessions</div>
   {% endif %}
   <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="created-entries-section">Entries</div>
+  <div class="tab" tabindex="-1" role="tab" aria-selected="false" data-link="reports-section">Reports</div>
 </nav>
 <section tabindex="-1" role="tabpanel" class="tab-content active" id="account-settings-section">
 <div class="commands">
@@ -182,6 +185,17 @@ My Account · Jimaku
 </div>
 {% endif %}
 </section>
+<section tabindex="-1" role="tabpanel" class="tab-content" id="reports-section">
+  <h3>Reports</h3>
+  <div id="reports-container"
+       data-user-id="{{ user.id }}"
+       data-hide-user="yes"
+       {% if !account.flags.is_editor() %} data-hide-actions="yes" {% endif %}>
+  </div>
+  <div class="center">
+    <button class="hidden" id="load-more-reports">Load more</button>
+  </div>
+</section>
 <dialog id="change-password-modal">
   <form autocomplete="off" method="POST" action="/account/change_password">
     <h1>Change Password</h1>
@@ -204,4 +218,25 @@ My Account · Jimaku
     </footer>
   </form>
 </dialog>
+{% if account.flags.is_editor() %}
+<dialog id="resolve-report-modal">
+  <form autocomplete="off">
+    <h1>Resolve Report</h1>
+    <p>This will send a notification to the user with the response text.</p>
+    <div class="form-container">
+      <label for="report-response">Response</label>
+      <input class="form-field" id="report-response" required maxlength="512" autocomplete="off" type="text">
+      <label for="report-status">Status</label>
+      <select class="form-field" id="report-status" required>
+        <option value="1">Rejected</option>
+        <option value="2">Solved</option>
+      </select>
+    </div>
+    <footer>
+      <button id="confirm-resolve-report" class="button primary" type="button">Submit</button>
+      <button class="button" formmethod="dialog" type="button">Cancel</button>
+    </footer>
+  </form>
+</dialog>
+{% endif %}
 {% endblock %}

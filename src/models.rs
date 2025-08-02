@@ -616,3 +616,144 @@ impl Session {
         Token::from_base64(&self.id).map(|t| t.signed(key))
     }
 }
+
+#[derive(Debug, PartialEq, Default, Eq, Clone, Copy, Hash, Serialize, Deserialize)]
+#[repr(u8)]
+#[serde(try_from = "u8", into = "u8")]
+pub enum ReportStatus {
+    #[default]
+    Pending = 0,
+    Rejected = 1,
+    Solved = 2,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InvalidReportStatus;
+
+impl std::fmt::Display for InvalidReportStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("invalid report status")
+    }
+}
+
+impl std::error::Error for InvalidReportStatus {}
+
+impl TryFrom<u8> for ReportStatus {
+    type Error = InvalidReportStatus;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Pending),
+            1 => Ok(Self::Rejected),
+            2 => Ok(Self::Solved),
+            _ => Err(InvalidReportStatus),
+        }
+    }
+}
+
+// This is explicit because I don't want to support ReportStatus::from(u8)
+// but source.into() u8 is okay
+#[allow(clippy::from_over_into)]
+impl Into<u8> for ReportStatus {
+    fn into(self) -> u8 {
+        self as u8
+    }
+}
+
+impl FromSql for ReportStatus {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        let value = u8::column_result(value)?;
+        Self::try_from(value).map_err(|e| rusqlite::types::FromSqlError::Other(Box::new(e)))
+    }
+}
+
+impl ToSql for ReportStatus {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        let value = *self as u8;
+        Ok(rusqlite::types::ToSqlOutput::Owned(value.into()))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ReportPayload {
+    /// The files of the entry that got reported
+    pub files: Vec<String>,
+    /// The name of the entry that got reported
+    pub name: String,
+}
+
+/// A report that a user has made
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct Report {
+    /// The ID of the report. Represented as milliseconds since Unix Epoch UTC.
+    pub id: i64,
+    /// The user ID of the user who made the report. Can be `None` if the user got
+    /// deleted.
+    pub account_id: Option<i64>,
+    /// The entry ID of the entry being reported. Can be `None` if the entry got deleted.
+    pub entry_id: Option<i64>,
+    /// The status of the report.
+    pub status: ReportStatus,
+    /// The reason for the report
+    pub reason: String,
+    /// The response message for the report
+    pub response: Option<String>,
+    /// Extra information pertaining to the report
+    pub payload: ReportPayload,
+}
+
+crate::utils::sql_json_bridge!(ReportPayload);
+
+impl Table for Report {
+    const NAME: &'static str = "report";
+
+    const COLUMNS: &'static [&'static str] = &[
+        "id",
+        "account_id",
+        "entry_id",
+        "status",
+        "reason",
+        "response",
+        "payload",
+    ];
+
+    type Id = i64;
+
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: row.get("id")?,
+            account_id: row.get("account_id")?,
+            entry_id: row.get("entry_id")?,
+            status: row.get("status")?,
+            reason: row.get("reason")?,
+            response: row.get("response")?,
+            payload: row.get("payload")?,
+        })
+    }
+}
+
+impl Report {
+    pub fn new(reason: String) -> Self {
+        Self {
+            id: crate::utils::unix_now_ms(),
+            account_id: None,
+            entry_id: None,
+            status: ReportStatus::Pending,
+            reason,
+            response: None,
+            payload: ReportPayload::default(),
+        }
+    }
+
+    pub fn full(reason: String, payload: ReportPayload, entry_id: i64, account_id: i64) -> Self {
+        Self {
+            id: crate::utils::unix_now_ms(),
+            account_id: Some(account_id),
+            entry_id: Some(entry_id),
+            status: ReportStatus::Pending,
+            response: None,
+            reason,
+            payload,
+        }
+    }
+}

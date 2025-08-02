@@ -1,12 +1,11 @@
 use std::{collections::HashSet, time::Duration};
 
 use crossbeam_channel::{Receiver, Sender};
-use rusqlite::{types::FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     database::Table,
-    utils::{unix_duration, unix_now_ms},
+    utils::{sql_json_bridge, unix_duration, unix_now_ms},
 };
 
 /// A notification when a new subtitle has been uploaded
@@ -15,11 +14,35 @@ pub struct NewSubtitleUploaded {
     pub files: Vec<String>,
 }
 
+/// A notification when a new report has been sent in
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewReport {
+    pub report_id: i64,
+}
+
+/// A notification sent to a user when their report has been responded to
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReportAnswered {
+    pub report_id: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
 pub enum NotificationData {
     NewSubtitle(NewSubtitleUploaded),
+    NewReport(NewReport),
+    ReportAnswered(ReportAnswered),
+}
+
+impl NotificationData {
+    /// Converts it into a JSON string but coerces the error into a rusqlite::Result
+    fn to_json(&self) -> rusqlite::Result<String> {
+        match serde_json::to_string(&self) {
+            Ok(payload) => Ok(payload),
+            Err(e) => Err(rusqlite::Error::ToSqlConversionFailure(Box::new(e))),
+        }
+    }
 }
 
 impl From<NewSubtitleUploaded> for NotificationData {
@@ -28,23 +51,22 @@ impl From<NewSubtitleUploaded> for NotificationData {
     }
 }
 
-impl FromSql for NotificationData {
-    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        serde_json::from_str(value.as_str()?).map_err(|e| rusqlite::types::FromSqlError::Other(Box::new(e)))
-    }
-}
-
-impl ToSql for NotificationData {
-    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        let as_str = serde_json::to_string(self).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-        Ok(rusqlite::types::ToSqlOutput::Owned(as_str.into()))
-    }
-}
+sql_json_bridge!(NotificationData);
 
 /// The message that is processed by the notification service
 enum NotificationMessage {
     /// Notify that a new subtitle has been uploaded
-    NewSubtitleUploaded { entry_id: i64, files: Vec<String> },
+    NewSubtitleUploaded {
+        entry_id: i64,
+        files: Vec<String>,
+    },
+    NewReport {
+        report_id: i64,
+    },
+    ReportAnswered {
+        account_id: i64,
+        report_id: i64,
+    },
     /// Notifies that old notifications should be cleaned
     Clean,
 }
@@ -75,6 +97,16 @@ impl NotificationService {
 
     pub fn cleanup(&self) {
         let _ = self.sender.send(NotificationMessage::Clean);
+    }
+
+    pub fn notify_new_report(&self, report_id: i64) {
+        let _ = self.sender.send(NotificationMessage::NewReport { report_id });
+    }
+
+    pub fn notify_answered_report(&self, account_id: i64, report_id: i64) {
+        let _ = self
+            .sender
+            .send(NotificationMessage::ReportAnswered { account_id, report_id });
     }
 }
 
@@ -130,13 +162,7 @@ impl NotificationWorker {
         let tx = self.connection.transaction()?;
         let data = NotificationData::NewSubtitle(NewSubtitleUploaded { files });
 
-        let payload = match serde_json::to_string(&data) {
-            Ok(payload) => payload,
-            Err(e) => {
-                return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(e)));
-            }
-        };
-
+        let payload = data.to_json()?;
         // Send a new broadcasted notification to everyone who is new
         let ts = unix_now_ms();
         {
@@ -173,6 +199,34 @@ impl NotificationWorker {
         Ok(())
     }
 
+    fn process_new_report(&self, report_id: i64) -> rusqlite::Result<()> {
+        let ts = unix_now_ms();
+        let data = NotificationData::NewReport(NewReport { report_id });
+        let payload = data.to_json()?;
+        let query = r###"
+            INSERT INTO notification(ts, user_id, payload)
+            SELECT ?, account.id, ? FROM account WHERE (flags & 3) != 0;
+        "###;
+
+        let mut stmt = self.connection.prepare_cached(query)?;
+        stmt.execute((ts, payload.as_str()))?;
+        Ok(())
+    }
+
+    fn send_simple_notification(&self, account_id: i64, data: NotificationData) -> rusqlite::Result<()> {
+        let ts = unix_now_ms();
+        let payload = data.to_json()?;
+        let query = "INSERT INTO notification(ts, user_id, payload) VALUES (?, ?, ?)";
+        let mut stmt = self.connection.prepare_cached(query)?;
+        stmt.execute((ts, account_id, payload.as_str()))?;
+        Ok(())
+    }
+
+    fn process_answered_report(&self, account_id: i64, report_id: i64) -> rusqlite::Result<()> {
+        let data = NotificationData::ReportAnswered(ReportAnswered { report_id });
+        self.send_simple_notification(account_id, data)
+    }
+
     fn cleanup(&mut self) -> rusqlite::Result<()> {
         let now = unix_duration();
         // 120 days ago
@@ -193,6 +247,16 @@ impl NotificationWorker {
                 NotificationMessage::Clean => {
                     if let Err(e) = self.cleanup() {
                         tracing::error!(error = %e, "error when cleaning notifications");
+                    }
+                }
+                NotificationMessage::NewReport { report_id } => {
+                    if let Err(e) = self.process_new_report(report_id) {
+                        tracing::error!(error = %e, "error when processing new report notifications");
+                    }
+                }
+                NotificationMessage::ReportAnswered { account_id, report_id } => {
+                    if let Err(e) = self.process_answered_report(account_id, report_id) {
+                        tracing::error!(error = %e, "error when processing new report notifications");
                     }
                 }
             }
