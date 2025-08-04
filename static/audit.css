@@ -2,8 +2,8 @@
   display: flex;
   margin-bottom: 0.75rem;
   border-bottom: 1px solid var(--dividers);
-  justify-content: center;
   align-items: center;
+  flex-wrap: wrap-reverse;
 }
 
 .select-container {
