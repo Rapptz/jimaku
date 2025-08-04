@@ -3,6 +3,7 @@
 const loadingElement = document.getElementById('loading');
 const loadMore = document.getElementById('load-more');
 const auditLogEntries = document.getElementById('audit-log-entries');
+const auditLogTypeFilter = document.getElementById('audit-log-type');
 const dtFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
   timeStyle: 'medium',
@@ -414,6 +415,11 @@ async function getAuditLogs(before) {
 
   let params = new URL(document.location).searchParams;
   if(before) params.append('before', before);
+
+  if(auditLogTypeFilter?.value !== 'all') {
+    params.append('type', auditLogTypeFilter.value);
+  }
+
   let response = await fetch('/audit-logs?' + params);
   if(response.status !== 200) {
     showAlert({level: 'error', content: `Server responded with ${response.status}`});
@@ -440,5 +446,16 @@ async function getAuditLogs(before) {
   }
 }
 
+function clearAuditLogs() {
+  auditLogEntries.replaceChildren();
+  auditLogEntries.classList.add('hidden');
+  loadMore.classList.add('hidden');
+  loadingElement.classList.remove('hidden');
+}
+
 document.addEventListener('DOMContentLoaded', () => getAuditLogs());
 loadMore.addEventListener('click', () => getAuditLogs(loadMore.dataset.lastId))
+auditLogTypeFilter?.addEventListener('change', () => {
+  clearAuditLogs();
+  getAuditLogs()
+});

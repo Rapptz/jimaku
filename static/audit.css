@@ -1,5 +1,17 @@
-h1 {
+.audit-log-actions {
+  display: flex;
+  margin-bottom: 0.75rem;
   border-bottom: 1px solid var(--dividers);
+  justify-content: center;
+  align-items: center;
+}
+
+.select-container {
+  margin-left: auto;
+}
+
+.select-container > label {
+  margin-right: 0.5rem;
 }
 
 .audit-log-entry {

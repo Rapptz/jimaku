@@ -9,7 +9,27 @@ Audit Logs · Jimaku
 {% endblock %}
 
 {% block body %}
-<h1>Audit Logs</h1>
+<div class="audit-log-actions">
+  <h1>Audit Logs</h1>
+  <div class="select-container">
+    <label for="audit-log-type">Filter by Type</label>
+    <select id="audit-log-type">
+      <option value="all" selected>All</option>
+      <option value="create_entry">Create Entry</option>
+      <option value="scrape_result">Scrape Result</option>
+      <option value="move_entry">Move Entry</option>
+      <option value="rename_files">Rename Files</option>
+      <option value="upload">Upload</option>
+      <option value="delete_files">Delete Files</option>
+      <option value="delete_entry">Delete Entry</option>
+      <option value="trash_action">Trash Action</option>
+      <option value="edit_entry">Edit Entry</option>
+      <option value="report_files">Report Files</option>
+      <option value="report_entry">Report Entry</option>
+      <option value="resolve_report">Report Response</option>
+    </select>
+  </div>
+</div>
 <svg id="loading" class="spinner" viewBox="0 0 50 50">
   <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
 </svg>

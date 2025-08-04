@@ -7,6 +7,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use rusqlite::types::Value;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -35,27 +36,34 @@ struct AuditLogQuery {
     before: Option<i64>,
     #[serde(default)]
     after: Option<i64>,
+    #[serde(default, rename = "type")]
+    kind: Option<String>,
 }
 
 impl AuditLogQuery {
-    fn to_sql(&self) -> (String, Vec<i64>) {
+    fn into_sql_parts(self) -> (String, Vec<Value>) {
         let mut filters = Vec::new();
         let mut params = Vec::new();
         if let Some(entry_id) = self.entry_id {
             filters.push("audit_log.entry_id = ?");
-            params.push(entry_id);
+            params.push(Value::Integer(entry_id));
         }
         if let Some(account_id) = self.account_id {
             filters.push("audit_log.account_id = ?");
-            params.push(account_id);
+            params.push(Value::Integer(account_id));
         }
         if let Some(before) = self.before {
             filters.push("audit_log.id < ?");
-            params.push(before);
+            params.push(Value::Integer(before));
         }
         if let Some(after) = self.after {
             filters.push("audit_log.id > ?");
-            params.push(after);
+            params.push(Value::Integer(after));
+        }
+
+        if let Some(kind) = self.kind {
+            filters.push("json_extract(audit_log.data, '$.type') = ?");
+            params.push(Value::Text(kind));
         }
 
         if filters.is_empty() {
@@ -82,7 +90,7 @@ async fn get_audit_logs(
         return Err(ApiError::forbidden());
     }
 
-    let (filter, params) = query.to_sql();
+    let (filter, params) = query.into_sql_parts();
     let mut query = r###"
         SELECT audit_log.*,
                directory_entry.name AS "name",
@@ -170,7 +178,7 @@ async fn get_audit_logs(
         if let AuditLogData::ResolveReport(s) = &entry.data {
             if let Some(reporter_id) = s.reporter_id {
                 if !result.users.contains_key(&reporter_id) {
-                    backfilled_ids.push(rusqlite::types::Value::Integer(reporter_id));
+                    backfilled_ids.push(Value::Integer(reporter_id));
                 }
             }
         }
