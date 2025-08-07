@@ -199,7 +199,7 @@ fn prepare_query(haystack: &str) -> String {
     re.replace_all(haystack, "").into_owned()
 }
 
-async fn get_redirects(state: &AppState) -> Option<HashMap<String, i64>> {
+pub async fn get_redirects(state: &AppState) -> Option<HashMap<String, i64>> {
     let from_storage = state
         .database()
         .get_from_storage::<String>("jpsubbers_redirects")

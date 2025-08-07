@@ -245,10 +245,18 @@ async fn get_anilist_info(client: &reqwest::Client, query: &str) -> anyhow::Resu
     }
 }
 
-async fn get_redirects(state: &AppState) -> Option<HashMap<String, i64>> {
+pub async fn get_redirects(state: &AppState) -> Option<HashMap<String, i64>> {
     let from_storage = state
         .database()
         .get_from_storage::<String>("kitsunekko_redirects")
+        .await?;
+    serde_json::from_str(&from_storage).ok()
+}
+
+pub async fn get_whitelist(state: &AppState) -> Option<HashMap<String, i64>> {
+    let from_storage = state
+        .database()
+        .get_from_storage::<String>("kitsunekko_whitelist")
         .await?;
     serde_json::from_str(&from_storage).ok()
 }
@@ -381,6 +389,92 @@ pub async fn scrape(state: &AppState, date: OffsetDateTime) -> anyhow::Result<Ve
     Ok(result)
 }
 
+async fn scrape_from_whitelist(
+    state: &AppState,
+    date: OffsetDateTime,
+    whitelist: HashMap<String, i64>,
+) -> anyhow::Result<Vec<Fixture>> {
+    // Whitelist is essentially URL -> entry ID
+
+    let mut result = Vec::new();
+
+    let mut directories = get_entries(
+        &state.client,
+        "https://kitsunekko.net/dirlist.php?dir=subtitles%2Fjapanese%2F",
+    )
+    .await?
+    .into_iter()
+    .filter(|f| f.date > date)
+    .filter(|f| whitelist.contains_key(&f.url))
+    .map(Directory::from)
+    .collect::<Vec<_>>();
+
+    directories.sort_by_key(|s| s.date);
+    let total = directories.len();
+
+    for (index, mut entry) in directories.into_iter().enumerate() {
+        entry.find_files(&state.client, &date).await?;
+        if entry.files.is_empty() {
+            info!(
+                "[{}/{}] skipping {:?} due to having no files",
+                index + 1,
+                total,
+                &entry.name
+            );
+            continue;
+        }
+
+        let Some(entry_id) = whitelist.get(&entry.url).copied() else {
+            info!(
+                "[{}/{}] skipping {:?} due to not being whitelisted",
+                index + 1,
+                total,
+                &entry.name
+            );
+            continue;
+        };
+
+        let Some(original) = state.get_directory_entry(entry_id).await else {
+            info!(
+                "[{}/{}] skipping {:?} due to entry ID {:?} not existing",
+                index + 1,
+                total,
+                &entry.name,
+                entry_id,
+            );
+            continue;
+        };
+
+        let directory = original.path;
+        let fixture = Fixture {
+            path: directory.clone(),
+            original_name: original.name.clone(),
+            last_updated_at: entry.date,
+            anilist_id: original.anilist_id,
+            tmdb_id: original.tmdb_id,
+            title: MediaTitle {
+                romaji: original.name,
+                english: original.english_name,
+                native: original.japanese_name,
+            },
+            flags: original.flags,
+        };
+        result.push(fixture);
+
+        let name = entry.name.clone();
+        entry.download_files(&state.client, directory).await?;
+        info!("[{}/{}] finished downloading {:?}", index + 1, total, &name);
+    }
+
+    info!(
+        "finished downloading {} entries ({} total, {} skipped)",
+        result.len(),
+        total,
+        total - result.len()
+    );
+    Ok(result)
+}
+
 pub async fn auto_scrape_loop(state: AppState) {
     let (signal_tx, signal_rx) = tokio::sync::mpsc::channel::<()>(1);
     tokio::spawn(async move {
@@ -404,7 +498,10 @@ pub async fn auto_scrape_loop(state: AppState) {
             .get_from_storage::<OffsetDateTime>("kitsunekko_scrape_date")
             .await
             .unwrap_or(OffsetDateTime::UNIX_EPOCH);
-        let result = scrape(&state, date).await;
+        let result = match get_whitelist(&state).await {
+            Some(whitelist) => scrape_from_whitelist(&state, date, whitelist).await,
+            None => scrape(&state, date).await,
+        };
         match result {
             Ok(fixtures) => {
                 let new_date = fixtures.iter().map(|x| x.last_updated_at).max();

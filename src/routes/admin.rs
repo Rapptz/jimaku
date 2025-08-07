@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
     audit,
@@ -12,7 +12,7 @@ use axum::{
     extract::{Path, Query, Request, State},
     http::StatusCode,
     response::Redirect,
-    routing::get,
+    routing::{get, post},
     Extension, Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -243,6 +243,92 @@ async fn download_trash(account: Account, Path(path): Path<String>, req: Request
     }
 }
 
+#[derive(Template)]
+#[template(path = "admin_scrapers.html")]
+struct AdminScrapersTemplate {
+    account: Option<Account>,
+    whitelist: Option<HashMap<String, i64>>,
+    kitsunekko_redirects: Option<HashMap<String, i64>>,
+    jpsubbers_redirects: Option<HashMap<String, i64>>,
+}
+
+async fn show_scrapers(
+    State(state): State<AppState>,
+    account: Account,
+) -> Result<HtmlPage<AdminScrapersTemplate>, Redirect> {
+    if !account.flags.is_admin() {
+        return Err(Redirect::to("/"));
+    }
+
+    Ok(HtmlPage(AdminScrapersTemplate {
+        account: Some(account),
+        whitelist: crate::kitsunekko::get_whitelist(&state).await,
+        kitsunekko_redirects: crate::kitsunekko::get_redirects(&state).await,
+        jpsubbers_redirects: crate::jpsubbers::get_redirects(&state).await,
+    }))
+}
+
+#[derive(Deserialize)]
+enum StorageKey {
+    #[serde(rename = "kitsunekko_whitelist")]
+    KitsunekkoWhitelist,
+    #[serde(rename = "kitsunekko_redirects")]
+    KitsunekkoRedirects,
+    #[serde(rename = "jpsubbers_redirects")]
+    JpsubbersRedirect,
+}
+
+impl StorageKey {
+    fn as_str(&self) -> &'static str {
+        match self {
+            StorageKey::KitsunekkoWhitelist => "kitsunekko_whitelist",
+            StorageKey::KitsunekkoRedirects => "kitsunekko_redirects",
+            StorageKey::JpsubbersRedirect => "jpsubbers_redirects",
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct SetStoragePayload {
+    key: StorageKey,
+    data: HashMap<String, i64>,
+}
+
+async fn set_storage_json(
+    State(state): State<AppState>,
+    account: Account,
+    Json(payload): Json<SetStoragePayload>,
+) -> Result<Json<HashMap<String, i64>>, ApiError> {
+    if !account.flags.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+
+    state
+        .database()
+        .update_storage(payload.key.as_str(), serde_json::to_string(&payload.data)?)
+        .await?;
+
+    Ok(Json(payload.data))
+}
+
+#[derive(Deserialize)]
+struct DeleteStoragePayload {
+    key: StorageKey,
+}
+
+async fn delete_storage_json(
+    State(state): State<AppState>,
+    account: Account,
+    Json(payload): Json<DeleteStoragePayload>,
+) -> Result<StatusCode, ApiError> {
+    if !account.flags.is_admin() {
+        return Err(ApiError::forbidden());
+    }
+
+    state.database().remove_from_storage(payload.key.as_str()).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 mod api {
     use super::*;
     use crate::ApiToken;
@@ -324,4 +410,6 @@ pub fn routes() -> Router<AppState> {
             "/admin/api/scrape-redirects",
             get(api::scrape_redirects).post(api::set_scrape_redirects),
         )
+        .route("/admin/scrapers", get(show_scrapers))
+        .route("/admin/storage", post(set_storage_json).delete(delete_storage_json))
 }

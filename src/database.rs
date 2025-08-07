@@ -323,9 +323,20 @@ impl Database {
         T: rusqlite::types::ToSql + Send + 'static,
     {
         self.call(move |conn| {
-            let query = "UPDATE storage SET value = ? WHERE name = ?";
+            let query = "INSERT INTO storage(name, value) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value";
             let mut stmt = conn.prepare_cached(query)?;
-            stmt.execute((value, key))?;
+            stmt.execute((key, value))?;
+            Ok(())
+        })
+        .await
+    }
+
+    /// Removes a value in the key-value store.
+    pub async fn remove_from_storage(&self, key: &'static str) -> rusqlite::Result<()> {
+        self.call(move |conn| {
+            let query = "DELETE FROM storage WHERE name = ?";
+            let mut stmt = conn.prepare_cached(query)?;
+            stmt.execute((key,))?;
             Ok(())
         })
         .await

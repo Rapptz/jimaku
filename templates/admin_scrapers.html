@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/admin.css" type="text/css" />
+{% endblock %}
+
+{% block body %}
+<h1>Scraper Tools</h1>
+<hr>
+<div class="tables">
+  <div class="full-table-container">
+    <h2>Kitsunekko Whitelist</h2>
+    {% if let Some(whitelist) = whitelist %}
+    <table id="kitsunekko_whitelist">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Entry ID</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for (url, entry_id) in whitelist %}
+        <tr>
+          <td><a href="{{ url }}">{{ url }}</a></td>
+          <td><a href="/entry/{{ entry_id }}">{{ entry_id }}</a></td>
+          <td><button class="button danger" data-key="kitsunekko_whitelist" data-value="{{ url }}">Delete</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No whitelist entries found.</p>
+    {% endif %}
+    <div class="controls">
+      <button class="button primary" data-key="kitsunekko_whitelist" data-label="Whitelist">Add Whitelist Entry</button>
+      <button class="button danger" id="clear-kitsunekko-whitelist">Remove All Whitelists</button>
+    </div>
+  </div>
+  <div class="full-table-container">
+    <h2>Kitsunekko Redirects</h2>
+    {% if let Some(redirects) = kitsunekko_redirects %}
+    <table id="kitsunekko_redirects">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Entry ID</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for (name, entry_id) in redirects %}
+        <tr>
+          <td><a href="https://kitsunekko.net/dirlist.php?dir=subtitles%2Fjapanese%2F{{ name | e }}">{{ name }}</a></td>
+          <td><a href="/entry/{{ entry_id }}">{{ entry_id }}</a></td>
+          <td><button class="button danger" data-key="kitsunekko_redirects" data-value="{{ name }}">Delete</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No redirect entries found.</p>
+    {% endif %}
+    <div class="controls">
+      <button class="button primary" data-key="kitsunekko_redirects" data-label="Kitsunekko Redirect">Add Redirect</button>
+    </div>
+    </div>
+  <div class="full-table-container">
+    <h2>JPSubbers Redirects</h2>
+    {% if let Some(redirects) = jpsubbers_redirects %}
+    <table id="jpsubbers_redirects">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Entry ID</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for (name, entry_id) in redirects %}
+        <tr>
+          <td><a href="https://jpsubbers.net/Japanese-Subtitles/{{ name | e }}">{{ name }}</a></td>
+          <td><a href="/entry/{{ entry_id }}">{{ entry_id }}</a></td>
+          <td><button class="button danger" data-key="jpsubbers_redirects" data-value="{{ name }}">Delete</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No redirect entries found.</p>
+    {% endif %}
+    <div class="controls">
+      <button class="button primary" data-key="jpsubbers_redirects" data-label="JPSubbers Redirect">Add Redirect</button>
+    </div>
+    </div>
+</div>
+
+<dialog id="add-storage-modal">
+  <form autocomplete="off">
+    <h1>Add <span id="storage-type-name"></span></h1>
+    <p>For whitelists, enter the full URL you want to whitelist as the key.</p>
+    <p>For redirects, enter the final URL portion as the key.</p>
+    <div class="form-container">
+      <label for="storage-key">Key</label>
+      <input class="form-field" id="storage-key" required autocomplete="off" type="text">
+      <label for="storage-entry-id">Entry ID</label>
+      <input class="form-field" id="storage-entry-id" required pattern="[0-9]+" autocomplete="off" type="text">
+    </div>
+    <footer>
+      <button id="confirm-add-button" class="button primary">Add</button>
+      <button class="button" formmethod="dialog">Cancel</button>
+    </footer>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block body_end %}
+<script src="/static/admin_scrapers.js"></script>
+{% endblock %}
