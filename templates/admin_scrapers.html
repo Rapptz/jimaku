@@ -79,7 +79,7 @@
       <tbody>
         {% for (name, entry_id) in redirects %}
         <tr>
-          <td><a href="https://jpsubbers.net/Japanese-Subtitles/{{ name | e }}">{{ name }}</a></td>
+          <td><a href="https://jpsubbers.com/index.php?p={{ name | e }}">{{ name }}</a></td>
           <td><a href="/entry/{{ entry_id }}">{{ entry_id }}</a></td>
           <td><button class="button danger" data-key="jpsubbers_redirects" data-value="{{ name }}">Delete</button></td>
         </tr>

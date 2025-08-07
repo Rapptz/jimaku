@@ -171,7 +171,7 @@ pub async fn get_entries(client: &reqwest::Client, url: &str) -> anyhow::Result<
             let mut url = String::with_capacity(BASE_URL.len() + captured_url.len() + 1);
             url.push_str(BASE_URL);
             if !captured_url.starts_with('/') {
-                url.push_str("/Japanese-Subtitles/");
+                url.push('/');
             }
             url.push_str(captured_url);
             let name = &cap["name"];
@@ -209,7 +209,7 @@ pub async fn get_redirects(state: &AppState) -> Option<HashMap<String, i64>> {
 
 pub async fn scrape(state: &AppState) -> anyhow::Result<Vec<Fixture>> {
     let mut result = Vec::new();
-    let directories = get_entries(&state.client, "https://jpsubbers.com/Japanese-Subtitles/")
+    let directories = get_entries(&state.client, "https://jpsubbers.com")
         .await?
         .into_iter()
         .map(Directory::from)
@@ -410,7 +410,7 @@ mod tests {
     #[tokio::test]
     async fn test_jpsubbers_parse() -> anyhow::Result<()> {
         let client = reqwest::Client::new();
-        let url = "https://jpsubbers.com/Japanese-Subtitles/";
+        let url = "https://jpsubbers.com/";
         let mut captures = get_entries(&client, url)
             .await?
             .into_iter()

@@ -120,7 +120,7 @@ let getOriginalHref = (source, originalName) => {
   if(source === 0) {
     return `https://kitsunekko.net/dirlist.php?dir=subtitles%2Fjapanese%2F${encodeURIComponent(originalName)}%2F`;
   } else if(source === 1) {
-    return `https://jpsubbers.com/Japanese-Subtitles/index.php?p=/${encodeURIComponent(originalName)}`;
+    return `https://jpsubbers.com/index.php?p=/${encodeURIComponent(originalName)}`;
   } else {
     return 'unknown';
   }
