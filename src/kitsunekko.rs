@@ -151,6 +151,7 @@ pub async fn get_entries(client: &reqwest::Client, url: &str) -> anyhow::Result<
         )
         .send()
         .await?
+        .error_for_status()?
         .text()
         .await?;
 
