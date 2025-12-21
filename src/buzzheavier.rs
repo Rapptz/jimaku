@@ -1,7 +1,4 @@
-use base64::{
-    prelude::{BASE64_URL_SAFE, BASE64_URL_SAFE_NO_PAD},
-    Engine,
-};
+use base64::{prelude::BASE64_URL_SAFE, Engine};
 use hyper::header::{AUTHORIZATION, CONTENT_LENGTH};
 use reqwest::Body;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -106,10 +103,12 @@ impl Buzzheavier {
     pub async fn upload(&self, client: &reqwest::Client, file: tokio::fs::File) -> anyhow::Result<String> {
         let content_length = file.metadata().await?.len() as usize;
         let directory = self.get_root_directory(client).await?;
-        let note = BASE64_URL_SAFE_NO_PAD
-            .encode("Unpacking this ZIP file requires a 7zip >= 24.01 or support for ZSTD ZIP files");
+        let note =
+            BASE64_URL_SAFE.encode("Unpacking this ZIP file requires a 7zip >= 24.01 or support for ZSTD ZIP files");
         let response = client
-            .put(format!("https://w.buzzheavier.com/{directory}/jimaku_backup.zip?note={note}"))
+            .put(format!(
+                "https://w.buzzheavier.com/{directory}/jimaku_backup.zip?note={note}"
+            ))
             .body(file_to_body(file))
             .header(AUTHORIZATION, format!("Bearer {}", self.account_id))
             .header(CONTENT_LENGTH, content_length.to_string())
