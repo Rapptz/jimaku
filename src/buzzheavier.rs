@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use base64::{prelude::BASE64_URL_SAFE, Engine};
 use hyper::header::{AUTHORIZATION, CONTENT_LENGTH};
 use reqwest::Body;
@@ -105,6 +107,7 @@ impl Buzzheavier {
         let directory = self.get_root_directory(client).await?;
         let note =
             BASE64_URL_SAFE.encode("Unpacking this ZIP file requires a 7zip >= 24.01 or support for ZSTD ZIP files");
+
         let response = client
             .put(format!(
                 "https://w.buzzheavier.com/{directory}/jimaku_backup.zip?note={note}"
@@ -112,6 +115,7 @@ impl Buzzheavier {
             .body(file_to_body(file))
             .header(AUTHORIZATION, format!("Bearer {}", self.account_id))
             .header(CONTENT_LENGTH, content_length.to_string())
+            .timeout(Duration::from_secs(86400)) // emulate "no timeout"
             .send()
             .await?
             .error_for_status()?;
