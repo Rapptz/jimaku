@@ -7,7 +7,7 @@ use std::{
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-use crate::key::SecretKey;
+use crate::{buzzheavier::Buzzheavier, key::SecretKey};
 use crate::{cli::PROGRAM_NAME, discord::Webhook};
 
 /// The server configuration.
@@ -45,6 +45,12 @@ pub struct Config {
     /// The server IP and port configuration
     #[serde(default)]
     pub server: ServerConfig,
+    /// The account ID for https://buzzheavier.com
+    ///
+    /// This is used for uploading backups and is entirely optional.
+    #[serde(rename = "buzzheavier_account_id")]
+    #[serde(default)]
+    pub buzzheavier: Option<Buzzheavier>,
     /// The secret key used for all crypto related functionality in the server.
     ///
     /// Microbenching makes it evident that cloning this without an Arc is around ~4x faster.
@@ -61,6 +67,7 @@ impl Config {
             contact_emails: Vec::new(),
             tmdb_api_key: String::new(),
             webhook: None,
+            buzzheavier: None,
             server: ServerConfig::default(),
             secret_key: SecretKey::random()?,
         })

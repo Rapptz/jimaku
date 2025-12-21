@@ -21,6 +21,7 @@ comrak = "0.40.0"
 cookie = { version = "0.18.0", features = ["percent-encode"] }
 crossbeam-channel = "0.5.11"
 dirs = "5.0.1"
+futures = "0.3.31"
 futures-util = "0.3.30"
 getrandom = { version = "0.2.12", features = ["std"] }
 hmac = "0.12.1"
@@ -31,7 +32,7 @@ pin-project-lite = "0.2.13"
 quick_cache = "0.4.1"
 rawzip = "0.4.2"
 regex = "1.10.3"
-reqwest = { version = "0.12.3", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12.3", default-features = false, features = ["stream", "json", "rustls-tls"] }
 rpassword = "7.3.1"
 rusqlite = { version = "0.31.0", features = ["bundled", "time", "vtab", "array"] }
 rustls-acme = { git = "https://github.com/Rapptz/rustls-acme/", branch = "update-deps", features = ["tokio"] }
@@ -45,6 +46,7 @@ sublime_fuzzy = "0.7.0"
 time = { version = "0.3.34", features = ["macros", "serde-human-readable"] }
 tokio = { version = "1.36.0", features = ["full"] }
 tokio-rustls = "0.25"
+tokio-util = { version = "0.7.17", features = ["codec"] }
 tower = { version = "0.4.13", features = ["limit", "util"] }
 tower-http = { version = "0.5.2", features = ["fs", "timeout", "normalize-path", "limit", "cors", "compression-full"] }
 tracing = "0.1.40"

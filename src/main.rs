@@ -371,6 +371,7 @@ fn backup_to_zip(mut entries: Vec<jimaku::models::DirectoryEntryBackup>, path: P
     zip.finish()?;
 
     let duration = std::time::Instant::now().duration_since(start);
+    jimaku::cli::clear_progress_bar();
     println!(
         "Successfully created ZIP file backup at {} in {:.2}s",
         path.display(),
@@ -476,7 +477,18 @@ async fn run(command: jimaku::Command) -> anyhow::Result<()> {
                 .collect();
             backup_to_zip(entries, path)
         }
-        jimaku::Command::Upload { path } => todo!(),
+        jimaku::Command::Upload { path } => {
+            match &state.config().buzzheavier {
+                Some(buzzheavier) => {
+                    let file = tokio::fs::File::open(path).await?;
+                    let url = buzzheavier.upload(&state.client, file).await?;
+                    println!("Uploaded backup file to {url}");
+                    state.database().update_storage("backup_url", url).await?;
+                }
+                None => eprintln!("No account ID set up for buzzheavier to upload"),
+            };
+            Ok(())
+        }
     }
 }
 

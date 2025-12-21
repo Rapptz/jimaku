@@ -2,6 +2,7 @@ pub mod anilist;
 pub mod audit;
 pub mod auth;
 pub mod borrowed;
+pub mod buzzheavier;
 pub mod cached;
 pub mod cli;
 mod config;

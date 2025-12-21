@@ -479,4 +479,9 @@ impl AppState {
             .await;
         self.invalidate_account_cache(account.id);
     }
+
+    /// Gets the backup URL, if any
+    pub async fn get_backup_url(&self) -> Option<String> {
+        self.database().get_from_storage("backup_url").await
+    }
 }

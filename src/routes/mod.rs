@@ -1,6 +1,6 @@
 use crate::{
     cached::BodyCache,
-    error::ApiError,
+    error::{ApiError, InternalError},
     filters,
     flash::Flashes,
     headers::{AcceptEncoding, UserAgent},
@@ -10,7 +10,7 @@ use crate::{
 use askama::Template;
 use axum::{
     extract::{Path, Query, State},
-    response::IntoResponse,
+    response::{IntoResponse, Redirect},
     routing::get,
     Extension, Router,
 };
@@ -158,11 +158,19 @@ async fn show_anilist_page(account: Option<Account>, Path(user_name): Path<Strin
     HtmlPage(AniListTemplate { account, user_name })
 }
 
+async fn backup(State(state): State<AppState>) -> Result<Redirect, InternalError> {
+    let Some(url) = state.get_backup_url().await else {
+        return Err(anyhow::Error::msg("no backup URL has been set").into());
+    };
+    Ok(Redirect::to(&url))
+}
+
 pub fn all() -> Router<AppState> {
     Router::new()
         .route("/", get(index))
         .route("/dramas", get(dramas))
         .route("/help", get(help_page))
+        .route("/backup", get(backup))
         .route("/contact", get(contact_page))
         .route("/download-zip", get(bypass_download_zip_cors))
         .route("/anilist/{name}", get(show_anilist_page))
