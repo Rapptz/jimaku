@@ -1,4 +1,4 @@
-use std::{convert::Infallible, net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
+use std::{convert::Infallible, io::Write, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::{
@@ -285,6 +285,100 @@ fn init_db(connection: &mut rusqlite::Connection) -> rusqlite::Result<()> {
     tx.commit()
 }
 
+fn backup_to_zip(mut entries: Vec<jimaku::models::DirectoryEntryBackup>, path: PathBuf) -> anyhow::Result<()> {
+    let start = std::time::Instant::now();
+    let path = path.join("jimaku_backup.zip");
+    let file = std::fs::File::create(&path).context("could not create .zip file")?;
+    let writer = std::io::BufWriter::new(file);
+    let mut zip = rawzip::ZipArchiveWriter::new(writer);
+
+    const ZSTD_COMPRESSION_LEVEL: i32 = 3;
+
+    let total_entries = entries.len();
+    for (step, entry) in entries.iter_mut().enumerate() {
+        let directory_name = if entry.flags.is_anime() {
+            match entry.anilist_id {
+                Some(id) => format!("{} [{}]", entry.name, id),
+                None => entry.name.clone(),
+            }
+        } else {
+            match entry.tmdb_id {
+                Some(id) => format!("[drama] {} [{}]", entry.name, id),
+                None => format!("[drama] {}", entry.name),
+            }
+        };
+
+        let Ok(iter) = std::fs::read_dir(&entry.path) else {
+            println!("warning: '{}' could not be found", entry.path.display());
+            continue;
+        };
+
+        let mut directory_name = sanitise_file_name::sanitise(&directory_name);
+        directory_name.push('/');
+
+        zip.new_dir(&directory_name)
+            .last_modified(rawzip::time::UtcDateTime::from_unix(
+                entry.last_updated_at.unix_timestamp(),
+            ))
+            .create()?;
+
+        for dir_entry in iter.filter_map(|e| e.ok()) {
+            let mut file = std::fs::File::open(dir_entry.path())
+                .with_context(|| format!("could not open file {}", dir_entry.path().display()))?;
+            let file_name = dir_entry.file_name();
+            let name = file_name
+                .to_str()
+                .with_context(|| format!("Invalid UTF-8 filename for {}", dir_entry.path().display()))?;
+            let name = {
+                let mut buf = directory_name.clone();
+                buf.push_str(name);
+                buf
+            };
+
+            let (mut entry, config) = zip
+                .new_file(name.as_str())
+                .compression_method(rawzip::CompressionMethod::Zstd)
+                .unix_permissions(0o644)
+                .start()?;
+
+            let encoder = zstd::Encoder::new(&mut entry, ZSTD_COMPRESSION_LEVEL)?;
+            let mut writer = config.wrap(encoder);
+            std::io::copy(&mut file, &mut writer)?;
+            let (_, output) = writer.finish()?;
+            entry.finish(output)?;
+        }
+
+        // Modify the entry's path so it's properly appointed to in the entries.json file
+        entry.path = PathBuf::from(directory_name);
+
+        jimaku::cli::print_progress_bar(step, total_entries, Some("Total entries"));
+        eprint!(" ID: {}\r", entry.id);
+    }
+
+    let json = serde_json::to_string(&entries).context("could not convert entries to JSON")?;
+    let (mut entry, config) = zip
+        .new_file("entries.json")
+        .compression_method(rawzip::CompressionMethod::Zstd)
+        .unix_permissions(0o644)
+        .start()?;
+
+    let encoder = zstd::Encoder::new(&mut entry, ZSTD_COMPRESSION_LEVEL)?;
+    let mut writer = config.wrap(encoder);
+    writer.write_all(json.as_bytes())?;
+    let (_, output) = writer.finish()?;
+    entry.finish(output)?;
+
+    zip.finish()?;
+
+    let duration = std::time::Instant::now().duration_since(start);
+    println!(
+        "Successfully created ZIP file backup at {} in {:.2}s",
+        path.display(),
+        duration.as_secs_f32()
+    );
+    Ok(())
+}
+
 async fn run(command: jimaku::Command) -> anyhow::Result<()> {
     let config = jimaku::Config::load()?;
     let database = jimaku::Database::file(&jimaku::database::directory()?)
@@ -372,6 +466,17 @@ async fn run(command: jimaku::Command) -> anyhow::Result<()> {
             );
             Ok(())
         }
+        jimaku::Command::Backup { path } => {
+            let entries: Vec<jimaku::models::DirectoryEntryBackup> = state
+                .database()
+                .all("SELECT * FROM directory_entry", [])
+                .await?
+                .into_iter()
+                .map(jimaku::models::DirectoryEntry::backup)
+                .collect();
+            backup_to_zip(entries, path)
+        }
+        jimaku::Command::Upload { path } => todo!(),
     }
 }
 

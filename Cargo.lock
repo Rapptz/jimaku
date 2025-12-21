@@ -1603,6 +1603,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quick_cache",
+ "rawzip",
  "regex",
  "reqwest",
  "rpassword",
@@ -1625,6 +1626,7 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "zip",
+ "zstd 0.13.3",
 ]
 
 [[package]]
@@ -2319,6 +2321,12 @@ checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 dependencies = [
  "getrandom 0.3.3",
 ]
+
+[[package]]
+name = "rawzip"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27cc19f82b641448e861623f52a6a6413bbc0595b62a9d45bf31ccdf18aab72c"
 
 [[package]]
 name = "rcgen"

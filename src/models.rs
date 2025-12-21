@@ -290,6 +290,28 @@ impl Table for DirectoryEntry {
     }
 }
 
+/// A specific model used for backup purposes with different (de)serialization requirements.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DirectoryEntryBackup {
+    pub id: i64,
+    pub path: PathBuf,
+    pub name: String,
+    pub flags: EntryFlags,
+    #[serde(rename = "last_modified")]
+    #[serde(with = "time::serde::rfc3339")]
+    pub last_updated_at: OffsetDateTime,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anilist_id: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tmdb_id: Option<tmdb::Id>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub english_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub japanese_name: Option<String>,
+}
+
 /// Data that is passed around from the server to the frontend JavaScript
 #[derive(Debug, Clone, Serialize)]
 pub struct DirectoryEntryData<'a> {
@@ -345,6 +367,21 @@ impl DirectoryEntry {
         }
     }
 
+    pub fn backup(self) -> DirectoryEntryBackup {
+        DirectoryEntryBackup {
+            id: self.id,
+            path: self.path,
+            name: self.name,
+            flags: self.flags,
+            last_updated_at: self.last_updated_at,
+            anilist_id: self.anilist_id,
+            tmdb_id: self.tmdb_id,
+            notes: self.notes,
+            english_name: self.english_name,
+            japanese_name: self.japanese_name,
+        }
+    }
+
     /// Returns an appropriate description for the og:description meta tag
     pub fn description(&self) -> String {
         let mut base = String::from("Download Japanese subtitles for ");
@@ -373,6 +410,24 @@ impl DirectoryEntry {
             }
         }
         base
+    }
+}
+
+impl From<DirectoryEntryBackup> for DirectoryEntry {
+    fn from(value: DirectoryEntryBackup) -> Self {
+        Self {
+            id: value.id,
+            path: value.path,
+            name: value.name,
+            flags: value.flags,
+            last_updated_at: value.last_updated_at,
+            creator_id: None,
+            anilist_id: value.anilist_id,
+            tmdb_id: value.tmdb_id,
+            notes: value.notes,
+            english_name: value.english_name,
+            japanese_name: value.japanese_name,
+        }
     }
 }
 

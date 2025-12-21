@@ -29,6 +29,7 @@ hyper-util = { version = "0.1.3", features = ["server-auto"] }
 percent-encoding = "2.3.1"
 pin-project-lite = "0.2.13"
 quick_cache = "0.4.1"
+rawzip = "0.4.2"
 regex = "1.10.3"
 reqwest = { version = "0.12.3", default-features = false, features = ["json", "rustls-tls"] }
 rpassword = "7.3.1"
@@ -51,3 +52,4 @@ tracing-appender = { git = "https://github.com/Rapptz/tracing-appender" }
 tracing-subscriber = { version = "0.3.18", features = ["json"] }
 utoipa = { version = "4.2.0", features = ["time", "axum_extras", "repr", "preserve_path_order"] }
 zip = "0.6.6"
+zstd = "0.13.3"
