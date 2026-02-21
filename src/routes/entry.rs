@@ -126,7 +126,10 @@ async fn download_entry(
         return DownloadResponse::NotFound;
     };
 
-    match ServeFile::new(path).oneshot(req).await {
+    let mut service = ServeFile::new(path);
+    let ready_service = ServiceExt::<Request>::ready(&mut service).await.unwrap(); // Infallible
+
+    match ready_service.try_call(req).await {
         Ok(res) => DownloadResponse::File(res.map(axum::body::Body::new)),
         Err(_) => DownloadResponse::NotFound,
     }
