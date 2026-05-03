@@ -190,6 +190,11 @@ function resetSearchFilter() {
 
 function __scoreByName(el, query) {
   let total = __score(el.dataset.name, query);
+  // For pure numeric queries (e.g. "26"), also try episode notation (e.g. "e26")
+  // so that "S01E26" style filenames match consistently with "- 26 " style
+  if (/^\d+$/.test(query)) {
+    total = Math.max(total, __score(el.dataset.name, `e${query}`));
+  }
   let native = el.dataset.japaneseName;
   if (native !== null) {
     total = Math.max(total, __score(native, query));
