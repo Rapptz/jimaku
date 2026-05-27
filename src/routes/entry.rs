@@ -303,7 +303,7 @@ pub async fn raw_create_directory_entry(
 
             let url = match result {
                 Ok(entry_id) => {
-                    std::fs::create_dir(&path).map_err(|_| {
+                    std::fs::create_dir_all(&path).map_err(|_| {
                         ApiError::new(format!("Could not create directory {}", path.display()))
                             .with_code(ApiErrorCode::ServerError)
                     })?;

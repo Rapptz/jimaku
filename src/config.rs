@@ -62,7 +62,9 @@ impl Config {
         Ok(Self {
             production: false,
             lets_encrypt_production: false,
-            subtitle_path: std::env::current_dir().expect("could not get current working directory"),
+            subtitle_path: std::env::current_dir()
+                .expect("could not get current working directory")
+                .join("subtitles"),
             domains: Vec::new(),
             contact_emails: Vec::new(),
             tmdb_api_key: String::new(),
