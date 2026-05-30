@@ -3,6 +3,8 @@ const filterElement = document.getElementById('search-files');
 const escapedRegex = /[-\/\\^$*+?.()|[\]{}]/g;
 const escapeRegex = (e) => e.replace(escapedRegex, '\\$&');
 const MIN_SCORE = -1500;
+const releaseMetadataRegex = /\[(?=[^\]]*[^\d\]])[^\]]*\]|\([^)]*\)/g;
+const seasonPrefixRegex = /\b(?:Season|S)\s*\d{1,2}\s*-\s*/gi;
 
 function __score(haystack, query) {
   let result = fuzzysort.single(__normalizeString(query), __normalizeString(haystack));
@@ -11,6 +13,14 @@ function __score(haystack, query) {
 
 function __normalizeString(s) {
   return s ? s.normalize('NFKD').replace(/[\u0300-\u036f]/g, "") : s;
+}
+
+function __matchesEpisodeNumber(name, query) {
+  name = name
+    .replace(releaseMetadataRegex, '')
+    .replace(seasonPrefixRegex, '');
+  const episodeNumber = new RegExp(`(?:[sS]\\d{1,2}[eE]|(?:^|[^A-Za-z0-9]))0*${parseInt(query, 10)}(?!\\d)`);
+  return episodeNumber.test(name);
 }
 
 const changeModifiedToRelative = () => {
@@ -190,10 +200,8 @@ function resetSearchFilter() {
 
 function __scoreByName(el, query) {
   let total = __score(el.dataset.name, query);
-  // For pure numeric queries (e.g. "26"), also try episode notation (e.g. "e26")
-  // so that "S01E26" style filenames match consistently with "- 26 " style
-  if (/^\d+$/.test(query)) {
-    total = Math.max(total, __score(el.dataset.name, `e${query}`));
+  if (/^\d+$/.test(query) && __matchesEpisodeNumber(el.dataset.name, query)) {
+    return 0;
   }
   let native = el.dataset.japaneseName;
   if (native !== null) {
