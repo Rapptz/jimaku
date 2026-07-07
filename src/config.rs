@@ -62,7 +62,9 @@ impl Config {
         Ok(Self {
             production: false,
             lets_encrypt_production: false,
-            subtitle_path: std::env::current_dir().expect("could not get current working directory"),
+            subtitle_path: std::env::current_dir()
+                .expect("could not get current working directory")
+                .join("subtitles"),
             domains: Vec::new(),
             contact_emails: Vec::new(),
             tmdb_api_key: String::new(),
@@ -90,6 +92,10 @@ impl Config {
             let parent = path.parent().unwrap();
             if !parent.exists() {
                 std::fs::create_dir(parent).context("could not create config directory")?;
+            }
+
+            if !config.subtitle_path.exists() {
+                std::fs::create_dir(&config.subtitle_path).context("could not create subtitle directory")?;
             }
 
             let file = std::fs::File::create(path).context("could not create config file")?;
