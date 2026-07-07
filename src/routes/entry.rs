@@ -212,29 +212,39 @@ impl PendingDirectoryEntry {
     }
 
     fn path(&self, name: &str, anime: bool, state: &AppState) -> PathBuf {
-        // Series names aren't unique but directory names are
-        // So try to give it some noise depending on the anilist ID or tmdb ID
-        // This ordeal could also be entirely avoided by just using numeric folder names
-        // But having human readable folder names is fine
-
-        // A prefix is used for the flat directory structure since it's easier to
-        // reason about in the code.
-        let prefix = if !anime { "[drama] " } else { "" };
-        let directory_name = if let Some(id) = self.anilist_id {
-            sanitise_file_name::sanitise(&format!("{prefix}{name} [{id}]"))
-        } else if let Some(id) = self.tmdb_id {
-            sanitise_file_name::sanitise(&format!("{prefix}{name} [{id}]"))
-        } else {
-            // Avoid the extra allocation if possible
-            if anime {
-                sanitise_file_name::sanitise(name)
-            } else {
-                sanitise_file_name::sanitise(&format!("[drama] {name}"))
-            }
-        };
-
-        state.config().subtitle_path.join(directory_name)
+        directory_entry_path(self.anilist_id, self.tmdb_id, name, anime, state)
     }
+}
+
+pub fn directory_entry_path(
+    anilist_id: Option<u32>,
+    tmdb_id: Option<tmdb::Id>,
+    name: &str,
+    anime: bool,
+    state: &AppState,
+) -> PathBuf {
+    // Series names aren't unique but directory names are
+    // So try to give it some noise depending on the anilist ID or tmdb ID
+    // This ordeal could also be entirely avoided by just using numeric folder names
+    // But having human readable folder names is fine
+
+    // A prefix is used for the flat directory structure since it's easier to
+    // reason about in the code.
+    let prefix = if !anime { "[drama] " } else { "" };
+    let directory_name = if let Some(id) = anilist_id {
+        sanitise_file_name::sanitise(&format!("{prefix}{name} [{id}]"))
+    } else if let Some(id) = tmdb_id {
+        sanitise_file_name::sanitise(&format!("{prefix}{name} [{id}]"))
+    } else {
+        // Avoid the extra allocation if possible
+        if anime {
+            sanitise_file_name::sanitise(name)
+        } else {
+            sanitise_file_name::sanitise(&format!("[drama] {name}"))
+        }
+    };
+
+    state.config().subtitle_path.join(directory_name)
 }
 
 pub async fn raw_create_directory_entry(
@@ -491,9 +501,33 @@ async fn edit_directory_entry(
 
     // maybe refactor this?
     let mut columns = Vec::with_capacity(11);
-    let mut params: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::with_capacity(11);
+    let mut params: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::with_capacity(12);
     let mut audit_data = audit::EditEntry::default();
     let flags = payload.apply_flags(entry.flags);
+    let mut changed_path: Option<PathBuf> = None;
+
+    if !flags.is_external() && (entry.anilist_id != payload.anilist_id || entry.tmdb_id != payload.tmdb_id) {
+        // Change the internal path if the path bound data is changed...
+        columns.push("path");
+        let path = directory_entry_path(
+            payload.anilist_id,
+            payload.tmdb_id,
+            payload.name.as_str(),
+            flags.is_anime(),
+            &state,
+        );
+        if path.exists() {
+            return flasher.add("Path already exists").bail(&url);
+        }
+
+        let path_string = path.to_str().map(|p| p.to_owned());
+        let Some(path_string) = path_string else {
+            return flasher.add("Resulting path was somehow not UTF-8").bail(&url);
+        };
+
+        changed_path = Some(path);
+        params.push(Box::new(path_string));
+    }
 
     if entry.name != payload.name {
         columns.push("name");
@@ -548,6 +582,12 @@ async fn edit_directory_entry(
             .await
         {
             Ok(_) => {
+                if let Some(path) = changed_path {
+                    // Potential issue when this fails and the database points to the new path
+                    // For now, just ignore the error. In the future, consider rewriting this
+                    // to use a transaction instead should it become an issue.
+                    let _ = tokio::fs::rename(entry.path, path).await;
+                }
                 state.cached_directories().invalidate().await;
                 state
                     .audit(audit::AuditLogEntry::full(audit_data, entry_id, account.id))
