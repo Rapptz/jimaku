@@ -119,7 +119,7 @@ function formatRelative(seconds) {
   const units = ['second', 'minute', 'hour', 'day', 'week', 'month', 'year'];
   const index = cutoffs.findIndex(v => v > Math.abs(dt));
   const divisor = index ? cutoffs[index - 1] : 1;
-  return rtf.format(Math.floor(dt / divisor), units[index]);
+  return rtf.format(Math.round(dt / divisor), units[index]);
 }
 
 function createAlert({content, level = 'info'}) {
