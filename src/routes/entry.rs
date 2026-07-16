@@ -86,6 +86,8 @@ pub(crate) fn get_file_entries(entry_id: i64, path: &std::path::Path) -> std::io
             last_modified,
         });
     }
+
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(entries)
 }
 
