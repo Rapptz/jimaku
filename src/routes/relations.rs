@@ -13,7 +13,7 @@ async fn get_anime_relations(State(state): State<AppState>) -> Json<Relations> {
 
 #[derive(Debug, Serialize)]
 struct RelationDates {
-    last_modified: time::Date,
+    hash: String,
     #[serde(with = "time::serde::rfc3339")]
     created_at: time::OffsetDateTime,
 }
@@ -21,20 +21,20 @@ struct RelationDates {
 async fn get_anime_relations_date(State(state): State<AppState>) -> Json<RelationDates> {
     let relations = state.anime_relations().await;
     Json(RelationDates {
-        last_modified: relations.last_modified,
+        hash: relations.hash(),
         created_at: relations.created_at,
     })
 }
 
-async fn update_anime_relations(account: Account, State(state): State<AppState>) -> Result<Json<time::Date>, ApiError> {
+async fn update_anime_relations(account: Account, State(state): State<AppState>) -> Result<Json<String>, ApiError> {
     if !account.flags.is_admin() {
         return Err(ApiError::forbidden());
     }
 
     let new = Relations::load(&state.client).await?;
-    let date = new.last_modified;
+    let hash = new.hash();
     state.set_anime_relations(new).await;
-    Ok(Json(date))
+    Ok(Json(hash))
 }
 
 pub fn routes() -> Router<AppState> {

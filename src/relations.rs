@@ -27,8 +27,8 @@
 
 use std::{collections::HashMap, str::FromStr};
 
-use serde::Serialize;
-use time::format_description::well_known::Iso8601;
+use serde::{Serialize, Serializer};
+use sha2::{Digest, Sha256};
 
 pub const RELATIONS_URL: &str = "https://raw.githubusercontent.com/Rapptz/anime-relations/master/anime-relations.txt";
 
@@ -171,31 +171,33 @@ fn find_destination(rules: &[Rule], episode: u16) -> Option<(u32, u16)> {
     None
 }
 
+type Sha256Hash = sha2::digest::Output<Sha256>;
+
 /// A mapping of an ID to a relation
 #[derive(Debug, Clone, Serialize)]
 pub struct Relations {
-    pub last_modified: time::Date,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: time::OffsetDateTime,
     #[serde(rename = "relations")]
     data: HashMap<u32, Relation>,
+    #[serde(serialize_with = "hash_as_hex")]
+    hash: Sha256Hash,
+}
+
+fn hash_as_hex<S: Serializer>(hash: &Sha256Hash, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&crate::key::to_hex(hash.as_slice()))
 }
 
 impl Relations {
     pub fn new(s: &str) -> anyhow::Result<Self> {
         let mut data: HashMap<u32, Vec<Rule>> = HashMap::new();
-        let mut last_modified = time::Date::MIN;
+        let hash = Sha256::digest(s);
 
         for line in s.lines() {
             // Lines we're interested in are either `- last_modified` or `- A|B|C:D -> A|B|C:D`
             let Some(line) = line.strip_prefix("- ") else {
                 continue;
             };
-
-            if let Some(("last_modified", date)) = line.split_once(": ") {
-                last_modified = time::Date::parse(date, &Iso8601::DATE)?;
-                continue;
-            }
 
             if let Some((left, right)) = line.split_once(" -> ") {
                 let (right, is_redirected) = match right.strip_suffix('!') {
@@ -228,9 +230,9 @@ impl Relations {
         }
 
         Ok(Self {
-            last_modified,
             data,
             created_at: time::OffsetDateTime::now_utc(),
+            hash,
         })
     }
 
@@ -248,13 +250,18 @@ impl Relations {
         let rules = self.data.get(&anilist_id)?;
         find_destination(rules, episode)
     }
+
+    /// Returns the hash of the data
+    pub fn hash(&self) -> String {
+        crate::key::to_hex(self.hash.as_slice())
+    }
 }
 
 impl Default for Relations {
     fn default() -> Self {
         Self {
-            last_modified: time::OffsetDateTime::UNIX_EPOCH.date(),
             created_at: time::OffsetDateTime::UNIX_EPOCH,
+            hash: Sha256Hash::default(),
             data: HashMap::new(),
         }
     }

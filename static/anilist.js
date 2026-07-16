@@ -417,20 +417,20 @@ async function fillData(entries) {
 }
 
 async function loadAnimeRelations() {
-  let previous = Date.parse(localStorage.getItem('anime_relations_last_modified') ?? '1970-01-01');
-  if(previous !== 0) {
+  let hash = localStorage.getItem('anime_relations_hash');
+  if(hash !== null) {
     let r = await fetch('/anime-relations/date');
     if(r.status === 200) {
-      let dates = await r.json();
-      let date = Date.parse(dates.last_modified);
-      if(date === previous) return JSON.parse(localStorage.getItem('anime_relations'));
+      let current = await r.json();
+      if(current.hash === hash) return JSON.parse(localStorage.getItem('anime_relations'));
     }
   }
 
   let current = await fetch('/anime-relations');
   if(current.status === 200) {
     let js = await current.json();
-    localStorage.setItem('anime_relations_last_modified', js.last_modified);
+    localStorage.setItem('anime_relations_last_modified', js.created_at.split('T')[0]);
+    localStorage.setItem('anime_relations_hash', js.hash);
     localStorage.setItem('anime_relations', JSON.stringify(js.relations));
     return js.relations;
   }
@@ -450,4 +450,3 @@ async function loadData() {
 }
 
 document.addEventListener('DOMContentLoaded', loadData);
-
