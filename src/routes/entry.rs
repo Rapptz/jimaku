@@ -87,7 +87,7 @@ pub(crate) fn get_file_entries(entry_id: i64, path: &std::path::Path) -> std::io
         });
     }
     // read_dir order is arbitrary; sort by name for a stable default.
-    entries.sort_by(|a, b| a.name.cmp(&b.name));
+    entries.sort_by_key(|e| e.name.as_str());
     Ok(entries)
 }
 
