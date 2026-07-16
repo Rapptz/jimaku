@@ -30,7 +30,7 @@ use std::{collections::HashMap, str::FromStr};
 use serde::Serialize;
 use time::format_description::well_known::Iso8601;
 
-pub const RELATIONS_URL: &str = "https://raw.githubusercontent.com/erengy/anime-relations/master/anime-relations.txt";
+pub const RELATIONS_URL: &str = "https://raw.githubusercontent.com/Rapptz/anime-relations/master/anime-relations.txt";
 
 /// The relation ID that you can look up relations by.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
