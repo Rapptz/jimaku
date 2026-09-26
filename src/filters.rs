@@ -38,6 +38,28 @@ pub fn isoformat(dt: &OffsetDateTime, _: &dyn askama::Values) -> askama::Result<
     ))
 }
 
+/// Formats the date as RFC 2822, which RSS uses: "Fri, 25 Sep 2026 12:00:00 +0000".
+pub fn rfc2822(dt: &OffsetDateTime, _: &dyn askama::Values) -> askama::Result<String> {
+    dt.to_offset(time::UtcOffset::UTC)
+        .format(&time::format_description::well_known::Rfc2822)
+        .map_err(askama::Error::custom)
+}
+
+/// Replaces each control character with a space. XML 1.0 does not allow most control characters,
+/// or U+FFFE and U+FFFF, so one bad entry name could otherwise break a whole feed.
+pub fn xml_text(s: impl AsRef<str>, _: &dyn askama::Values) -> askama::Result<String> {
+    Ok(s.as_ref()
+        .chars()
+        .map(|c| {
+            if c.is_control() || c == '\u{FFFE}' || c == '\u{FFFF}' {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect())
+}
+
 /// Returns a canonical URL to the given path
 pub fn canonical_url(url: impl Display, _: &dyn askama::Values) -> askama::Result<String> {
     let path = url.to_string();

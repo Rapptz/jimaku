@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Jimaku: {{ name }}</title>
+    <link>{{ base }}{{ page }}</link>
+    <description>{{ name }} with new Japanese subtitles, the newest first</description>
+    <atom:link href="{{ base }}{{ path }}" rel="self" type="application/rss+xml"/>
+    {%- for entry in entries %}
+    <item>
+      <title>{{ entry.name|xml_text }}</title>
+      <link>{{ base }}/entry/{{ entry.id }}</link>
+      <guid isPermaLink="false">{{ base }}/entry/{{ entry.id }}#{{ entry.last_updated_at.unix_timestamp() }}</guid>
+      <pubDate>{{ entry.last_updated_at|rfc2822 }}</pubDate>
+    </item>
+    {%- endfor %}
+  </channel>
+</rss>

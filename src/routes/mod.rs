@@ -23,6 +23,7 @@ mod api;
 mod audit;
 mod auth;
 mod entry;
+mod feed;
 mod notification;
 mod opensearch;
 mod relations;
@@ -176,6 +177,7 @@ pub fn all() -> Router<AppState> {
         .route("/anilist/{name}", get(show_anilist_page))
         .merge(auth::routes())
         .merge(entry::routes())
+        .merge(feed::routes())
         .merge(admin::routes())
         .merge(audit::routes())
         .merge(relations::routes())

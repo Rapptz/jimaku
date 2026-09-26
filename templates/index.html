@@ -4,8 +4,10 @@
 <link rel="stylesheet" href="/static/entry.css" type="text/css">
 {%- if anime -%}
 <link rel="search" href="/opensearch/anime.xml" type="application/opensearchdescription+xml" title="Jimaku Anime">
+<link rel="alternate" href="/feed.xml" type="application/rss+xml" title="Jimaku: Anime">
 {%- else -%}
 <link rel="search" href="/opensearch/dramas.xml" type="application/opensearchdescription+xml" title="Jimaku Dramas">
+<link rel="alternate" href="/dramas/feed.xml" type="application/rss+xml" title="Jimaku: Live Action">
 {%- endif -%}
 <meta property="og:url" content="{{ url }}">
 <meta property="og:title" content="Jimaku: Japanese subtitles">
@@ -118,6 +120,12 @@
   <h1>Drop ZIP to import</h1>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block footer %}
+<div class="links">
+  <a href="{% if anime %}/feed.xml{% else %}/dramas/feed.xml{% endif %}" type="application/rss+xml">RSS</a>
+</div>
 {% endblock %}
 
 {% block body_end %}
