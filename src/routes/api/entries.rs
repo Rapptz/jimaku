@@ -277,9 +277,16 @@ pub struct CreatePayload {
     tmdb_id: Option<tmdb::Id>,
     /// Create an entry with the given Romaji name.
     ///
-    /// This is only available for API keys bound to editor users.
+    /// This is only available for API keys bound to editor users, with one exception.
+    /// On a site with a release search, each user may give the name of a show that has no
+    /// AniList or TMDB page. The entry is made when enough releases name the show, and it
+    /// is unverified.
     #[serde(default)]
     name: Option<String>,
+    /// Whether a show that has no AniList or TMDB page is an anime. Without it, such a show
+    /// is live action.
+    #[serde(default)]
+    anime: bool,
     /// Create an entry with the given Japanese name.
     ///
     /// This is only available for API keys bound to editor users.
@@ -313,8 +320,13 @@ pub struct CreateEntryResult {
 ///
 /// An entry becomes an anime entry if an AniList ID is given.
 ///
+/// On a site with a release search, a show that has no AniList or TMDB page can be made
+/// from `name` and `anime`. The site searches the names of video releases (the names that
+/// debrid services find videos by). Enough releases, of enough age, must name the show.
+/// The entry is unverified until an editor looks at it.
+///
 /// Note that only API keys bound to editor users can use
-/// fields other than `tmdb_id` and `anilist_id`.
+/// fields other than `tmdb_id` and `anilist_id`, except as said above.
 #[utoipa::path(
     post,
     path = "/api/entries",
@@ -341,8 +353,11 @@ pub async fn create_entry(
     };
     let anilist_id = payload.anilist_id;
     let tmdb_id = payload.tmdb_id;
-    if !account.flags.is_editor()
-        && (payload.name.is_some()
+    let is_editor = account.flags.is_editor();
+    // With a release search, each user may name a show that has no AniList or TMDB page.
+    let may_name = is_editor || (anilist_id.is_none() && tmdb_id.is_none() && state.config().release_index.is_some());
+    if !is_editor
+        && ((payload.name.is_some() && !may_name)
             || payload.japanese_name.is_some()
             || payload.english_name.is_some()
             || payload.flags.is_some())
@@ -350,29 +365,32 @@ pub async fn create_entry(
         return Err(ApiError::forbidden());
     }
 
-    let flags = if payload.flags.is_none() && payload.name.is_some() {
-        let mut flags = EntryFlags::new();
-        flags.set_anime(anilist_id.is_some());
-        Some(flags)
-    } else {
-        payload.flags
-    };
-    let titles = if let Some(name) = &payload.name {
-        Some(MediaTitle {
-            romaji: name.clone(),
-            english: payload.english_name,
-            native: payload.japanese_name,
-        })
-    } else {
-        None
+    let anime = anilist_id.is_some() || (tmdb_id.is_none() && payload.anime);
+    // An editor names the entry. The name of any other user goes to the release check.
+    let (flags, titles) = match &payload.name {
+        Some(name) if is_editor => {
+            let flags = payload.flags.or_else(|| {
+                let mut flags = EntryFlags::new();
+                flags.set_anime(anime);
+                Some(flags)
+            });
+            let titles = MediaTitle {
+                romaji: name.clone(),
+                english: payload.english_name,
+                native: payload.japanese_name,
+            };
+            (flags, Some(titles))
+        }
+        _ => (payload.flags, None),
     };
 
     let pending = PendingDirectoryEntry {
-        anime: anilist_id.is_some(),
+        anime,
         anilist_id,
         tmdb_id,
         titles,
         flags,
+        name: payload.name.clone().filter(|_| !is_editor),
         ..Default::default()
     };
 

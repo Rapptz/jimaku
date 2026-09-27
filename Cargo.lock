@@ -1657,6 +1657,7 @@ dependencies = [
  "hyper-util",
  "percent-encoding",
  "pin-project-lite",
+ "quick-xml",
  "quick_cache",
  "rawzip",
  "regex",

@@ -58,16 +58,19 @@
 <dialog id="upload-modal">
   <form method="post" action="/entry/create" autocomplete="off">
     <h1>Create folder</h1>
+    {#- With a release search, a show without an AniList or TMDB page can be added by its name. -#}
+    {%- let release_search = crate::CONFIG.get().unwrap().release_index.is_some() -%}
+    {%- let page_required = !editor && !release_search -%}
     <div class="form-container">
       {%- if anime -%}
       <label for="anilist-url">AniList URL</label>
-      <input class="form-field" {%- if !editor -%} required {%- endif -%}
+      <input class="form-field" {%- if page_required -%} required {%- endif -%}
              pattern="{{ crate::filters::ANILIST_PATTERN }}"
              placeholder="https://anilist.co/anime/12345/" name="anilist_url" id="anilist-url"
              autocomplete="off" type="text">
       {%- else -%}
       <label for="tmdb-url">TMDB URL</label>
-      <input class="form-field" {%- if !editor -%} required {%- endif -%}
+      <input class="form-field" {%- if page_required -%} required {%- endif -%}
              pattern="{{ crate::filters::TMDB_PATTERN }}"
              placeholder="https://www.themoviedb.org/tv/12345" name="tmdb_url" id="tmdb-url"
              autocomplete="off" type="text">
@@ -75,6 +78,9 @@
       {% if editor %}
       <label for="directory-name">Directory Name</label>
       <input class="form-field" name="name" id="directory-name" autocomplete="off" type="text">
+      {% else if release_search %}
+      <label for="directory-name">Or, for a show without that page: its name, as video releases write it (the site checks it against the names of the releases)</label>
+      <input class="form-field" name="name" id="directory-name" maxlength="200" autocomplete="off" type="text">
       {% endif %}
       <input type="hidden" name="anime" value="{{ anime }}">
     </div>

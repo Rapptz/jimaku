@@ -249,6 +249,40 @@ pub fn directory_entry_path(
     state.config().subtitle_path.join(directory_name)
 }
 
+/// Checks a show that has no AniList or TMDB page against the releases of the show, for a
+/// user who is not an editor. The `Ok` value is the note for the new entry.
+async fn check_show_releases(
+    state: &AppState,
+    index: &crate::release::ReleaseIndex,
+    name: &str,
+    anime: bool,
+) -> Result<String, ApiError> {
+    // One show, one entry. "Show Part 3" is the entry "Show", which holds each part.
+    let key = crate::release::show_key(name);
+    let entries = state.directory_entries().await;
+    let same = entries.iter().find(|e| {
+        e.flags.is_anime() == anime
+            && std::iter::once(e.name.as_str())
+                .chain(e.english_name.as_deref())
+                .chain(e.japanese_name.as_deref())
+                .any(|other| crate::release::show_key(other) == key)
+    });
+    if let Some(same) = same {
+        return Err(ApiError::new(format!(
+            "This show is here already: \"{}\" (/entry/{}). Upload your subtitles there.",
+            same.name, same.id
+        ))
+        .with_code(ApiErrorCode::EntryAlreadyExists));
+    }
+    let evidence = index.find_show(&state.client, name).await.map_err(|e| {
+        tracing::warn!(error = %e, "the release search did not answer");
+        ApiError::new("The release search did not answer. Try again later.").with_code(ApiErrorCode::ServerError)
+    })?;
+    index
+        .judge(name, evidence, OffsetDateTime::now_utc())
+        .map_err(ApiError::new)
+}
+
 pub async fn raw_create_directory_entry(
     state: &AppState,
     account: Account,
@@ -261,6 +295,13 @@ pub async fn raw_create_directory_entry(
         return Err(ApiError::new("Account is restricted from uploading").with_code(ApiErrorCode::NoPermissions));
     }
 
+    let mut pending = pending;
+    // A show without an AniList or TMDB page. The releases of the show can vouch for it.
+    let release_index = state
+        .config()
+        .release_index
+        .as_ref()
+        .filter(|_| pending.anilist_id.is_none() && pending.tmdb_id.is_none() && pending.titles.is_none());
     let (names, flags) = match pending.get_info(state).await? {
         Some(title) => title,
         None if account.flags.is_editor() => {
@@ -272,7 +313,19 @@ pub async fn raw_create_directory_entry(
                 return Err(ApiError::new("Missing name, anilist_id, or tmdb_id for directory."));
             }
         }
-        None => return Err(ApiError::new("Missing anilist_id or tmdb_id for directory.")),
+        None => match (release_index, pending.name.as_deref().map(str::trim)) {
+            (Some(index), Some(name)) if !name.is_empty() => {
+                let name = name.to_owned();
+                let note = check_show_releases(state, index, &name, pending.anime).await?;
+                pending.notes.get_or_insert(note);
+                let mut flags = EntryFlags::new();
+                flags.set_anime(pending.anime);
+                // A release name is evidence, not proof. An editor must look at the entry.
+                flags.set_unverified(true);
+                (MediaTitle::new(name), flags)
+            }
+            _ => return Err(ApiError::new("Missing anilist_id or tmdb_id for directory.")),
+        },
     };
 
     let path = pending.path(&names.romaji, pending.anime, state);
@@ -1096,7 +1149,7 @@ async fn process_files(entry_path: &std::path::Path, mut multipart: Multipart) -
 }
 
 /// The result of an upload operation.
-#[derive(Debug, Clone, Copy, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct UploadResult {
     /// The number of files that did not succeed due to a filesystem error.
     errors: usize,
@@ -1104,6 +1157,9 @@ pub struct UploadResult {
     total: usize,
     /// The number of files that were skipped due to some reason
     skipped: usize,
+    /// The result of the release check: how many files match a release of the show, and
+    /// each file whose episode no release names. Empty when the site has no release search.
+    notes: Vec<String>,
 }
 
 impl UploadResult {
@@ -1131,9 +1187,15 @@ pub async fn raw_upload_file(
         return Err(ApiError::new("Account is restricted from uploading").with_code(ApiErrorCode::NoPermissions));
     }
 
-    let Some(entry) = state.get_directory_entry_path(entry_id).await else {
+    let Some(entry) = state.get_directory_entry(entry_id).await else {
         return Err(ApiError::not_found("Entry not found"));
     };
+    // The release check compares the files of the entry with the releases of the show.
+    let names: Vec<String> = std::iter::once(entry.name)
+        .chain(entry.english_name)
+        .chain(entry.japanese_name)
+        .collect();
+    let entry = entry.path;
 
     let Ok(processed) = process_files(&entry, multipart).await else {
         return Err(ApiError::new("Internal error when processing files").with_code(ApiErrorCode::ServerError));
@@ -1149,6 +1211,7 @@ pub async fn raw_upload_file(
     let mut data = audit::Upload {
         files: Vec::with_capacity(total),
         api,
+        unmatched: Vec::new(),
     };
     let mut set = JoinSet::new();
     for file in processed.files.into_iter() {
@@ -1166,6 +1229,27 @@ pub async fn raw_upload_file(
                 data.files.push(op);
             }
             _ => errored += 1,
+        }
+    }
+
+    let mut notes = Vec::new();
+    if let Some(index) = &state.config().release_index {
+        let written: Vec<String> = data
+            .files
+            .iter()
+            .filter(|f| !f.failed)
+            .map(|f| f.name.clone())
+            .collect();
+        if !written.is_empty() {
+            let names: Vec<&str> = names.iter().map(String::as_str).collect();
+            let checks = crate::release::check_files(&state.client, index, &names, &written).await;
+            notes = crate::release::notes(&written, &checks);
+            data.unmatched = written
+                .into_iter()
+                .zip(checks)
+                .filter(|(_, check)| *check == crate::release::FileCheck::NotNamed)
+                .map(|(name, _)| name)
+                .collect();
         }
     }
 
@@ -1199,6 +1283,7 @@ pub async fn raw_upload_file(
         errors: errored,
         total,
         skipped: processed.skipped,
+        notes,
     })
 }
 
@@ -1214,18 +1299,28 @@ async fn upload_file(
         Ok(result) => result,
         Err(msg) => return flasher.add(msg.error.as_ref()).bail(&url),
     };
-    let message = if result.is_success() {
-        FlashMessage::success("Upload successful.")
+    // The first note sums up the release check. The next notes name the files that no
+    // release names, which the uploader must look at.
+    let notes: String = result.notes.iter().map(|note| format!(" {note}")).collect();
+    let message = if result.is_success() && result.notes.len() < 2 {
+        FlashMessage::success(format!("Upload successful.{notes}"))
+    } else if result.is_success() {
+        FlashMessage::warning(format!("Upload successful.{notes}"))
     } else if result.is_error() {
         FlashMessage::error("Upload failed.")
     } else {
         let successful = result.successful();
         FlashMessage::warning(format!(
-            "Uploaded {successful} file{}, {} {} skipped and {} failed",
+            "Uploaded {successful} file{}, {} {} skipped and {} failed{}",
             if successful == 1 { "" } else { "s" },
             result.skipped,
             if result.skipped == 1 { "was" } else { "were" },
             result.errors,
+            if notes.is_empty() {
+                String::new()
+            } else {
+                format!(".{notes}")
+            },
         ))
     };
     flasher.add(message).bail(&url)
@@ -1577,6 +1672,7 @@ async fn create_imported_entry(
     let mut data = audit::Upload {
         files: Vec::with_capacity(payload.files.len()),
         api: false,
+        unmatched: Vec::new(),
     };
     for file in payload.files {
         let p = path.clone();

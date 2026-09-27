@@ -243,8 +243,11 @@ const auditLogTypes = Object.freeze({
       " in ",
       entryLink(log.entry_id, info),
     ];
-    let files = data.files.map(fileToElement);
-    return auditLogEntry(log.id, title, html('ul', files));
+    let contents = [html('ul', data.files.map(fileToElement))];
+    if(data.unmatched?.length) {
+      contents.push(html('span.reason', html('strong', 'No release names the episode of: '), data.unmatched.join(', ')));
+    }
+    return auditLogEntry(log.id, title, contents);
   },
   delete_files: (data, log, info) => {
     let title = [

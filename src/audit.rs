@@ -195,6 +195,9 @@ impl RenameFiles {
 pub struct Upload {
     pub files: Vec<FileOperation>,
     pub api: bool,
+    /// The files for an episode that no release of the show names. See `release`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unmatched: Vec<String>,
 }
 
 impl Upload {

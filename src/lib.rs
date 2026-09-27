@@ -23,6 +23,7 @@ pub mod models;
 pub mod notification;
 pub mod ratelimit;
 pub mod relations;
+pub mod release;
 pub mod routes;
 mod state;
 pub mod tmdb;
