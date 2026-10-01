@@ -8,7 +8,7 @@ use axum::{
     Json, Router,
     extract::State,
     http::{
-        Method,
+        HeaderName, Method,
         header::{AUTHORIZATION, USER_AGENT},
     },
     routing::{get, post},
@@ -22,6 +22,8 @@ use utoipa::{
 use crate::error::ApiError;
 pub use auth::{ApiToken, copy_api_token};
 pub use entries::SearchQuery;
+
+const X_CLIENT_ID: HeaderName = HeaderName::from_static("x-client-id");
 
 #[derive(OpenApi)]
 #[openapi(
@@ -101,6 +103,6 @@ pub fn routes() -> Router<AppState> {
                 .allow_methods([Method::GET, Method::POST])
                 .allow_credentials(true)
                 .allow_origin(AllowOrigin::mirror_request())
-                .allow_headers([AUTHORIZATION, USER_AGENT]),
+                .allow_headers([AUTHORIZATION, USER_AGENT, X_CLIENT_ID]),
         )
 }

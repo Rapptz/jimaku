@@ -8,6 +8,10 @@ Jimaku uses API keys to allow access to the API. Authentication is done using th
 
 If you have not generated an API key yet, you can do so on your [account page](/account).
 
+### User Agent
+
+Please set a descriptive `User-Agent` header if possible. This helps when debugging something internally in case something goes wrong. If `User-Agent` cannot be set (e.g. due to using `fetch`) please use the custom `X-Client-Id` header instead. In the future, requests without either of these headers might be rejected.
+
 ### Core Concepts
 
 Jimaku is basically a directory listing where every [Entry](#model/entry) represents a directory. These directories are backed by either a TMDB ID or an AniList ID. Users with editor privileges can bypass this requirement for extraordinary cases.
