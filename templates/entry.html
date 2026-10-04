@@ -29,7 +29,7 @@
     {% match entry.tmdb_id %}
     {% when Some with (id) %}
     <a href="{{ id.url() }}" title="TMDB page for this series">
-      <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="48px" height="24px" alt="TMDB icon" />
+      <img src="https://www.themoviedb.org/assets/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="48px" height="24px" alt="TMDB icon" />
     </a>
     {% when None %}
     {% endmatch %}
@@ -39,7 +39,7 @@
       {% when Some with (id) %}
       <div class="external-links">
         <a href="{{ id.url() }}" title="TMDB page for this series">
-          <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="48px" height="24px" alt="TMDB icon" />
+          <img src="https://www.themoviedb.org/assets/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="48px" height="24px" alt="TMDB icon" />
         </a>
       </div>
       {% when None %}
